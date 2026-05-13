@@ -1,0 +1,40 @@
+# config.py
+# 환경변수 설정 담당
+# .env 파일에서 환경변수를 읽어와 앱 전체에서 사용할 수 있도록 관리
+
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    # App
+    TIMEZONE: str = "Asia/Seoul"
+
+    # JWT
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 14
+
+    # Database
+    DB_HOST: str = ""
+    DB_PORT: int = 3306
+    DB_NAME: str = ""
+    DB_USER: str = ""
+    DB_PASSWORD: str = ""
+
+    # Google OAuth
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+
+    # Kakao OAuth
+    KAKAO_CLIENT_ID: str = ""
+    KAKAO_CLIENT_SECRET: str = ""
+
+    # OpenAI
+    OPENAI_API_KEY: str = ""
+
+    class Config:
+        env_file = ".env"
+
+
+settings = Settings()

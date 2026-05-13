@@ -25,6 +25,7 @@ env/
 *.iml
 
 # 민감 정보
+.env
 .env.development
 .env.production
 firebase_key.json
