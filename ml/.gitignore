@@ -1,0 +1,9 @@
+data/raw/
+rag/documents/
+rag/embeddings/
+models/
+__pycache__/
+*.pkl
+*.joblib
+.env
+.DS_Store
