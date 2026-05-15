@@ -1,54 +1,76 @@
 # api/v1/auth.py
 # 인증 관련 엔드포인트 담당
 # 회원가입, 로그인, 로그아웃, 토큰 재발급
-# 소셜 로그인 (Google, Kakao)
+# 소셜 로그인 (Google)
 # 이메일 찾기, 비밀번호 재설정
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.schemas.auth import (
+    RegisterRequest, RegisterResponse,
+    LoginRequest, LoginResponse,
+    LogoutRequest, LogoutResponse,
+    TokenRefreshRequest, TokenRefreshResponse,
+    SocialCallbackRequest, SocialLoginResponse,
+    FindEmailRequest, FindEmailResponse,
+    FindPasswordRequest, FindPasswordResponse,
+    ResetPasswordRequest, ResetPasswordResponse,
+)
+from app.services import auth_service
 
 router = APIRouter()
 
+
 # POST /api/v1/auth/register - 회원가입
-@router.post("/register")
-def register():
-    pass
+@router.post("/register", response_model=RegisterResponse, status_code=201)
+def register(request: RegisterRequest, db: Session = Depends(get_db)):
+    return auth_service.register(request, db)
+
 
 # POST /api/v1/auth/login - 로그인
-@router.post("/login")
-def login():
-    pass
+@router.post("/login", response_model=LoginResponse)
+def login(request: LoginRequest, db: Session = Depends(get_db)):
+    return auth_service.login(request, db)
+
 
 # POST /api/v1/auth/logout - 로그아웃
-@router.post("/logout")
-def logout():
-    pass
+@router.post("/logout", response_model=LogoutResponse)
+def logout(request: LogoutRequest, db: Session = Depends(get_db)):
+    return auth_service.logout(request, db)
+
 
 # POST /api/v1/auth/token/refresh - 액세스 토큰 재발급
-@router.post("/token/refresh")
-def refresh_token():
-    pass
+@router.post("/token/refresh", response_model=TokenRefreshResponse)
+def refresh_token(request: TokenRefreshRequest, db: Session = Depends(get_db)):
+    return auth_service.refresh_token(request, db)
+
 
 # GET /api/v1/auth/social/{provider} - 소셜 로그인 요청
 @router.get("/social/{provider}")
 def social_login(provider: str):
-    pass
+    return auth_service.social_login(provider)
+
 
 # POST /api/v1/auth/social/{provider}/callback - 소셜 로그인 콜백
-@router.post("/social/{provider}/callback")
-def social_login_callback(provider: str):
-    pass
+@router.post("/social/{provider}/callback", response_model=SocialLoginResponse)
+def social_login_callback(provider: str, request: SocialCallbackRequest, db: Session = Depends(get_db)):
+    return auth_service.social_login_callback(provider, request, db)
+
 
 # POST /api/v1/auth/email/find - 이메일 찾기
-@router.post("/email/find")
-def find_email():
-    pass
+@router.post("/email/find", response_model=FindEmailResponse)
+def find_email(request: FindEmailRequest, db: Session = Depends(get_db)):
+    return auth_service.find_email(request, db)
+
 
 # POST /api/v1/auth/password/find - 비밀번호 재설정 링크 발송
-@router.post("/password/find")
-def find_password():
-    pass
+@router.post("/password/find", response_model=FindPasswordResponse)
+def find_password(request: FindPasswordRequest, db: Session = Depends(get_db)):
+    return auth_service.find_password(request, db)
+
 
 # PUT /api/v1/auth/password/reset - 비밀번호 재설정
-@router.put("/password/reset")
-def reset_password():
-    pass
+@router.put("/password/reset", response_model=ResetPasswordResponse)
+def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    return auth_service.reset_password(request, db)
