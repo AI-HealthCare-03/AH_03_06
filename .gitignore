@@ -38,3 +38,5 @@ firebase_key.json
 # OS
 .DS_Store
 Thumbs.db
+# 노트북 평가 결과 (로컬 회귀 비교용)
+ml/notebooks/medication/eval_results/
