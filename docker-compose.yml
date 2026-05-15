@@ -1,0 +1,15 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: viva_backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.development
+    volumes:
+      - ./backend:/app
+
+volumes:
+  mysql_data:

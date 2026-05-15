@@ -152,3 +152,6 @@ zipp==3.23.1
 zstandard==0.25.0
 pdf2image==1.17.0
 pymupdf==1.26.0
+augraphy==8.2.6
+easyocr==1.7.2
+opencv-python-headless==4.13.0.92
