@@ -1,11 +1,14 @@
 data/raw/
-data/processed
+data/processed/
 *.csv
 *.hwp
 *.pdf
+*.png
 
 data/ocr/prescriptions/output/
 data/ocr/prescriptions/output_png/
+data/ocr/prescriptions/output_aug/
+data/ocr/prescriptions/output_ocr/
 
 rag/documents/
 rag/embeddings/
@@ -15,5 +18,8 @@ __pycache__/
 *.pkl
 *.joblib
 
+venv/
 .env
+.env.development
+.env.production
 .DS_Store
