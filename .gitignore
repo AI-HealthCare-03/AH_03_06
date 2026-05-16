@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+wheels/
+pip-wheel-metadata/
+
+# 가상환경
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# 민감 정보
+.env
+.env.development
+.env.production
+firebase_key.json
+*.pem
+*.key
+
+# 로그
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
