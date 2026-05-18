@@ -74,8 +74,8 @@ def find_email(request: FindEmailRequest, db: Session = Depends(get_db)):
 
 # POST /api/v1/auth/password/find - 비밀번호 재설정 링크 발송
 @router.post("/password/find", response_model=FindPasswordResponse)
-def find_password(request: FindPasswordRequest, db: Session = Depends(get_db)):
-    return auth_service.find_password(request, db)
+async def find_password(request: FindPasswordRequest, db: Session = Depends(get_db)):
+    return await auth_service.find_password(request, db)
 
 
 # PUT /api/v1/auth/password/reset - 비밀번호 재설정
