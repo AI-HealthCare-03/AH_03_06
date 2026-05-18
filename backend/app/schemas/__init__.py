@@ -18,3 +18,13 @@ from app.schemas.auth import (
     ResetPasswordRequest,
     ResetPasswordResponse,
 )
+
+from app.schemas.health_checkup import (
+    HealthCheckupCreateRequest,
+    HealthCheckupUpdateRequest,
+    HealthCheckupResponse,
+    HealthCheckupListResponse,
+    HealthCheckupDeleteResponse,
+    HealthClassificationResponse,
+    HealthTrendResponse,
+)

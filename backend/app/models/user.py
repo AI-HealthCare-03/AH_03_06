@@ -23,3 +23,4 @@ class User(Base):
 
     social_logins = relationship("SocialLogin", back_populates="user")
     refresh_tokens = relationship("RefreshToken", back_populates="user")
+    health_checkups = relationship("HealthCheckup", back_populates="user")
