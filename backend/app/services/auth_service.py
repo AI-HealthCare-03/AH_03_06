@@ -1,15 +1,23 @@
 # app/services/auth_service.py
 # 인증 관련 비즈니스 로직
 
+# app/services/auth_service.py
+# 인증 관련 비즈니스 로직
+
+# 1. 표준 라이브러리
 import random
 import re
 from datetime import datetime, timedelta
+
+# 2. 서드파티 라이브러리
+import httpx
 from fastapi import HTTPException
 from fastapi.responses import RedirectResponse
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
+# 3. 로컬 모듈
 from app.config import settings
 from app.models.user import User
 from app.models.social_login import SocialLogin
@@ -194,13 +202,105 @@ def social_login(provider: str) -> RedirectResponse:
     return RedirectResponse(url=GOOGLE_AUTH_URL + params)
 
 
-def social_login_callback(provider: str, request: SocialCallbackRequest, db: Session):
+def social_login_callback(provider: str, code: str, db: Session):
     """소셜 로그인 콜백 - 인가 코드로 유저 정보 조회 후 토큰 발급"""
     if provider != "google":
         raise HTTPException(status_code=400, detail="invalid_provider")
 
-    # TODO: Google OAuth 인가 코드로 access_token 및 유저 정보 조회 구현
-    raise HTTPException(status_code=500, detail="server_error")
+    # 1. 인가 코드로 Google access_token 발급
+    token_response = httpx.post(
+        "https://oauth2.googleapis.com/token",
+        data={
+            "code": code,
+            "client_id": settings.GOOGLE_CLIENT_ID,
+            "client_secret": settings.GOOGLE_CLIENT_SECRET,
+            "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+            "grant_type": "authorization_code",
+        }
+    )
+    print(f"token_response status: {token_response.status_code}")
+    print(f"token_response body: {token_response.json()}")
+
+    if token_response.status_code != 200:
+        raise HTTPException(status_code=400, detail="invalid_code")
+
+    google_access_token = token_response.json().get("access_token")
+
+    # 2. Google access_token으로 유저 정보 조회
+    userinfo_response = httpx.get(
+        "https://www.googleapis.com/oauth2/v2/userinfo",
+        headers={"Authorization": f"Bearer {google_access_token}"}
+    )
+    if userinfo_response.status_code != 200:
+        raise HTTPException(status_code=400, detail="invalid_code")
+
+    userinfo = userinfo_response.json()
+    google_id = userinfo.get("id")
+    email = userinfo.get("email")
+    name = userinfo.get("name")
+
+    # 3. 기존 소셜 로그인 유저 조회
+    social = db.query(SocialLogin).filter(
+        SocialLogin.provider == "google",
+        SocialLogin.provider_id == google_id
+    ).first()
+
+    if social:
+        # 기존 회원 → 200 OK
+        user = db.query(User).filter(User.id == social.user_id).first()
+        status_code = 200
+    else:
+        # 최초 가입 → 201 Created
+        user = db.query(User).filter(User.email == email).first()
+        if not user:
+            nickname = generate_nickname(db)
+            user = User(
+                email=email,
+                name=name,
+                nickname=nickname,
+                password_hash=None
+            )
+            db.add(user)
+            db.flush()
+
+        social = SocialLogin(
+            user_id=user.id,
+            provider="google",
+            provider_id=google_id,
+            access_token=google_access_token
+        )
+        db.add(social)
+        db.commit()
+        db.refresh(user)
+        status_code = 201
+
+    # 4. JWT 토큰 발급
+    access_token = create_access_token(user_id=user.id)
+    refresh_token = create_refresh_token(user_id=user.id)
+
+    # 5. refresh_token DB 저장
+    db.add(RefreshToken(
+        user_id=user.id,
+        token=refresh_token,
+        provider="google",
+        expires_at=datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    ))
+    db.commit()
+
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "name": user.name,
+                "nickname": user.nickname
+            }
+        }
+    )
 
 
 def find_email(request: FindEmailRequest, db: Session) -> FindEmailResponse:
