@@ -1,36 +1,16 @@
-# Viva Frontend
+# React + Vite
 
-진료기록 기반 복약 안내 및 생활습관 개선 가이드 자동 생성 서비스 프론트엔드
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-## 기술 스택
+Currently, two official plugins are available:
 
-- HTML
-- CSS
-- JavaScript
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-## 폴더 구조
+## React Compiler
 
-```
-frontend/
-├── pages/
-│   ├── auth/           # 인증 관련 페이지 (로그인, 회원가입 등)
-│   ├── medication/     # 복약 관련 페이지
-│   ├── medical-record/ # 진료기록 관련 페이지
-│   ├── health-checkup/ # 건강검진 관련 페이지
-│   ├── guide/          # 가이드 관련 페이지 (식단/운동/수면)
-│   ├── dashboard/      # 홈/대시보드 페이지
-│   └── user/           # 마이페이지 관련 페이지
-├── assets/
-│   ├── css/            # 스타일시트
-│   ├── js/             # 자바스크립트
-│   └── images/         # 이미지 파일
-└── components/         # 공통 컴포넌트 (헤더, 푸터, 네브바)
-```
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-## 실행 방법
+## Expanding the ESLint configuration
 
-브라우저에서 pages/dashboard/home.html 파일을 열어 실행합니다.
-
-## API 연동
-
-백엔드 API 주소: http://127.0.0.1:8000
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
