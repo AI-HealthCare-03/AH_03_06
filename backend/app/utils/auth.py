@@ -5,12 +5,14 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 from sqlalchemy.orm import Session
+from passlib.context import CryptContext
 
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
 
 bearer_scheme = HTTPBearer()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def get_current_user(
@@ -31,3 +33,7 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="invalid_token")
 
     return user
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
