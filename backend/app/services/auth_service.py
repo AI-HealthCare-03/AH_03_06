@@ -75,42 +75,50 @@ def mask_email(email: str) -> str:
     return f"{masked}@{domain}"
 
 
-def register(request: RegisterRequest, db: Session) -> RegisterResponse:
-    """회원가입 - 이메일 중복 확인 후 유저 생성"""
-    # 비밀번호 확인
+def register(request: RegisterRequest, db: Session):
     if request.password != request.password_confirm:
         raise HTTPException(status_code=400, detail="password_mismatch")
 
-    # 이메일 중복 확인
     if db.query(User).filter(User.email == request.email).first():
         raise HTTPException(status_code=400, detail="duplicate_email")
 
-    # 닉네임 자동 생성
-    nickname = generate_nickname(db)
-
-    # 비밀번호 해시 처리
     password_hash = pwd_context.hash(request.password)
 
-    # 유저 생성
     user = User(
         email=request.email,
         password_hash=password_hash,
         name=request.name,
-        nickname=nickname
     )
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    return RegisterResponse(
-        user=UserResponse(
-            id=user.id,
-            email=user.email,
-            name=user.name,
-            nickname=user.nickname
-        )
-    )
+    # 토큰 발급
+    access_token = create_access_token(user_id=user.id)
+    refresh_token = create_refresh_token(user_id=user.id)
 
+    db.add(RefreshToken(
+        user_id=user.id,
+        token=refresh_token,
+        provider="email",
+        expires_at=datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    ))
+    db.commit()
+
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=201,
+        content={
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "name": user.name,
+                "nickname": user.nickname
+            }
+        }
+    )
 
 def login(request: LoginRequest, db: Session) -> LoginResponse:
     """로그인 - 이메일/비밀번호 검증 후 토큰 발급"""

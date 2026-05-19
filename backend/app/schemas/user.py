@@ -9,13 +9,15 @@ class UserProfileResponse(BaseModel):
     id: int
     email: str
     name: str
-    nickname: str
+    nickname: Optional[str] = None
     profile_image_url: Optional[str] = None
     birthday: Optional[date] = None
     gender: Optional[str] = None
     height: Optional[float] = None
     weight: Optional[float] = None
     underlying_diseases: list[str] = []
+    smoking_status: Optional[int] = None
+    alcohol_status: Optional[int] = None
 
 
 # 내 프로필 수정 요청
@@ -24,6 +26,8 @@ class UpdateProfileRequest(BaseModel):
     height: Optional[float] = None
     weight: Optional[float] = None
     underlying_diseases: Optional[list[str]] = None
+    smoking_status: Optional[int] = None
+    alcohol_status: Optional[int] = None
 
 
 # 내 프로필 수정 응답
