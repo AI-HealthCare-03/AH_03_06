@@ -39,5 +39,7 @@ firebase_key.json
 .DS_Store
 Thumbs.db
 
-# 노트북 평가 결과 (로컬 회귀 비교용)
-ml/notebooks/medication/eval_results/
+# 프론트엔드
+frontend/node_modules/
+frontend/.vite/frontend/node_modules/
+frontend/.vite/
