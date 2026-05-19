@@ -1,7 +1,31 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { getAccessToken } from '../../utils/token.js'
+
+const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
 function Home() {
   const navigate = useNavigate()
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+    console.log('base:', base)
+    console.log('token:', getAccessToken())
+    fetch(`${base}/users/me`, {
+      headers: { Authorization: `Bearer ${getAccessToken()}` }
+    })
+      .then(res => {
+        console.log('status:', res.status)
+        return res.json()
+      })
+      .then(data => {
+        console.log('user data:', data)
+        setUser(data)
+      })
+      .catch(err => console.log('error:', err))
+  }, [])
+
+  const nickname = user?.nickname ?? '...'
 
   return (
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
@@ -10,7 +34,7 @@ function Home() {
         {/* 헤더 */}
         <header className="sticky top-0 z-40 bg-white border-b border-[#F4F4F5] px-5 h-[72px] flex items-center justify-between">
           <div>
-            <h1 className="text-[17px] font-bold text-[#18181B] leading-tight tracking-tight">안녕하세요, 활기찬햇님 👋</h1>
+            <h1 className="text-[17px] font-bold text-[#18181B] leading-tight tracking-tight">안녕하세요, {nickname}님 👋</h1>
             <p className="text-[12px] text-[#52525B] mt-0.5">오늘도 건강한 하루 보내세요</p>
           </div>
           <button className="relative w-10 h-10 flex items-center justify-center text-[#09090B] rounded-[8px]">
