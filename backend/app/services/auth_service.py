@@ -7,6 +7,7 @@ import httpx
 from datetime import datetime, timedelta
 from fastapi import HTTPException
 from fastapi.responses import RedirectResponse
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
@@ -284,8 +285,8 @@ def find_email(request: FindEmailRequest, db: Session) -> FindEmailResponse:
     return FindEmailResponse(email=mask_email(user.email))
 
 
-def find_password(request: FindPasswordRequest, db: Session) -> FindPasswordResponse:
-    """비밀번호 재설정 링크 발송 - 이메일, 이름 일치 확인 후 재설정 링크 발송"""
+async def find_password(request: FindPasswordRequest, db: Session) -> FindPasswordResponse:
+    """비밀번호 재설정 링크 발송 - 이메일/이름 일치 확인 후 재설정 링크 발송"""
     user = db.query(User).filter(
         User.email == request.email,
         User.name == request.name
@@ -301,8 +302,42 @@ def find_password(request: FindPasswordRequest, db: Session) -> FindPasswordResp
         algorithm=ALGORITHM
     )
 
-    # TODO: 이메일 발송 구현
-    # send_reset_email(user.email, reset_token)
+    # 이메일 발송 설정
+    conf = ConnectionConfig(
+        MAIL_USERNAME=settings.MAIL_USERNAME,
+        MAIL_PASSWORD=settings.MAIL_PASSWORD,
+        MAIL_FROM=settings.MAIL_FROM,
+        MAIL_PORT=settings.MAIL_PORT,
+        MAIL_SERVER=settings.MAIL_SERVER,
+        MAIL_STARTTLS=True,
+        MAIL_SSL_TLS=False,
+        USE_CREDENTIALS=True
+    )
+
+    # 이메일 내용
+    reset_link = f"http://localhost:3000/password/reset?token={reset_token}"
+    message = MessageSchema(
+        subject="[Viva] 비밀번호 재설정 링크",
+        recipients=[user.email],
+        body=f"""
+        안녕하세요, {user.name}님.
+
+        비밀번호 재설정 링크입니다. 링크는 30분간 유효합니다.
+
+        {reset_link}
+
+        본인이 요청하지 않은 경우 이 이메일을 무시하세요.
+        """,
+        subtype="plain"
+    )
+
+    # 비동기 이메일 발송
+    import asyncio
+    try:
+        fm = FastMail(conf)
+        await fm.send_message(message)
+    except Exception as e:
+        print(f"이메일 발송 실패: {e}")
 
     return FindPasswordResponse(detail="reset_link_sent")
 

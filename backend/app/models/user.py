@@ -20,7 +20,6 @@ class User(Base):
 
     social_logins = relationship("SocialLogin", back_populates="user")
     refresh_tokens = relationship("RefreshToken", back_populates="user")
-    health_checkups = relationship("HealthCheckup", back_populates="user")
     profile = relationship("UserProfile", back_populates="user", uselist=False)
     health_info = relationship("UserHealthInfo", back_populates="user", uselist=False)
     underlying_diseases = relationship("UserUnderlyingDisease", back_populates="user")
