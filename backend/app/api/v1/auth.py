@@ -52,10 +52,18 @@ def social_login(provider: str):
     return auth_service.social_login(provider)
 
 
-# POST /api/v1/auth/social/{provider}/callback - 소셜 로그인 콜백
-@router.post("/social/{provider}/callback", response_model=SocialLoginResponse)
-def social_login_callback(provider: str, request: SocialCallbackRequest, db: Session = Depends(get_db)):
-    return auth_service.social_login_callback(provider, request, db)
+# GET /api/v1/auth/social/{provider}/callback - 소셜 로그인 콜백
+@router.get("/social/{provider}/callback")
+def social_login_callback(
+    provider: str,
+    code: str,
+    db: Session = Depends(get_db),
+    iss: str = None,
+    scope: str = None,
+    authuser: str = None,
+    prompt: str = None
+):
+    return auth_service.social_login_callback(provider, code, db)
 
 
 # POST /api/v1/auth/email/find - 이메일 찾기

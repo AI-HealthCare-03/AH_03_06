@@ -1,77 +1,50 @@
-# api/v1/users.py
-# 사용자 관련 엔드포인트 담당
-# 프로필 조회/수정, 회원 탈퇴
-# 닉네임 자동 생성
-# 건강 기본 정보 조회/수정
-# 건강 목표 조회/수정
-# 소셜 로그인 연동 관리
-# 알림 설정 조회/수정
-
-from fastapi import APIRouter
+# app/api/v1/users.py
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.schemas.user import (
+    InitialProfileRequest, InitialProfileResponse,
+    UserProfileResponse, UpdateProfileRequest, UpdateProfileResponse,
+    NicknameResponse, HealthGoalsResponse, UpdateHealthGoalsRequest,
+    SocialAccountsResponse, DeleteAccountRequest
+)
+from app.services import user_service
+from app.utils.auth import get_current_user
+from app.models.user import User
 
 router = APIRouter()
 
-# POST /api/v1/users/profile/initial - 초기 개인정보 설정
-@router.post("/profile/initial")
-def set_initial_profile():
-    pass
 
-# GET /api/v1/users/me - 내 프로필 조회
-@router.get("/me")
-def get_my_profile():
-    pass
+@router.post("/profile/initial", response_model=InitialProfileResponse, status_code=201)
+def set_initial_profile(request: InitialProfileRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return user_service.set_initial_profile(current_user.id, request, db)
 
-# PUT /api/v1/users/me - 내 프로필 수정
-@router.put("/me")
-def update_my_profile():
-    pass
 
-# DELETE /api/v1/users/me - 회원 탈퇴
+@router.get("/me", response_model=UserProfileResponse)
+def get_my_profile(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return user_service.get_my_profile(current_user.id, db)
+
+
+@router.put("/me", response_model=UpdateProfileResponse)
+def update_my_profile(request: UpdateProfileRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return user_service.update_my_profile(current_user.id, request, db)
+
+
 @router.delete("/me")
-def delete_my_account():
-    pass
+def delete_my_account(request: DeleteAccountRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return user_service.delete_my_account(current_user.id, request.password, db)
 
-# GET /api/v1/users/me/nickname - 닉네임 자동 생성
-@router.get("/me/nickname")
-def generate_nickname():
-    pass
 
-# GET /api/v1/users/me/health-info - 건강 기본 정보 조회
-@router.get("/me/health-info")
-def get_health_info():
-    pass
+@router.get("/me/nickname", response_model=NicknameResponse)
+def generate_nickname(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return {"nickname": user_service.generate_nickname(db)}
 
-# PUT /api/v1/users/me/health-info - 건강 기본 정보 수정
-@router.put("/me/health-info")
-def update_health_info():
-    pass
 
-# GET /api/v1/users/me/health-goals - 건강 목표 조회
-@router.get("/me/health-goals")
-def get_health_goals():
-    pass
+@router.get("/me/health-goals", response_model=HealthGoalsResponse)
+def get_health_goals(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return user_service.get_health_goals(current_user.id, db)
 
-# PUT /api/v1/users/me/health-goals - 건강 목표 수정
-@router.put("/me/health-goals")
-def update_health_goals():
-    pass
 
-# GET /api/v1/users/me/social - 소셜 로그인 연동 목록 조회
-@router.get("/me/social")
-def get_social_accounts():
-    pass
-
-# DELETE /api/v1/users/me/social/{provider} - 소셜 로그인 연동 해제
-@router.delete("/me/social/{provider}")
-def disconnect_social_account(provider: str):
-    pass
-
-# GET /api/v1/users/me/notifications - 알림 설정 조회
-@router.get("/me/notifications")
-def get_notification_settings():
-    pass
-
-# PUT /api/v1/users/me/notifications - 알림 설정 수정
-@router.put("/me/notifications")
-def update_notification_settings():
-    pass
+@router.put("/me/health-goals", response_model=HealthGoalsResponse)
+def update_health_goals(request: UpdateHealthGoalsRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return user_service.update
