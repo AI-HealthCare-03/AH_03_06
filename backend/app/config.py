@@ -21,20 +21,13 @@ class Settings(BaseSettings):
     # Google OAuth
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
-    GOOGLE_REDIRECT_URI: str = ""
+
+    # Kakao OAuth
+    KAKAO_CLIENT_ID: str = ""
+    KAKAO_CLIENT_SECRET: str = ""
 
     # OpenAI
     OPENAI_API_KEY: str = ""
-
-    # Email
-    MAIL_USERNAME: str = ""
-    MAIL_PASSWORD: str = ""
-    MAIL_FROM: str = ""
-    MAIL_SERVER: str = "smtp.gmail.com"
-    MAIL_PORT: int = 587
-
-    # Frontend
-    FRONTEND_URL: str = ""
 
     class Config:
         env_file = ".env"
