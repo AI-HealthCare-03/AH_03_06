@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { register } from '../../api/auth.js'
 
 const EyeOpen = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -26,12 +27,10 @@ function Register() {
   const [name, setName] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const [terms, setTerms] = useState({
-    age: false,
-    service: false,
-    privacy: false,
-    sensitive: false,
-    marketing: false,
+    age: false, service: false, privacy: false, sensitive: false, marketing: false,
   })
 
   const requiredTerms = ['age', 'service', 'privacy', 'sensitive']
@@ -43,17 +42,34 @@ function Register() {
     setTerms({ age: checked, service: checked, privacy: checked, sensitive: checked, marketing: checked })
   }
 
-  const handleTerm = (key) => {
-    setTerms(prev => ({ ...prev, [key]: !prev[key] }))
-  }
+  const handleTerm = (key) => setTerms(prev => ({ ...prev, [key]: !prev[key] }))
 
   const isFormValid = email && password && passwordConfirm && name && allRequired
+
+  const fullEmail = domain === 'direct' ? `${email}@${customDomain}` : `${email}@${domain}`
+
+  const handleSubmit = async () => {
+    if (!isFormValid) return
+    if (password !== passwordConfirm) {
+      setError('비밀번호가 일치하지 않아요')
+      return
+    }
+    setError('')
+    setLoading(true)
+    try {
+      await register({ email: fullEmail, password, password_confirm: passwordConfirm, name })
+      navigate('/register/nickname')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center items-center">
       <main className="w-full min-h-[100dvh] bg-white relative flex flex-col overflow-hidden mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8">
 
-        {/* 상단 앱바 */}
         <header className="w-full h-[56px] flex items-center justify-between px-4 bg-white z-10 shrink-0">
           <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center rounded-full">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#18181B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -64,40 +80,24 @@ function Register() {
           <div className="w-10 h-10" />
         </header>
 
-        {/* 스크롤 영역 */}
         <div className="flex-1 overflow-y-auto px-6 pb-[120px]">
 
-          {/* 헤더 */}
           <section className="mt-4 mb-8">
             <h1 className="text-[26px] font-bold tracking-tight text-[#18181B] mb-2">회원가입</h1>
-            <p className="text-[15px] text-[#71717A] leading-relaxed">
-              Viva 서비스 이용을 위해<br/>정보를 입력해주세요.
-            </p>
+            <p className="text-[15px] text-[#71717A] leading-relaxed">Viva 서비스 이용을 위해<br/>정보를 입력해주세요.</p>
           </section>
 
-          {/* 폼 */}
           <section className="space-y-6">
 
-            {/* 이메일 */}
             <div className="space-y-2">
-              <label className="block text-[14px] font-semibold text-[#18181B]">
-                이메일 <span className="text-primary">*</span>
-              </label>
+              <label className="block text-[14px] font-semibold text-[#18181B]">이메일 <span className="text-primary">*</span></label>
               <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="이메일 입력"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="flex-1 h-[52px] bg-[#F5F5F5] rounded-xl px-4 text-[15px] outline-none border border-transparent focus:border-primary"
-                />
+                <input type="text" placeholder="이메일 입력" value={email} onChange={e => setEmail(e.target.value)}
+                  className="flex-1 h-[52px] bg-[#F5F5F5] rounded-xl px-4 text-[15px] outline-none border border-transparent focus:border-primary" />
                 <div className="flex items-center text-[#A1A1AA] font-medium px-1">@</div>
                 <div className="flex-1 relative">
-                  <select
-                    value={domain}
-                    onChange={e => setDomain(e.target.value)}
-                    className="w-full h-[52px] bg-[#F5F5F5] rounded-xl px-4 pr-10 text-[15px] outline-none appearance-none border border-transparent focus:border-primary cursor-pointer"
-                  >
+                  <select value={domain} onChange={e => setDomain(e.target.value)}
+                    className="w-full h-[52px] bg-[#F5F5F5] rounded-xl px-4 pr-10 text-[15px] outline-none appearance-none border border-transparent focus:border-primary cursor-pointer">
                     <option value="naver.com">naver.com</option>
                     <option value="gmail.com">gmail.com</option>
                     <option value="daum.net">daum.net</option>
@@ -108,29 +108,16 @@ function Register() {
                 </div>
               </div>
               {domain === 'direct' && (
-                <input
-                  type="text"
-                  placeholder="도메인 직접 입력"
-                  value={customDomain}
-                  onChange={e => setCustomDomain(e.target.value)}
-                  className="w-full h-[52px] bg-[#F5F5F5] rounded-xl px-4 text-[15px] outline-none"
-                />
+                <input type="text" placeholder="도메인 직접 입력" value={customDomain} onChange={e => setCustomDomain(e.target.value)}
+                  className="w-full h-[52px] bg-[#F5F5F5] rounded-xl px-4 text-[15px] outline-none" />
               )}
             </div>
 
-            {/* 비밀번호 */}
             <div className="space-y-2">
-              <label className="block text-[14px] font-semibold text-[#18181B]">
-                비밀번호 <span className="text-primary">*</span>
-              </label>
+              <label className="block text-[14px] font-semibold text-[#18181B]">비밀번호 <span className="text-primary">*</span></label>
               <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="비밀번호 입력"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="w-full h-[52px] bg-[#F5F5F5] rounded-xl pl-4 pr-12 text-[15px] outline-none border border-transparent focus:border-primary"
-                />
+                <input type={showPassword ? 'text' : 'password'} placeholder="비밀번호 입력" value={password} onChange={e => setPassword(e.target.value)}
+                  className="w-full h-[52px] bg-[#F5F5F5] rounded-xl pl-4 pr-12 text-[15px] outline-none border border-transparent focus:border-primary" />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A1A1AA]">
                   {showPassword ? <EyeOpen /> : <EyeClosed />}
                 </button>
@@ -138,50 +125,31 @@ function Register() {
               <p className="text-[12px] text-[#A1A1AA] ml-1">영문·숫자·특수문자 포함 8자 이상</p>
             </div>
 
-            {/* 비밀번호 확인 */}
             <div className="space-y-2">
-              <label className="block text-[14px] font-semibold text-[#18181B]">
-                비밀번호 확인 <span className="text-primary">*</span>
-              </label>
+              <label className="block text-[14px] font-semibold text-[#18181B]">비밀번호 확인 <span className="text-primary">*</span></label>
               <div className="relative">
-                <input
-                  type={showPasswordConfirm ? 'text' : 'password'}
-                  placeholder="비밀번호를 다시 입력해주세요"
-                  value={passwordConfirm}
-                  onChange={e => setPasswordConfirm(e.target.value)}
-                  className="w-full h-[52px] bg-[#F5F5F5] rounded-xl pl-4 pr-12 text-[15px] outline-none border border-transparent focus:border-primary"
-                />
+                <input type={showPasswordConfirm ? 'text' : 'password'} placeholder="비밀번호를 다시 입력해주세요" value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)}
+                  className="w-full h-[52px] bg-[#F5F5F5] rounded-xl pl-4 pr-12 text-[15px] outline-none border border-transparent focus:border-primary" />
                 <button type="button" onClick={() => setShowPasswordConfirm(!showPasswordConfirm)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A1A1AA]">
                   {showPasswordConfirm ? <EyeOpen /> : <EyeClosed />}
                 </button>
               </div>
             </div>
 
-            {/* 이름 */}
             <div className="space-y-2">
-              <label className="block text-[14px] font-semibold text-[#18181B]">
-                이름 <span className="text-primary">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="실명을 입력해주세요"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                className="w-full h-[52px] bg-[#F5F5F5] rounded-xl px-4 text-[15px] outline-none border border-transparent focus:border-primary"
-              />
+              <label className="block text-[14px] font-semibold text-[#18181B]">이름 <span className="text-primary">*</span></label>
+              <input type="text" placeholder="실명을 입력해주세요" value={name} onChange={e => setName(e.target.value)}
+                className="w-full h-[52px] bg-[#F5F5F5] rounded-xl px-4 text-[15px] outline-none border border-transparent focus:border-primary" />
               <p className="text-[13px] text-[#71717A] ml-1">의료 서비스 제공을 위해 정확한 실명이 필요합니다.</p>
             </div>
 
           </section>
 
-          {/* 약관 */}
           <section className="mt-10 pt-8 border-t border-gray-100">
-
             <label className="flex items-center gap-3 p-4 bg-[#F5F5F5] rounded-[12px] cursor-pointer mb-4">
               <input type="checkbox" checked={allChecked} onChange={handleAgreeAll} className="shrink-0 w-5 h-5 accent-primary" />
               <span className="text-[15px] font-bold text-[#18181B]">전체 동의 (선택 항목 포함)</span>
             </label>
-
             <div className="space-y-2 px-2 flex flex-col">
               {[
                 { key: 'age', label: '만 14세 이상입니다', required: true, hasLink: false },
@@ -194,32 +162,27 @@ function Register() {
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input type="checkbox" checked={terms[key]} onChange={() => handleTerm(key)} className="shrink-0 w-5 h-5 accent-primary" />
                     <span className="text-[14px] font-medium text-[#18181B]">
-                      <span className={`font-bold text-[11px] mr-1 ${required ? 'text-primary' : 'text-[#71717A]'}`}>
-                        {required ? '[필수]' : '[선택]'}
-                      </span>
+                      <span className={`font-bold text-[11px] mr-1 ${required ? 'text-primary' : 'text-[#71717A]'}`}>{required ? '[필수]' : '[선택]'}</span>
                       {label}
                     </span>
                   </label>
-                  {hasLink && (
-                    <button className="text-[13px] font-medium text-[#71717A] flex items-center gap-1">
-                      보기 <span className="text-[10px]">›</span>
-                    </button>
-                  )}
+                  {hasLink && <button className="text-[13px] font-medium text-[#71717A]">보기 ›</button>}
                 </div>
               ))}
             </div>
-
           </section>
+
+          {error && <p className="text-red-500 text-[13px] mt-4">{error}</p>}
+
         </div>
 
-        {/* 하단 버튼 */}
         <div className="absolute bottom-0 left-0 w-full px-6 pb-8 pt-4 bg-gradient-to-t from-white via-white to-transparent z-20">
           <button
-            disabled={!isFormValid}
-            onClick={() => navigate('/register/profile')}
-            className={`w-full h-[56px] rounded-[16px] text-[16px] font-bold transition-all ${isFormValid ? 'bg-primary text-white' : 'bg-gray-200 text-gray-400'}`}
+            disabled={!isFormValid || loading}
+            onClick={handleSubmit}
+            className={`w-full h-[56px] rounded-[16px] text-[16px] font-bold transition-all ${isFormValid && !loading ? 'bg-primary text-white' : 'bg-gray-200 text-gray-400'}`}
           >
-            다음
+            {loading ? '처리 중...' : '다음'}
           </button>
         </div>
 

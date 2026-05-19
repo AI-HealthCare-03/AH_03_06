@@ -66,7 +66,6 @@ function MyPage() {
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
       <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 pb-24">
 
-        {/* 헤더 */}
         <header className="sticky top-0 z-40 bg-white border-b border-[#F4F4F5] px-5 h-14 flex items-center justify-center">
           <h1 className="text-[15px] font-bold text-[#18181B] tracking-tight">마이페이지</h1>
         </header>
@@ -87,7 +86,6 @@ function MyPage() {
 
           {!loading && user && (
             <>
-              {/* 프로필 카드 */}
               <section>
                 <button
                   onClick={() => navigate('/user/profile/edit')}
@@ -108,79 +106,45 @@ function MyPage() {
                 </button>
               </section>
 
-              {/* 계정 관리 */}
               <section>
                 <h3 className="text-[11px] font-bold text-[#A1A1AA] mb-2 px-1 tracking-wider uppercase">계정 관리</h3>
                 <div className="bg-white rounded-[10px] border border-[#E4E4E7] overflow-hidden">
-                  <button
-                    onClick={() => navigate('/user/profile/edit')}
-                    className="w-full h-14 px-4 flex items-center justify-between border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors"
-                  >
+                  <button onClick={() => navigate('/user/profile/edit')} className="w-full h-14 px-4 flex items-center justify-between border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
                     <span className="text-[14px] font-medium text-[#09090B]">프로필 수정</span>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="m9 18 6-6-6-6"/>
-                    </svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                   </button>
-                  <button
-                    onClick={() => navigate('/user/health-goals')}
-                    className="w-full h-14 px-4 flex items-center justify-between border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors"
-                  >
+                  <button onClick={() => navigate('/user/health-goals')} className="w-full h-14 px-4 flex items-center justify-between border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
                     <span className="text-[14px] font-medium text-[#09090B]">건강 목표 설정</span>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="m9 18 6-6-6-6"/>
-                    </svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                   </button>
-                  <button
-                    onClick={() => navigate('/health-checkup')}
-                    className="w-full h-14 px-4 flex items-center justify-between active:bg-[#FAFAFA] transition-colors"
-                  >
+                  <button onClick={() => navigate('/health-checkup')} className="w-full h-14 px-4 flex items-center justify-between active:bg-[#FAFAFA] transition-colors">
                     <span className="text-[14px] font-medium text-[#09090B]">건강검진 입력</span>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="m9 18 6-6-6-6"/>
-                    </svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                   </button>
                 </div>
               </section>
 
-              {/* 알림 */}
               <section>
                 <h3 className="text-[11px] font-bold text-[#A1A1AA] mb-2 px-1 tracking-wider uppercase">알림</h3>
                 <div className="bg-white rounded-[10px] border border-[#E4E4E7] overflow-hidden">
-                  <button
-                    onClick={() => navigate('/user/notifications')}
-                    className="w-full h-14 px-4 flex items-center justify-between active:bg-[#FAFAFA] transition-colors"
-                  >
+                  <button onClick={() => navigate('/user/notifications')} className="w-full h-14 px-4 flex items-center justify-between active:bg-[#FAFAFA] transition-colors">
                     <span className="text-[14px] font-medium text-[#09090B]">알림 설정</span>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="m9 18 6-6-6-6"/>
-                    </svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                   </button>
                 </div>
               </section>
 
-              {/* 계정 */}
               <section>
                 <h3 className="text-[11px] font-bold text-[#A1A1AA] mb-2 px-1 tracking-wider uppercase">계정</h3>
                 <div className="bg-white rounded-[10px] border border-[#E4E4E7] overflow-hidden">
-                  <button
-                    onClick={() => navigate('/user/social')}
-                    className="w-full h-14 px-4 flex items-center justify-between border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors"
-                  >
+                  <button onClick={() => navigate('/user/social')} className="w-full h-14 px-4 flex items-center justify-between border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
                     <span className="text-[14px] font-medium text-[#09090B]">소셜 로그인 연동</span>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="m9 18 6-6-6-6"/>
-                    </svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                   </button>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full h-14 px-4 flex items-center justify-start border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors"
-                  >
+                  <button onClick={handleLogout} className="w-full h-14 px-4 flex items-center justify-start border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
                     <span className="text-[14px] font-medium text-[#09090B]">로그아웃</span>
                   </button>
-                  <button
-                    onClick={handleDeleteAccount}
-                    className="w-full h-14 px-4 flex items-center justify-start active:bg-[#FAFAFA] transition-colors"
-                  >
+                  <button onClick={handleDeleteAccount} className="w-full h-14 px-4 flex items-center justify-start active:bg-[#FAFAFA] transition-colors">
                     <span className="text-[14px] font-medium text-red-500">회원 탈퇴</span>
                   </button>
                 </div>
@@ -191,7 +155,6 @@ function MyPage() {
           )}
         </div>
 
-        {/* 하단 네비게이션 */}
         <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full md:max-w-[480px] bg-white border-t border-[#E4E4E7] z-50">
           <div className="flex justify-around py-2">
             {[
@@ -200,11 +163,7 @@ function MyPage() {
               { icon: '💊', label: '가이드', path: '/guide' },
               { icon: '👤', label: '마이', path: '/user' },
             ].map(({ icon, label, path }) => (
-              <button
-                key={label}
-                onClick={() => navigate(path)}
-                className="flex flex-col items-center gap-1 px-4 py-1"
-              >
+              <button key={label} onClick={() => navigate(path)} className="flex flex-col items-center gap-1 px-4 py-1">
                 <span className="text-[20px]">{icon}</span>
                 <span className={`text-[10px] font-medium ${label === '마이' ? 'text-primary' : 'text-[#A1A1AA]'}`}>{label}</span>
               </button>

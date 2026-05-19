@@ -1,14 +1,10 @@
 # app/services/auth_service.py
 # 인증 관련 비즈니스 로직
 
-# 1. 표준 라이브러리
-import asyncio
 import random
 import re
-from datetime import datetime, timedelta
-
-# 2. 서드파티 라이브러리
 import httpx
+from datetime import datetime, timedelta
 from fastapi import HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
@@ -16,7 +12,6 @@ from jose import jwt, JWTError
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
-# 3. 로컬 모듈
 from app.config import settings
 from app.models.user import User
 from app.models.social_login import SocialLogin
@@ -80,42 +75,50 @@ def mask_email(email: str) -> str:
     return f"{masked}@{domain}"
 
 
-def register(request: RegisterRequest, db: Session) -> RegisterResponse:
-    """회원가입 - 이메일 중복 확인 후 유저 생성"""
-    # 비밀번호 확인
+def register(request: RegisterRequest, db: Session):
     if request.password != request.password_confirm:
         raise HTTPException(status_code=400, detail="password_mismatch")
 
-    # 이메일 중복 확인
     if db.query(User).filter(User.email == request.email).first():
         raise HTTPException(status_code=400, detail="duplicate_email")
 
-    # 닉네임 자동 생성
-    nickname = generate_nickname(db)
-
-    # 비밀번호 해시 처리
     password_hash = pwd_context.hash(request.password)
 
-    # 유저 생성
     user = User(
         email=request.email,
         password_hash=password_hash,
         name=request.name,
-        nickname=nickname
     )
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    return RegisterResponse(
-        user=UserResponse(
-            id=user.id,
-            email=user.email,
-            name=user.name,
-            nickname=user.nickname
-        )
-    )
+    # 토큰 발급
+    access_token = create_access_token(user_id=user.id)
+    refresh_token = create_refresh_token(user_id=user.id)
 
+    db.add(RefreshToken(
+        user_id=user.id,
+        token=refresh_token,
+        provider="email",
+        expires_at=datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    ))
+    db.commit()
+
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=201,
+        content={
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "name": user.name,
+                "nickname": user.nickname
+            }
+        }
+    )
 
 def login(request: LoginRequest, db: Session) -> LoginResponse:
     """로그인 - 이메일/비밀번호 검증 후 토큰 발급"""
@@ -202,11 +205,9 @@ def social_login(provider: str) -> RedirectResponse:
 
 
 def social_login_callback(provider: str, code: str, db: Session):
-    """소셜 로그인 콜백 - 인가 코드로 유저 정보 조회 후 토큰 발급"""
     if provider != "google":
         raise HTTPException(status_code=400, detail="invalid_provider")
 
-    # 1. 인가 코드로 Google access_token 발급
     token_response = httpx.post(
         "https://oauth2.googleapis.com/token",
         data={
@@ -217,15 +218,11 @@ def social_login_callback(provider: str, code: str, db: Session):
             "grant_type": "authorization_code",
         }
     )
-    print(f"token_response status: {token_response.status_code}")
-    print(f"token_response body: {token_response.json()}")
-
     if token_response.status_code != 200:
         raise HTTPException(status_code=400, detail="invalid_code")
 
     google_access_token = token_response.json().get("access_token")
 
-    # 2. Google access_token으로 유저 정보 조회
     userinfo_response = httpx.get(
         "https://www.googleapis.com/oauth2/v2/userinfo",
         headers={"Authorization": f"Bearer {google_access_token}"}
@@ -238,27 +235,19 @@ def social_login_callback(provider: str, code: str, db: Session):
     email = userinfo.get("email")
     name = userinfo.get("name")
 
-    # 3. 기존 소셜 로그인 유저 조회
     social = db.query(SocialLogin).filter(
         SocialLogin.provider == "google",
         SocialLogin.provider_id == google_id
     ).first()
 
     if social:
-        # 기존 회원 → 200 OK
         user = db.query(User).filter(User.id == social.user_id).first()
         status_code = 200
     else:
-        # 최초 가입 → 201 Created
         user = db.query(User).filter(User.email == email).first()
         if not user:
             nickname = generate_nickname(db)
-            user = User(
-                email=email,
-                name=name,
-                nickname=nickname,
-                password_hash=None
-            )
+            user = User(email=email, name=name, nickname=nickname, password_hash=None)
             db.add(user)
             db.flush()
 
@@ -273,11 +262,9 @@ def social_login_callback(provider: str, code: str, db: Session):
         db.refresh(user)
         status_code = 201
 
-    # 4. JWT 토큰 발급
     access_token = create_access_token(user_id=user.id)
     refresh_token = create_refresh_token(user_id=user.id)
 
-    # 5. refresh_token DB 저장
     db.add(RefreshToken(
         user_id=user.id,
         token=refresh_token,
@@ -286,11 +273,12 @@ def social_login_callback(provider: str, code: str, db: Session):
     ))
     db.commit()
 
-    # 6. 프론트로 리다이렉트
+    from fastapi.responses import RedirectResponse
     frontend_url = settings.FRONTEND_URL
     redirect_url = f"{frontend_url}/auth/callback?access_token={access_token}&refresh_token={refresh_token}"
     print(f"Redirecting to: {redirect_url}")
     return RedirectResponse(url=redirect_url, status_code=302)
+
 
 def find_email(request: FindEmailRequest, db: Session) -> FindEmailResponse:
     """이메일 찾기 - 이름, 이메일 일치 확인 후 마스킹된 이메일 반환"""
