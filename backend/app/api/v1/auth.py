@@ -52,10 +52,18 @@ def social_login(provider: str):
     return auth_service.social_login(provider)
 
 
-# POST /api/v1/auth/social/{provider}/callback - 소셜 로그인 콜백
-@router.post("/social/{provider}/callback", response_model=SocialLoginResponse)
-def social_login_callback(provider: str, request: SocialCallbackRequest, db: Session = Depends(get_db)):
-    return auth_service.social_login_callback(provider, request, db)
+# GET /api/v1/auth/social/{provider}/callback - 소셜 로그인 콜백
+@router.get("/social/{provider}/callback")
+def social_login_callback(
+    provider: str,
+    code: str,
+    db: Session = Depends(get_db),
+    iss: str = None,
+    scope: str = None,
+    authuser: str = None,
+    prompt: str = None
+):
+    return auth_service.social_login_callback(provider, code, db)
 
 
 # POST /api/v1/auth/email/find - 이메일 찾기
@@ -66,8 +74,8 @@ def find_email(request: FindEmailRequest, db: Session = Depends(get_db)):
 
 # POST /api/v1/auth/password/find - 비밀번호 재설정 링크 발송
 @router.post("/password/find", response_model=FindPasswordResponse)
-def find_password(request: FindPasswordRequest, db: Session = Depends(get_db)):
-    return auth_service.find_password(request, db)
+async def find_password(request: FindPasswordRequest, db: Session = Depends(get_db)):
+    return await auth_service.find_password(request, db)
 
 
 # PUT /api/v1/auth/password/reset - 비밀번호 재설정
