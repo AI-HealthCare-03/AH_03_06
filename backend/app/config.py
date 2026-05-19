@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     MAIL_SERVER: str = "smtp.gmail.com"
     MAIL_PORT: int = 587
 
+    # Frontend
+    FRONTEND_URL: str = ""
+
     class Config:
         env_file = ".env"
 

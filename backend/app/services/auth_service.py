@@ -286,21 +286,11 @@ def social_login_callback(provider: str, code: str, db: Session):
     ))
     db.commit()
 
-    from fastapi.responses import JSONResponse
-    return JSONResponse(
-        status_code=status_code,
-        content={
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "name": user.name,
-                "nickname": user.nickname
-            }
-        }
-    )
-
+    # 6. 프론트로 리다이렉트
+    frontend_url = settings.FRONTEND_URL
+    redirect_url = f"{frontend_url}/auth/callback?access_token={access_token}&refresh_token={refresh_token}"
+    print(f"Redirecting to: {redirect_url}")
+    return RedirectResponse(url=redirect_url, status_code=302)
 
 def find_email(request: FindEmailRequest, db: Session) -> FindEmailResponse:
     """이메일 찾기 - 이름, 이메일 일치 확인 후 마스킹된 이메일 반환"""

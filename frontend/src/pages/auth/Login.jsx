@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { login } from '../../api/auth.js'
 
 function Login() {
   const navigate = useNavigate()
@@ -8,8 +9,29 @@ function Login() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [customDomain, setCustomDomain] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const isFormValid = email.length > 2 && password.length > 4
+
+  const fullEmail = domain === 'direct'
+    ? `${email}@${customDomain}`
+    : `${email}@${domain}`
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!isFormValid) return
+    setError('')
+    setLoading(true)
+    try {
+      await login({ email: fullEmail, password })
+      navigate('/home')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="bg-white md:bg-[#F4F4F5] text-[#18181B] w-full min-h-[100dvh] flex justify-center items-center">
@@ -28,7 +50,7 @@ function Login() {
 
         {/* 로그인 폼 */}
         <section className="flex flex-col w-full flex-grow">
-          <form className="w-full flex flex-col">
+          <form className="w-full flex flex-col" onSubmit={handleSubmit}>
 
             {/* 이메일 */}
             <div className="mb-[20px]">
@@ -114,13 +136,18 @@ function Login() {
               </span>
             </div>
 
+            {/* 에러 메시지 */}
+            {error && (
+              <p className="text-red-500 text-[13px] mb-3">{error}</p>
+            )}
+
             {/* 로그인 버튼 */}
             <button
               type="submit"
-              disabled={!isFormValid}
-              className={`w-full h-[56px] bg-primary text-white text-[16px] font-bold rounded-[14px] flex items-center justify-center transition-opacity ${!isFormValid ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={!isFormValid || loading}
+              className={`w-full h-[56px] bg-primary text-white text-[16px] font-bold rounded-[14px] flex items-center justify-center transition-opacity ${!isFormValid || loading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              로그인
+              {loading ? '로그인 중...' : '로그인'}
             </button>
           </form>
         </section>
@@ -135,7 +162,8 @@ function Login() {
 
           <div className="flex flex-col gap-3 mb-[32px]">
             <button
-              onClick={() => window.location.href = 'http://localhost:8000/api/v1/auth/social/google'}
+              type="button"
+              onClick={() => window.location.href = `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1'}/auth/social/google`}
               className="w-full h-[56px] bg-white border border-gray-200 text-[#18181B] text-[15px] font-bold rounded-[14px] flex items-center justify-center relative"
             >
               <span className="absolute left-5 text-[13px] font-bold text-gray-500 border border-gray-300 rounded-full w-[18px] h-[18px] flex items-center justify-center">G</span>
