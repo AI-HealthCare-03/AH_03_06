@@ -26,7 +26,7 @@ function RegisterSleep() {
       ...prevState,
       sleep_hours: sleepHours ? parseFloat(sleepHours) : null,
       sleep_quality: sleepQuality ? parseInt(sleepQuality) : null,
-      sleep_disorder: sleepDisorder || null,
+      sleep_disorder: sleepDisorder === 'none' ? 0 : sleepDisorder === 'insomnia' ? 1 : null,
     }
   })
 
