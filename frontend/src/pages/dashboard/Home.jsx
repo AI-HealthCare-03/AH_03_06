@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getAccessToken } from '../../utils/token.js'
 import BottomNav from '../../components/BottomNav.jsx'
-import HomeHeader from '../../components/HomeHeader.jsx'
+import Header from '../../components/Header.jsx'
 
 // FontAwesome imports
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -37,7 +37,7 @@ function Home() {
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
       <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 pb-24">
 
-        <HomeHeader nickname={nickname} />
+        <Header variant="home" nickname={nickname} />
 
         <main className="px-5 pt-5 pb-2 space-y-4">
 
