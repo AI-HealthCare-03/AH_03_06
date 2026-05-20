@@ -1,7 +1,7 @@
-// src/pages/AuthCallback.jsx
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { setAccessToken, setRefreshToken } from '../../utils/token.js'
+import { loginSuccess } from '../../App.jsx'
 
 function AuthCallback() {
   const navigate = useNavigate()
@@ -11,13 +11,10 @@ function AuthCallback() {
     const accessToken = params.get('access_token')
     const refreshToken = params.get('refresh_token')
 
-    console.log('params:', window.location.search)
-    console.log('accessToken:', accessToken)
-    console.log('refreshToken:', refreshToken)
-
     if (accessToken && refreshToken) {
       setAccessToken(accessToken)
       setRefreshToken(refreshToken)
+      loginSuccess()
       navigate('/home', { replace: true })
     } else {
       navigate('/login', { replace: true })

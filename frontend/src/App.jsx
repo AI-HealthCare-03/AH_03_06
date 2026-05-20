@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { getAccessToken } from './utils/token.js'
+import { useState } from 'react'
+import { getAccessToken, clearTokens } from './utils/token.js'
 import Landing from './pages/landing/Landing'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
@@ -14,31 +15,44 @@ import Home from './pages/dashboard/Home'
 import MyPage from './pages/user/MyPage'
 import ProfileEdit from './pages/user/ProfileEdit'
 
-function PrivateRoute({ children }) {
-  return getAccessToken() ? children : <Navigate to="/login" replace />
+let _setAuth = null
+export function logout() {
+  clearTokens()
+  _setAuth?.(false)
 }
 
-function PublicRoute({ children }) {
-  return getAccessToken() ? <Navigate to="/home" replace /> : children
+export function loginSuccess() {
+  _setAuth?.(true)
+}
+
+function PrivateRoute({ auth, children }) {
+  return auth ? children : <Navigate to="/login" replace />
+}
+
+function PublicRoute({ auth, children }) {
+  return auth ? <Navigate to="/home" replace /> : children
 }
 
 function App() {
+  const [auth, setAuth] = useState(!!getAccessToken())
+  _setAuth = setAuth
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
-        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-        <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-        <Route path="/register/nickname" element={<PublicRoute><RegisterNickname /></PublicRoute>} />
-        <Route path="/register/basic-info" element={<PublicRoute><RegisterBasicInfo /></PublicRoute>} />
-        <Route path="/register/body-info" element={<PublicRoute><RegisterBodyInfo /></PublicRoute>} />
-        <Route path="/register/lifestyle" element={<PublicRoute><RegisterLifestyle /></PublicRoute>} />
-        <Route path="/register/sleep" element={<PublicRoute><RegisterSleep /></PublicRoute>} />
-        <Route path="/register/health" element={<PublicRoute><RegisterHealth /></PublicRoute>} />
+        <Route path="/" element={<PublicRoute auth={auth}><Landing /></PublicRoute>} />
+        <Route path="/login" element={<PublicRoute auth={auth}><Login /></PublicRoute>} />
+        <Route path="/register" element={<PublicRoute auth={auth}><Register /></PublicRoute>} />
+        <Route path="/register/nickname" element={<PublicRoute auth={auth}><RegisterNickname /></PublicRoute>} />
+        <Route path="/register/basic-info" element={<PublicRoute auth={auth}><RegisterBasicInfo /></PublicRoute>} />
+        <Route path="/register/body-info" element={<PublicRoute auth={auth}><RegisterBodyInfo /></PublicRoute>} />
+        <Route path="/register/lifestyle" element={<PublicRoute auth={auth}><RegisterLifestyle /></PublicRoute>} />
+        <Route path="/register/sleep" element={<PublicRoute auth={auth}><RegisterSleep /></PublicRoute>} />
+        <Route path="/register/health" element={<PublicRoute auth={auth}><RegisterHealth /></PublicRoute>} />
         <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="/home" element={<PrivateRoute><Home /></PrivateRoute>} />
-        <Route path="/user" element={<PrivateRoute><MyPage /></PrivateRoute>} />
-        <Route path="/user/profile/edit" element={<PrivateRoute><ProfileEdit /></PrivateRoute>} />
+        <Route path="/home" element={<PrivateRoute auth={auth}><Home /></PrivateRoute>} />
+        <Route path="/user" element={<PrivateRoute auth={auth}><MyPage /></PrivateRoute>} />
+        <Route path="/user/profile/edit" element={<PrivateRoute auth={auth}><ProfileEdit /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   )
