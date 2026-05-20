@@ -2,21 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { register } from '../../api/auth.js'
 import RegisterLayout from '../../components/RegisterLayout.jsx'
-
-const EyeOpen = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-    <circle cx="12" cy="12" r="3"/>
-  </svg>
-)
-
-const EyeClosed = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-    <line x1="1" y1="1" x2="23" y2="23"/>
-  </svg>
-)
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faEye, faEyeSlash, faCheck } from '@fortawesome/free-solid-svg-icons'
 
 function Register() {
   const navigate = useNavigate()
@@ -129,7 +116,7 @@ function Register() {
               className="w-full h-[56px] bg-[#F5F5F5] rounded-[8px] pl-4 pr-12 text-[15px] text-[#18181B] outline-none border border-transparent focus:border-primary/20 placeholder:text-[#A1A1AA]"
             />
             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A1A1AA]">
-              {showPassword ? <EyeOpen /> : <EyeClosed />}
+              <FontAwesomeIcon icon={showPassword ? faEye : faEyeSlash} className="text-[18px]" />
             </button>
           </div>
           <p className="text-[12px] text-[#A1A1AA] ml-1">영문·숫자·특수문자 포함 8자 이상</p>
@@ -147,7 +134,7 @@ function Register() {
               className="w-full h-[56px] bg-[#F5F5F5] rounded-[8px] pl-4 pr-12 text-[15px] text-[#18181B] outline-none border border-transparent focus:border-primary/20 placeholder:text-[#A1A1AA]"
             />
             <button type="button" onClick={() => setShowPasswordConfirm(!showPasswordConfirm)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A1A1AA]">
-              {showPasswordConfirm ? <EyeOpen /> : <EyeClosed />}
+              <FontAwesomeIcon icon={showPasswordConfirm ? faEye : faEyeSlash} className="text-[18px]" />
             </button>
           </div>
         </div>
@@ -171,11 +158,7 @@ function Register() {
         <div className="bg-[#F5F5F5] rounded-[12px] px-4">
           <div className="flex items-center gap-3 py-4 cursor-pointer border-b border-gray-200" onClick={handleAgreeAll}>
             <div className={`shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${allChecked ? 'bg-primary border-primary' : 'bg-white border-gray-300'}`}>
-              {allChecked && (
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              )}
+              {allChecked && <FontAwesomeIcon icon={faCheck} className="text-white text-[10px]" />}
             </div>
             <span className="text-[15px] font-bold text-[#18181B]">전체 동의하기</span>
           </div>
@@ -189,11 +172,7 @@ function Register() {
             <div key={key} className="flex items-center justify-between py-3 cursor-pointer" onClick={() => handleTerm(key)}>
               <div className="flex items-center gap-3">
                 <div className={`shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${terms[key] ? 'bg-primary border-primary' : 'bg-white border-gray-300'}`}>
-                  {terms[key] && (
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
+                  {terms[key] && <FontAwesomeIcon icon={faCheck} className="text-white text-[10px]" />}
                 </div>
                 <span className="text-[14px] font-medium text-[#18181B]">
                   <span className={`font-bold text-[11px] mr-1 ${required ? 'text-primary' : 'text-[#71717A]'}`}>{required ? '[필수]' : '[선택]'}</span>

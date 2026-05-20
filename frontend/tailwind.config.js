@@ -5,10 +5,10 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
+    fontFamily: {
+      sans: ['Pretendard', 'sans-serif'],
+    },
     extend: {
-      fontFamily: {
-        sans: ['Pretendard', 'sans-serif'],
-      },
       colors: {
         primary: {
           DEFAULT: '#2563EB',

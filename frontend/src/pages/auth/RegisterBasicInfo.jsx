@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import RegisterLayout from '../../components/RegisterLayout.jsx'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faCalendar } from '@fortawesome/free-solid-svg-icons'
 
 function RegisterBasicInfo() {
   const navigate = useNavigate()
@@ -40,9 +42,7 @@ function RegisterBasicInfo() {
               style={{ colorScheme: 'light' }}
             />
             <div className="absolute right-4 text-[#71717A] pointer-events-none">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
+              <FontAwesomeIcon icon={faCalendar} className="text-[18px]" />
             </div>
           </div>
           <p className="text-[13px] font-medium text-[#71717A] mt-1">만 14세 이상 가입 가능합니다</p>
