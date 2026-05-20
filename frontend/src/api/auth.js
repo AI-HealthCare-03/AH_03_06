@@ -37,6 +37,8 @@ export async function register(payload) {
   })
   const data = await parseJson(res)
   if (!res.ok) throw new Error(data?.detail ?? data?.message ?? res.statusText)
+  if (data?.access_token) setAccessToken(data.access_token)
+  if (data?.refresh_token) setRefreshToken(data.refresh_token)
   return data
 }
 
