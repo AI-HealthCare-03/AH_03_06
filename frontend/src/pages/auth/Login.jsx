@@ -57,20 +57,20 @@ function Login() {
               <label className="block text-[14px] font-medium mb-2">
                 이메일 <span className="text-primary">*</span>
               </label>
-              <div className="flex items-center gap-2">
+              <div className="flex gap-2 items-center">
                 <input
                   type="text"
                   placeholder="이메일 입력"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="flex-[6] bg-[#F5F5F5] h-[56px] rounded-[8px] px-4 text-[15px] outline-none placeholder:text-[#A1A1AA] border border-transparent focus:border-primary/20"
+                  className="flex-1 min-w-0 h-[56px] bg-[#F5F5F5] rounded-[8px] px-4 text-[15px] text-[#18181B] outline-none border border-transparent focus:border-primary/20 placeholder:text-[#A1A1AA]"
                 />
                 <span className="text-[#71717A] font-medium shrink-0">@</span>
-                <div className="relative flex-[4] min-w-[140px]">
+                <div className="relative flex-1 min-w-0">
                   <select
                     value={domain}
                     onChange={e => setDomain(e.target.value)}
-                    className="w-full bg-[#F5F5F5] h-[56px] rounded-[8px] px-4 pr-10 text-[15px] outline-none appearance-none border border-transparent focus:border-primary/20 cursor-pointer"
+                    className="w-full h-[56px] bg-[#F5F5F5] rounded-[8px] px-4 pr-8 text-[15px] text-[#18181B] outline-none appearance-none border border-transparent focus:border-primary/20 cursor-pointer"
                   >
                     <option value="naver.com">naver.com</option>
                     <option value="gmail.com">gmail.com</option>
@@ -78,7 +78,7 @@ function Login() {
                     <option value="kakao.com">kakao.com</option>
                     <option value="direct">직접 입력</option>
                   </select>
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A1A1AA] text-[12px] pointer-events-none">▼</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A1A1AA] text-[12px] pointer-events-none">▼</span>
                 </div>
               </div>
               {domain === 'direct' && (

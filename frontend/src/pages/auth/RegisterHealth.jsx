@@ -88,13 +88,11 @@ function RegisterHealth() {
             exercise_days: prevState.exercise_days ?? null,
           }
         : null,
-      sleep: (prevState.sleep_hours || prevState.sleep_quality || prevState.sleep_disorder)
-        ? {
-            sleep_hours: prevState.sleep_hours ?? null,
-            sleep_quality: prevState.sleep_quality ?? null,
-            sleep_disorder: prevState.sleep_disorder ?? null,
-          }
-        : null,
+      sleep: {
+        sleep_hours: prevState.sleep_hours ?? null,
+        sleep_quality: prevState.sleep_quality ?? null,
+        sleep_disorder: prevState.sleep_disorder ?? 0,
+      },
     }
 
     try {
