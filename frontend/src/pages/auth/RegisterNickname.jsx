@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getAccessToken } from '../../utils/token.js'
 import RegisterLayout from '../../components/RegisterLayout.jsx'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faCircleInfo, faRotateRight } from '@fortawesome/free-solid-svg-icons'
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
@@ -80,9 +82,7 @@ function RegisterNickname() {
     >
       <section className="mb-8">
         <div className="bg-[#EFF6FF] rounded-lg p-3 flex items-start gap-2">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
+          <FontAwesomeIcon icon={faCircleInfo} className="text-[#2563EB] text-[14px] mt-0.5 shrink-0" />
           <p className="text-[13px] font-medium text-[#1D4ED8] leading-snug">
             닉네임이 자동으로 추천됐어요. 마음에 들지 않으면 직접 수정할 수 있어요
           </p>
@@ -107,13 +107,7 @@ function RegisterNickname() {
             onClick={handleRegenerate}
             className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-[#71717A]"
           >
-            <svg
-              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              className={spinning ? 'animate-spin' : ''}
-            >
-              <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-            </svg>
+            <FontAwesomeIcon icon={faRotateRight} className={`text-[16px] ${spinning ? 'animate-spin' : ''}`} />
           </button>
         </div>
         <p className={`text-[12px] mt-2 ml-1 ${helperColor}`}>{helperText}</p>

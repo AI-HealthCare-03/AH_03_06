@@ -2,6 +2,15 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import RegisterLayout from '../../components/RegisterLayout.jsx'
 import { getAccessToken } from '../../utils/token.js'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import {
+  faWeightScale,      // 체중 감량
+  faHeartPulse,       // 만성질환 관리
+  faAppleWhole,       // 식습관 개선
+  faDumbbell,         // 운동 습관 형성
+  faMoon,             // 수면 개선
+  faCalendarCheck,    // 규칙적인 생활
+} from '@fortawesome/free-solid-svg-icons'
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
@@ -18,12 +27,12 @@ const DISEASES = [
 ]
 
 const GOALS = [
-  { key: 'weight_loss', label: '체중 감량', sub: '건강한 체중으로', icon: '🎯' },
-  { key: 'chronic_care', label: '만성질환 관리', sub: '혈압·혈당 안정적으로', icon: '💙' },
-  { key: 'diet', label: '식습관 개선', sub: '영양 균형 잡힌 식단', icon: '🍎' },
-  { key: 'exercise', label: '운동 습관 형성', sub: '꾸준한 운동 루틴', icon: '🏋️' },
-  { key: 'sleep', label: '수면 개선', sub: '양질의 수면 회복', icon: '🌙' },
-  { key: 'routine', label: '규칙적인 생활', sub: '복약·식사 시간 관리', icon: '📅' },
+  { key: 'weight_loss',   label: '체중 감량',       sub: '건강한 체중으로',        icon: faWeightScale },
+  { key: 'chronic_care',  label: '만성질환 관리',    sub: '혈압·혈당 안정적으로',   icon: faHeartPulse },
+  { key: 'diet',          label: '식습관 개선',      sub: '영양 균형 잡힌 식단',    icon: faAppleWhole },
+  { key: 'exercise',      label: '운동 습관 형성',   sub: '꾸준한 운동 루틴',       icon: faDumbbell },
+  { key: 'sleep',         label: '수면 개선',        sub: '양질의 수면 회복',       icon: faMoon },
+  { key: 'routine',       label: '규칙적인 생활',    sub: '복약·식사 시간 관리',    icon: faCalendarCheck },
 ]
 
 function RegisterHealth() {
@@ -162,7 +171,7 @@ function RegisterHealth() {
                 onClick={() => handleGoal(key)}
                 className={goalCardClass(goals.includes(key))}
               >
-                <span className="text-[24px]">{icon}</span>
+                <FontAwesomeIcon icon={icon} className="text-[24px]" />
                 <span className="text-[14px] font-bold">{label}</span>
                 <span className={`text-[12px] font-normal ${goals.includes(key) ? 'text-primary/70' : 'text-[#71717A]'}`}>{sub}</span>
               </button>
