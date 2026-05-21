@@ -30,4 +30,4 @@ class MedicationGuide(Base):
     is_fallback = Column(Boolean, nullable=False, default=False)               # 환각 차단 회피 응답 여부
     created_at = Column(DateTime, nullable=False, default=func.now())          # 생성일시
 
-    user = relationship("User")
+    user = relationship("User", back_populates="medication_guides")

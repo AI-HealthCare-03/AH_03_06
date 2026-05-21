@@ -70,9 +70,21 @@ class HealthCheckupResponse(BaseModel):
         from_attributes = True
 
 
+# 건강검진 목록 아이템 응답
+class HealthCheckupSummaryResponse(BaseModel):
+    id: int
+    checkup_year: int
+    normal_count: int
+    caution_count: int
+    danger_count: int
+
+    class Config:
+        from_attributes = True
+
+
 # 건강검진 목록 응답
 class HealthCheckupListResponse(BaseModel):
-    checkups: List[HealthCheckupResponse]      # 건강검진 목록
+    checkups: List[HealthCheckupSummaryResponse]
 
 
 # 건강검진 삭제 응답

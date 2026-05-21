@@ -18,6 +18,9 @@ import Home from './pages/dashboard/Home'
 import All from './pages/all/All'
 import MyPage from './pages/user/MyPage'
 import ProfileEdit from './pages/user/ProfileEdit'
+import HealthCheckList from "./pages/health-checkup/HealthCheckList.jsx";
+import HealthCheckInput from "./pages/health-checkup/HealthCheckInput.jsx"
+import HealthCheckResults from "./pages/health-checkup/HealthCheckResults.jsx"
 
 let _setAuth = null
 export function logout() {
@@ -61,6 +64,10 @@ function App() {
         <Route path="/all" element={<PrivateRoute auth={auth}><All /></PrivateRoute>} />
         <Route path="/user" element={<PrivateRoute auth={auth}><MyPage /></PrivateRoute>} />
         <Route path="/user/profile/edit" element={<PrivateRoute auth={auth}><ProfileEdit /></PrivateRoute>} />
+        <Route path="/health-checkup" element={<PrivateRoute auth={auth}><HealthCheckList /></PrivateRoute>} />
+        <Route path="/health-checkup/input" element={<PrivateRoute auth={auth}><HealthCheckInput /></PrivateRoute>} />
+        <Route path="/health-checkup/input/:year" element={<PrivateRoute auth={auth}><HealthCheckInput /></PrivateRoute>} />
+        <Route path="/health-checkup/results/:year" element={<PrivateRoute auth={auth}><HealthCheckResults /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   )

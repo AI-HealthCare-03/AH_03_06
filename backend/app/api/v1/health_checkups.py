@@ -42,6 +42,16 @@ def get_health_classification(
     return health_checkup_service.get_classification(current_user.id, db)
 
 
+# GET /api/v1/health-checkups/year/{year} - 연도로 건강검진 상세 조회
+@router.get("/year/{year}", response_model=HealthCheckupResponse)
+def get_health_checkup_by_year(
+    year: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return health_checkup_service.get_checkup_by_year(current_user.id, year, db)
+
+
 # POST /api/v1/health-checkups - 건강검진 데이터 입력
 @router.post("", response_model=HealthCheckupResponse, status_code=201)
 def create_health_checkup(
