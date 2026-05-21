@@ -2,12 +2,12 @@ import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faBell, faChevronLeft } from '@fortawesome/free-solid-svg-icons'
 
-function Header({ variant = 'default', title, nickname }) {
+function Header({ variant = 'default', title, nickname, showDivider = true }) {
   const navigate = useNavigate()
 
   if (variant === 'home') {
     return (
-      <header className="sticky top-0 z-40 bg-white border-b border-[#F4F4F5] px-5 h-[72px] flex items-center justify-between">
+      <header className={`sticky top-0 z-40 bg-white ${showDivider ? 'border-b border-[#F4F4F5]' : ''} px-5 h-[72px] flex items-center justify-between`}>
         <div>
           <h1 className="text-[17px] font-[700] text-[#18181B] leading-tight tracking-tight">안녕하세요, {nickname}님 👋</h1>
           <p className="text-[12px] text-[#52525B] mt-0.5">오늘도 건강한 하루 보내세요</p>
@@ -22,7 +22,7 @@ function Header({ variant = 'default', title, nickname }) {
 
   if (variant === 'back') {
     return (
-      <header className="sticky top-0 z-40 bg-white border-b border-[#F4F4F5] px-5 h-[72px] flex items-center justify-between">
+      <header className={`sticky top-0 z-40 bg-white ${showDivider ? 'border-b border-[#F4F4F5]' : ''} px-5 h-[72px] flex items-center justify-between`}>
         <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-start">
           <FontAwesomeIcon icon={faChevronLeft} className="text-[#18181B] text-[18px]" />
         </button>
@@ -33,7 +33,7 @@ function Header({ variant = 'default', title, nickname }) {
   }
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-[#F4F4F5] px-5 h-[72px] flex items-center">
+    <header className={`sticky top-0 z-40 bg-white ${showDivider ? 'border-b border-[#F4F4F5]' : ''} px-5 h-[72px] flex items-center`}>
       <h1 className="text-[18px] font-[700] text-[#18181B] tracking-tight">{title}</h1>
     </header>
   )
