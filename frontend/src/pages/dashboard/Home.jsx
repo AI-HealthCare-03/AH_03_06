@@ -1,20 +1,19 @@
 import { useState, useEffect } from 'react'
 import { getAccessToken } from '../../utils/token.js'
+import { logout } from '../../App.jsx'
 import BottomNav from '../../components/BottomNav.jsx'
 import Header from '../../components/Header.jsx'
 
-// FontAwesome imports
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
-  faPills,          // PillIcon
-  faUtensils,       // ForkIcon
-  faPersonRunning,  // RunIcon
-  faMoon,           // MoonIcon
-  faStethoscope,    // StethoscopeIcon
-  faHospital,       // HospitalIcon
-  faWandMagicSparkles,       // SparkleIcon (Pro) or faStars
-  faChevronRight,   // ChevronRight
-  faCircleInfo,     // InfoIcon
+  faPills,
+  faUtensils,
+  faPersonRunning,
+  faMoon,
+  faStethoscope,
+  faHospital,
+  faWandMagicSparkles,
+  faChevronRight,
 } from '@fortawesome/free-solid-svg-icons'
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
@@ -26,8 +25,14 @@ function Home() {
     fetch(`${base}/users/me`, {
       headers: { Authorization: `Bearer ${getAccessToken()}` }
     })
-      .then(res => res.json())
-      .then(data => setUser(data))
+      .then(res => {
+        if (res.status === 401) {
+          logout()
+          return
+        }
+        return res.json()
+      })
+      .then(data => data && setUser(data))
       .catch(err => console.log('error:', err))
   }, [])
 
@@ -102,9 +107,9 @@ function Home() {
             </div>
             <div className="space-y-2">
               {[
-                { icon: faUtensils,       title: '식단 가이드', desc: '혈압 관리 저염식 권장' },
-                { icon: faPersonRunning,  title: '운동 가이드', desc: '중간 강도 유산소 30분' },
-                { icon: faMoon,           title: '수면 가이드', desc: '취침 전 카페인 회피' },
+                { icon: faUtensils,      title: '식단 가이드', desc: '혈압 관리 저염식 권장' },
+                { icon: faPersonRunning, title: '운동 가이드', desc: '중간 강도 유산소 30분' },
+                { icon: faMoon,          title: '수면 가이드', desc: '취침 전 카페인 회피' },
               ].map(({ icon, title, desc }) => (
                 <button key={title} className="w-full text-left bg-white border border-[#E4E4E7] rounded-[10px] shadow-sm p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -143,7 +148,6 @@ function Home() {
             </button>
           </section>
 
-          {/* 면책 문구 */}
           <p className="text-[11px] text-[#A1A1AA] py-2 text-center">
             본 정보는 일반적인 권고이며 의학적 진단을 대체하지 않습니다.
           </p>
