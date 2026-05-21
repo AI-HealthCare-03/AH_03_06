@@ -4,3 +4,5 @@
 from app.models.user import User
 from app.models.social_login import SocialLogin
 from app.models.refresh_token import RefreshToken
+from app.models.health_checkup import HealthCheckup
+from app.models.guide import MedicationGuide

@@ -18,3 +18,10 @@ from app.schemas.auth import (
     ResetPasswordRequest,
     ResetPasswordResponse,
 )
+from app.schemas.guide import (
+    GenerateGuideRequest,
+    GenerateGuideResponse,
+    MedicationGuideSchema,
+    GuideListResponse,
+    DeleteGuideResponse,
+)

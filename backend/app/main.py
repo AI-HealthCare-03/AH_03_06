@@ -4,8 +4,9 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1 import auth, users, medications, medical_records, health_checkups, guides, dashboard
+from app.api.v1 import auth, users, medications, medical_records, health_checkups, guides, medication_guides, dashboard
 from app.database import engine, Base
+from app.models import MedicationGuide
 app = FastAPI(title="Viva API", version="1.0.0")
 
 # DB 테이블 생성
@@ -14,7 +15,7 @@ Base.metadata.create_all(bind=engine)
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8000", "http://localhost:5173"],
+    allow_origins=["http://localhost:3000", "http://localhost:8000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -27,6 +28,7 @@ app.include_router(medications.router, prefix="/api/v1/medications", tags=["Medi
 app.include_router(medical_records.router, prefix="/api/v1/medical-records", tags=["MedicalRecord"])
 app.include_router(health_checkups.router, prefix="/api/v1/health-checkups", tags=["HealthCheckup"])
 app.include_router(guides.router, prefix="/api/v1/guides", tags=["Guide"])
+app.include_router(medication_guides.router, prefix="/api/v1/medication_guides", tags=["Guide"])
 app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
 
 @app.get("/")
