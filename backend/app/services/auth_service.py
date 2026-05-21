@@ -250,6 +250,9 @@ def social_login_callback(provider: str, code: str, db: Session):
             user = User(email=email, name=name, nickname=nickname, password_hash=None)
             db.add(user)
             db.flush()
+            status_code = 201
+        else:
+            status_code = 200
 
         social = SocialLogin(
             user_id=user.id,
@@ -260,7 +263,6 @@ def social_login_callback(provider: str, code: str, db: Session):
         db.add(social)
         db.commit()
         db.refresh(user)
-        status_code = 201
 
     access_token = create_access_token(user_id=user.id)
     refresh_token = create_refresh_token(user_id=user.id)
@@ -275,7 +277,10 @@ def social_login_callback(provider: str, code: str, db: Session):
 
     from fastapi.responses import RedirectResponse
     frontend_url = settings.FRONTEND_URL
-    redirect_url = f"{frontend_url}/auth/callback?access_token={access_token}&refresh_token={refresh_token}"
+    if status_code == 201:
+        redirect_url = f"{frontend_url}/register/nickname?access_token={access_token}&refresh_token={refresh_token}"
+    else:
+        redirect_url = f"{frontend_url}/auth/callback?access_token={access_token}&refresh_token={refresh_token}"
     print(f"Redirecting to: {redirect_url}")
     return RedirectResponse(url=redirect_url, status_code=302)
 
@@ -323,19 +328,19 @@ async def find_password(request: FindPasswordRequest, db: Session) -> FindPasswo
     )
 
     # 이메일 내용
-    reset_link = f"http://localhost:3000/password/reset?token={reset_token}"
+    reset_link = f"{settings.FRONTEND_URL}/password/reset?token={reset_token}"
     message = MessageSchema(
         subject="[Viva] 비밀번호 재설정 링크",
         recipients=[user.email],
         body=f"""
-        안녕하세요, {user.name}님.
+            안녕하세요, {user.name}님.
 
-        비밀번호 재설정 링크입니다. 링크는 30분간 유효합니다.
+            비밀번호 재설정 링크입니다. 링크는 30분간 유효합니다.
 
-        {reset_link}
+            {reset_link}
 
-        본인이 요청하지 않은 경우 이 이메일을 무시하세요.
-        """,
+            본인이 요청하지 않은 경우 이 이메일을 무시하세요.
+            """,
         subtype="plain"
     )
 
