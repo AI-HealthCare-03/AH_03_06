@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import RegisterLayout from '../../components/RegisterLayout.jsx'
+import FormLayout from '../../components/FormLayout.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCalendar } from '@fortawesome/free-solid-svg-icons'
 
@@ -17,8 +17,9 @@ function RegisterBasicInfo() {
       : 'flex-1 h-[56px] rounded-[12px] text-[15px] font-medium bg-white border border-[#E4E4E7] text-[#18181B] transition-colors'
 
   return (
-    <RegisterLayout
+    <FormLayout
       step={3}
+      showProgress
       title="기본 정보를 알려주세요"
       subtitle="맞춤 건강 가이드를 위해 필요한 정보예요"
       onNext={() => navigate('/register/body-info', { state: { birthday, gender } })}
@@ -60,7 +61,7 @@ function RegisterBasicInfo() {
         </div>
 
       </div>
-    </RegisterLayout>
+    </FormLayout>
   )
 }
 

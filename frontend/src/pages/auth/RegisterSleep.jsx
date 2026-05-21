@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import RegisterLayout from '../../components/RegisterLayout.jsx'
+import FormLayout from '../../components/FormLayout.jsx'
 
 function RegisterSleep() {
   const navigate = useNavigate()
@@ -40,8 +40,9 @@ function RegisterSleep() {
   })
 
   return (
-    <RegisterLayout
+    <FormLayout
       step={6}
+      showProgress
       title="평소 수면은 어떠세요?"
       subtitle="수면 가이드 정확도를 높이는 데 도움이 돼요"
       onNext={handleNext}
@@ -101,7 +102,7 @@ function RegisterSleep() {
         </div>
 
       </div>
-    </RegisterLayout>
+    </FormLayout>
   )
 }
 

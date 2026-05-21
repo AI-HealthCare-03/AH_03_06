@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { login } from '../../api/auth.js'
+import { loginSuccess } from '../../App.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons'
 
@@ -27,6 +28,7 @@ function Login() {
     setLoading(true)
     try {
       await login({ email: fullEmail, password })
+      loginSuccess()
       navigate('/home')
     } catch (err) {
       setError(err.message)

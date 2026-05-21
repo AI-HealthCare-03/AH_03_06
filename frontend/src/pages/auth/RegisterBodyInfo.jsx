@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import RegisterLayout from '../../components/RegisterLayout.jsx'
+import FormLayout from '../../components/FormLayout.jsx'
 
 function RegisterBodyInfo() {
   const navigate = useNavigate()
@@ -16,8 +16,9 @@ function RegisterBodyInfo() {
     parseFloat(weight) >= 20 && parseFloat(weight) <= 300
 
   return (
-    <RegisterLayout
+    <FormLayout
       step={4}
+      showProgress
       title="신체 정보를 알려주세요"
       subtitle="BMI 계산과 가이드 정확도를 높이는 데 필요해요"
       onNext={() => navigate('/register/lifestyle', { state: { ...prevState, height: parseFloat(height), weight: parseFloat(weight) } })}
@@ -62,7 +63,7 @@ function RegisterBodyInfo() {
         </div>
 
       </div>
-    </RegisterLayout>
+    </FormLayout>
   )
 }
 

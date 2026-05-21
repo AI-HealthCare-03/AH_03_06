@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import RegisterLayout from '../../components/RegisterLayout.jsx'
+import FormLayout from '../../components/FormLayout.jsx'
 
 function RegisterLifestyle() {
   const navigate = useNavigate()
@@ -38,8 +38,9 @@ function RegisterLifestyle() {
   })
 
   return (
-    <RegisterLayout
+    <FormLayout
       step={5}
+      showProgress
       title="생활 습관을 알려주세요"
       subtitle="건강 가이드 정확도를 높이는 데 도움이 돼요"
       onNext={handleNext}
@@ -95,7 +96,7 @@ function RegisterLifestyle() {
         </div>
 
       </div>
-    </RegisterLayout>
+    </FormLayout>
   )
 }
 

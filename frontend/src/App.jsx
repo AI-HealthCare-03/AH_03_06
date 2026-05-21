@@ -3,6 +3,9 @@ import { useState } from 'react'
 import { getAccessToken, clearTokens } from './utils/token.js'
 import Landing from './pages/landing/Landing'
 import Login from './pages/auth/Login'
+import FindEmail from './pages/auth/FindEmail'
+import FindPassword from './pages/auth/FindPassword'
+import ResetPassword from './pages/auth/ResetPassword'
 import Register from './pages/auth/Register'
 import RegisterNickname from './pages/auth/RegisterNickname'
 import RegisterBasicInfo from './pages/auth/RegisterBasicInfo'
@@ -43,6 +46,9 @@ function App() {
       <Routes>
         <Route path="/" element={<PublicRoute auth={auth}><Landing /></PublicRoute>} />
         <Route path="/login" element={<PublicRoute auth={auth}><Login /></PublicRoute>} />
+        <Route path="/email/find" element={<PublicRoute auth={auth}><FindEmail /></PublicRoute>} />
+        <Route path="/password/find" element={<PublicRoute auth={auth}><FindPassword /></PublicRoute>} />
+        <Route path="/password/reset" element={<ResetPassword />} />
         <Route path="/register" element={<PublicRoute auth={auth}><Register /></PublicRoute>} />
         <Route path="/register/nickname" element={<PublicRoute auth={auth}><RegisterNickname /></PublicRoute>} />
         <Route path="/register/basic-info" element={<PublicRoute auth={auth}><RegisterBasicInfo /></PublicRoute>} />
