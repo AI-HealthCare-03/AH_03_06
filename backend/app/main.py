@@ -6,7 +6,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import auth, users, medications, medical_records, health_checkups, guides, medication_guides, dashboard
 from app.database import engine, Base
-from app.models import MedicationGuide
+from app.models import (
+    MedicationGuide,
+    DrugInfo,
+    DrugInfoDetail,
+    DrugDoseLimit,
+    DrugIngredientMap,
+    DurConcurrentIngredient,
+    DurConcurrentProduct,
+)
 app = FastAPI(title="Viva API", version="1.0.0")
 
 # DB 테이블 생성
