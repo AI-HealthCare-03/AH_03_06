@@ -72,6 +72,7 @@ class HealthCheckupResponse(BaseModel):
 
 # 건강검진 목록 아이템 응답
 class HealthCheckupSummaryResponse(BaseModel):
+    id: int
     checkup_year: int
     normal_count: int
     caution_count: int

@@ -109,6 +109,7 @@ def get_checkups(user_id: int, db: Session) -> HealthCheckupListResponse:
     for c in checkups:
         counts = _count_classifications(c)
         summaries.append(HealthCheckupSummaryResponse(
+            id=c.id,
             checkup_year=c.checkup_year,
             **counts
         ))
