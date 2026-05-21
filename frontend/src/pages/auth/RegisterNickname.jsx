@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getAccessToken } from '../../utils/token.js'
-import RegisterLayout from '../../components/RegisterLayout.jsx'
+import FormLayout from '../../components/FormLayout.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCircleInfo, faRotateRight } from '@fortawesome/free-solid-svg-icons'
 
@@ -73,8 +73,9 @@ function RegisterNickname() {
   }
 
   return (
-    <RegisterLayout
+    <FormLayout
       step={2}
+      showProgress
       title="닉네임 설정"
       subtitle="다른 사용자에게 보여질 이름이에요"
       onNext={handleNext}
@@ -112,7 +113,7 @@ function RegisterNickname() {
         </div>
         <p className={`text-[12px] mt-2 ml-1 ${helperColor}`}>{helperText}</p>
       </section>
-    </RegisterLayout>
+    </FormLayout>
   )
 }
 

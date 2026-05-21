@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import RegisterLayout from '../../components/RegisterLayout.jsx'
+import FormLayout from '../../components/FormLayout.jsx'
 import { getAccessToken } from '../../utils/token.js'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
@@ -126,8 +126,9 @@ function RegisterHealth() {
   }
 
   return (
-    <RegisterLayout
+    <FormLayout
       step={7}
+      showProgress
       title="건강 정보를 알려주세요"
       subtitle="AI 가이드가 맞춤 콘텐츠를 추천해드려요"
       onNext={handleSubmit}
@@ -182,7 +183,7 @@ function RegisterHealth() {
         {error && <p className="text-red-500 text-[13px]">{error}</p>}
 
       </div>
-    </RegisterLayout>
+    </FormLayout>
   )
 }
 

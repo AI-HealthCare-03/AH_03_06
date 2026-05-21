@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { register } from '../../api/auth.js'
-import RegisterLayout from '../../components/RegisterLayout.jsx'
+import FormLayout from '../../components/FormLayout.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faEye, faEyeSlash, faCheck } from '@fortawesome/free-solid-svg-icons'
 
@@ -55,8 +55,9 @@ function Register() {
   }
 
   return (
-    <RegisterLayout
+    <FormLayout
       step={1}
+      showProgress
       title="회원가입"
       subtitle="Viva 서비스 이용을 위해 정보를 입력해주세요"
       onNext={handleSubmit}
@@ -187,7 +188,7 @@ function Register() {
 
       {error && <p className="text-red-500 text-[13px] mt-4">{error}</p>}
 
-    </RegisterLayout>
+    </FormLayout>
   )
 }
 
