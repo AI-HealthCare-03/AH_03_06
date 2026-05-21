@@ -18,6 +18,9 @@ import Home from './pages/dashboard/Home'
 import All from './pages/all/All'
 import MyPage from './pages/user/MyPage'
 import ProfileEdit from './pages/user/ProfileEdit'
+import MedicalRecordDetail from './pages/medical-record/MedicalRecordDetail.jsx'
+import MedicalRecordList from './pages/medical-record/MedicalRecordList.jsx'
+import MedicalRecordForm from './pages/medical-record/MedicalRecordForm.jsx'
 
 let _setAuth = null
 export function logout() {
@@ -40,6 +43,8 @@ function PublicRoute({ auth, children }) {
 function App() {
   const [auth, setAuth] = useState(!!getAccessToken())
   _setAuth = setAuth
+
+
 
   return (
     <BrowserRouter>
@@ -71,7 +76,7 @@ function App() {
         <Route path="/medical-records/new" element={<MedicalRecordForm />} />
         <Route path="/medical-records/:id" element={<MedicalRecordDetail />} />
         <Route path="/medical-records/:id/edit" element={<MedicalRecordForm />} />
-
+        <Route path="/all" element={<All />} />
       </Routes>
     </BrowserRouter>
   )
