@@ -328,19 +328,19 @@ async def find_password(request: FindPasswordRequest, db: Session) -> FindPasswo
     )
 
     # 이메일 내용
-    reset_link = f"http://localhost:3000/password/reset?token={reset_token}"
+    reset_link = f"{settings.FRONTEND_URL}/password/reset?token={reset_token}"
     message = MessageSchema(
         subject="[Viva] 비밀번호 재설정 링크",
         recipients=[user.email],
         body=f"""
-        안녕하세요, {user.name}님.
+            안녕하세요, {user.name}님.
 
-        비밀번호 재설정 링크입니다. 링크는 30분간 유효합니다.
+            비밀번호 재설정 링크입니다. 링크는 30분간 유효합니다.
 
-        {reset_link}
+            {reset_link}
 
-        본인이 요청하지 않은 경우 이 이메일을 무시하세요.
-        """,
+            본인이 요청하지 않은 경우 이 이메일을 무시하세요.
+            """,
         subtype="plain"
     )
 
