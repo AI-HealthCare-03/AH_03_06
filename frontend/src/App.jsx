@@ -18,9 +18,15 @@ import Home from './pages/dashboard/Home'
 import All from './pages/all/All'
 import MyPage from './pages/user/MyPage'
 import ProfileEdit from './pages/user/ProfileEdit'
+<<<<<<< HEAD
 import HealthCheckList from "./pages/health-checkup/HealthCheckList.jsx";
 import HealthCheckInput from "./pages/health-checkup/HealthCheckInput.jsx"
 import HealthCheckResults from "./pages/health-checkup/HealthCheckResults.jsx"
+=======
+import MedicalRecordDetail from './pages/medical-record/MedicalRecordDetail.jsx'
+import MedicalRecordList from './pages/medical-record/MedicalRecordList.jsx'
+import MedicalRecordForm from './pages/medical-record/MedicalRecordForm.jsx'
+>>>>>>> 8471e96 (feat: medical_record frontend 작업)
 
 let _setAuth = null
 export function logout() {
@@ -43,6 +49,8 @@ function PublicRoute({ auth, children }) {
 function App() {
   const [auth, setAuth] = useState(!!getAccessToken())
   _setAuth = setAuth
+
+
 
   return (
     <BrowserRouter>
@@ -80,7 +88,7 @@ function App() {
         <Route path="/medical-records/new" element={<MedicalRecordForm />} />
         <Route path="/medical-records/:id" element={<MedicalRecordDetail />} />
         <Route path="/medical-records/:id/edit" element={<MedicalRecordForm />} />
-
+        <Route path="/all" element={<All />} />
       </Routes>
     </BrowserRouter>
   )
