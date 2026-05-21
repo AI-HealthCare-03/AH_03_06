@@ -9,6 +9,7 @@ from app.schemas.health_checkup import (
     HealthCheckupCreateRequest,
     HealthCheckupUpdateRequest,
     HealthCheckupResponse,
+    HealthCheckupSummaryResponse,
     HealthCheckupListResponse,
     HealthCheckupDeleteResponse,
     HealthClassificationResponse,
@@ -50,7 +51,7 @@ def _classify_bmi(height: float, weight: float) -> tuple:
     """BMI 계산 및 분류 (FR-306 기준)"""
     bmi = round(weight / ((height / 100) ** 2), 1)
     if bmi < 18.5:
-        result = "저체중"
+        result = "주의"
     elif bmi < 23.0:
         result = "정상"
     elif bmi < 25.0:
@@ -58,6 +59,31 @@ def _classify_bmi(height: float, weight: float) -> tuple:
     else:
         result = "위험"
     return bmi, result
+
+
+def _count_classifications(checkup: HealthCheckup) -> dict:
+    results = []
+
+    if checkup.bp_systolic and checkup.bp_diastolic:
+        results.append(_classify_bp(checkup.bp_systolic, checkup.bp_diastolic))
+
+    if checkup.fasting_glucose:
+        results.append(_classify_glucose(checkup.fasting_glucose))
+
+    if checkup.total_cholesterol and checkup.hdl and checkup.ldl and checkup.triglyceride:
+        results.append(_classify_cholesterol(
+            checkup.total_cholesterol, checkup.hdl, checkup.ldl, checkup.triglyceride
+        ))
+
+    if checkup.height and checkup.weight:
+        _, result = _classify_bmi(float(checkup.height), float(checkup.weight))
+        results.append(result)
+
+    return {
+        "normal_count": results.count("정상"),
+        "caution_count": results.count("주의"),
+        "danger_count": results.count("위험"),
+    }
 
 
 def create_checkup(
@@ -79,9 +105,15 @@ def get_checkups(user_id: int, db: Session) -> HealthCheckupListResponse:
         HealthCheckup.user_id == user_id
     ).order_by(HealthCheckup.checkup_year.desc()).all()
 
-    return HealthCheckupListResponse(
-        checkups=[HealthCheckupResponse.model_validate(c) for c in checkups]
-    )
+    summaries = []
+    for c in checkups:
+        counts = _count_classifications(c)
+        summaries.append(HealthCheckupSummaryResponse(
+            checkup_year=c.checkup_year,
+            **counts
+        ))
+
+    return HealthCheckupListResponse(checkups=summaries)
 
 
 def get_checkup(user_id: int, checkup_id: int, db: Session) -> HealthCheckupResponse:
@@ -89,6 +121,19 @@ def get_checkup(user_id: int, checkup_id: int, db: Session) -> HealthCheckupResp
     checkup = db.query(HealthCheckup).filter(
         HealthCheckup.id == checkup_id,
         HealthCheckup.user_id == user_id
+    ).first()
+
+    if not checkup:
+        raise HTTPException(status_code=404, detail="checkup_not_found")
+
+    return HealthCheckupResponse.model_validate(checkup)
+
+
+def get_checkup_by_year(user_id: int, year: int, db: Session) -> HealthCheckupResponse:
+    """연도로 건강검진 상세 조회"""
+    checkup = db.query(HealthCheckup).filter(
+        HealthCheckup.user_id == user_id,
+        HealthCheckup.checkup_year == year
     ).first()
 
     if not checkup:
@@ -112,7 +157,6 @@ def update_checkup(
     if not checkup:
         raise HTTPException(status_code=404, detail="checkup_not_found")
 
-    # 전달된 필드만 업데이트
     for field, value in request.model_dump(exclude_none=True).items():
         setattr(checkup, field, value)
 
@@ -193,7 +237,6 @@ def get_trend(user_id: int, db: Session, period: str = "1y", item: str = None) -
     """건강 수치 변화 추이 조회"""
     from datetime import datetime
 
-    # 기간 필터
     current_year = datetime.now().year
     period_map = {"1m": 0, "3m": 0, "6m": 0, "1y": 1}
 
