@@ -38,6 +38,7 @@ class User(Base):
     sleep_info = relationship("SleepInfo", back_populates="user", uselist=False)
     diet_info = relationship("DietInfo", back_populates="user", uselist=False)
     health_checkups = relationship("HealthCheckup", back_populates="user")
+    medication_guides = relationship("MedicationGuide", back_populates="user")
 
 class UserProfile(Base):
     """사용자 기본 프로필 테이블 (생년월일, 성별)"""
