@@ -4,7 +4,7 @@ import { getAccessToken } from '../../utils/token.js'
 import Header from '../../components/Header.jsx'
 import BottomAction from '../../components/BottomAction.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faTriangleExclamation, faCircleCheck, faCircleInfo } from '@fortawesome/free-solid-svg-icons'
+import { faTriangleExclamation, faCircleCheck, faCircleInfo, faEllipsisVertical } from '@fortawesome/free-solid-svg-icons'
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
@@ -91,6 +91,7 @@ function HealthCheckResults() {
   const { year } = useParams()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [showMenu, setShowMenu] = useState(false)
 
   useEffect(() => {
     fetch(`${base}/health-checkups/year/${year}`, {
@@ -122,11 +123,52 @@ function HealthCheckResults() {
   const cautionCount = statuses.filter(s => s === '주의').length
   const dangerCount = statuses.filter(s => s === '위험').length
 
+  const handleDelete = () => {
+    fetch(`${base}/health-checkups/year/${year}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${getAccessToken()}` }
+    })
+      .then(() => navigate(-1))
+      .catch(err => console.log('error:', err))
+  }
+
   return (
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
       <div className="w-full min-h-[100dvh] bg-white flex flex-col mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 md:overflow-hidden">
 
-        <Header variant="back" title="건강검진 결과" />
+        <Header
+          variant="back"
+          title="건강검진 결과"
+          rightAction={
+            <div className="relative">
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="w-10 h-10 flex items-center justify-center text-[#18181B]"
+              >
+                <FontAwesomeIcon icon={faEllipsisVertical} className="text-[16px]" />
+              </button>
+              {showMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+                  <div className="absolute right-0 top-10 z-50 bg-white rounded-[10px] shadow-lg border border-[#E4E4E7] overflow-hidden w-[120px]">
+                    <button
+                      onClick={() => { setShowMenu(false); navigate(`/health-checkup/input/${year}`) }}
+                      className="w-full px-5 py-3 text-[14px] font-[500] text-[#18181B] text-left hover:bg-[#F5F5F5]"
+                    >
+                      수정
+                    </button>
+                    <button
+                      onClick={() => { setShowMenu(false); handleDelete() }}
+                      className="w-full px-5 py-3 text-[14px] font-[500] text-red-500 text-left hover:bg-[#F5F5F5]"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          }
+        />
 
         <div className="flex-1 overflow-y-auto px-5 pt-5 pb-4 space-y-4">
 

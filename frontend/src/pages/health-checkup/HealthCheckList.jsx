@@ -4,8 +4,9 @@ import { getAccessToken } from '../../utils/token.js'
 import Header from '../../components/Header.jsx'
 import BottomNav from '../../components/BottomNav.jsx'
 import FloatingButton from '../../components/FloatingButton.jsx'
+import HealthCheckCard from '../../components/HealthCheckCard.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faChevronRight, faChevronDown, faSlidersH, faXmark } from '@fortawesome/free-solid-svg-icons'
+import { faChevronDown, faSlidersH, faXmark } from '@fortawesome/free-solid-svg-icons'
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
@@ -69,6 +70,15 @@ function HealthCheckList() {
     setTempTo(defaultRange.to)
   }
 
+  const handleDelete = (id) => {
+    fetch(`${base}/health-checkups/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${getAccessToken()}` }
+    })
+      .then(() => setRecords(prev => prev.filter(r => r.id !== id)))
+      .catch(err => console.log('error:', err))
+  }
+
   return (
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
       <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 pb-24">
@@ -104,20 +114,11 @@ function HealthCheckList() {
             </div>
           )}
           {sorted.map((record) => (
-            <article
+            <HealthCheckCard
               key={record.checkup_year}
-              onClick={() => navigate(`/health-checkup/results/${record.checkup_year}`)}
-              className="bg-white rounded-[12px] p-5 flex items-center justify-between border border-[#E4E4E7] cursor-pointer active:bg-[#F5F5F5] transition-colors"
-            >
-              <div className="flex flex-col gap-1 flex-1 min-w-0">
-                <span className="text-[13px] font-[500] text-[#A1A1AA]">{record.checkup_year}년</span>
-                <h2 className="text-[16px] font-[700] text-[#18181B]">건강검진 결과</h2>
-                <p className="text-[14px] font-[500] text-[#71717A]">
-                  정상 {record.normal_count ?? '-'} · 주의 {record.caution_count ?? '-'} · 위험 {record.danger_count ?? '-'}
-                </p>
-              </div>
-              <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[14px] ml-3 shrink-0" />
-            </article>
+              record={record}
+              onDelete={handleDelete}
+            />
           ))}
         </section>
 

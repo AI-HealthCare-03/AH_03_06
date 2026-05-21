@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faBell, faChevronLeft } from '@fortawesome/free-solid-svg-icons'
 
-function Header({ variant = 'default', title, nickname, showDivider = true }) {
+function Header({ variant = 'default', title, nickname, showDivider = true, rightAction }) {
   const navigate = useNavigate()
 
   if (variant === 'home') {
@@ -27,7 +27,7 @@ function Header({ variant = 'default', title, nickname, showDivider = true }) {
           <FontAwesomeIcon icon={faChevronLeft} className="text-[#18181B] text-[18px]" />
         </button>
         <h1 className="text-[16px] font-[700] text-[#18181B] tracking-tight">{title}</h1>
-        <div className="w-10" />
+        {rightAction ? rightAction : <div className="w-10" />}
       </header>
     )
   }

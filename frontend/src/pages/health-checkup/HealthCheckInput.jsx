@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { getAccessToken } from '../../utils/token.js'
 import FormLayout from '../../components/FormLayout.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -32,11 +32,13 @@ function Field({ label, value, onChange, unit, step = '1', required = false }) {
 
 function HealthCheckInput() {
   const navigate = useNavigate()
+  const { year: editYear } = useParams()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [hasPrev, setHasPrev] = useState(false)
+  const [checkupId, setCheckupId] = useState(null)
 
-  const [year, setYear] = useState(String(new Date().getFullYear()))
+  const [year, setYear] = useState(editYear ?? String(new Date().getFullYear()))
   const [height, setHeight] = useState('')
   const [weight, setWeight] = useState('')
   const [waist, setWaist] = useState('')
@@ -54,32 +56,61 @@ function HealthCheckInput() {
   const [ggt, setGgt] = useState('')
 
   useEffect(() => {
-    fetch(`${base}/health-checkups/latest`, {
-      headers: { Authorization: `Bearer ${getAccessToken()}` }
-    })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data) {
-          setHasPrev(true)
-          setHeight(data.height ?? '')
-          setWeight(data.weight ?? '')
-          setWaist(data.waist ?? '')
-          setSystolic(data.bp_systolic ?? '')
-          setDiastolic(data.bp_diastolic ?? '')
-          setFastingGlucose(data.fasting_glucose ?? '')
-          setTotalCholesterol(data.total_cholesterol ?? '')
-          setHdl(data.hdl ?? '')
-          setLdl(data.ldl ?? '')
-          setTriglyceride(data.triglyceride ?? '')
-          setHemoglobin(data.hemoglobin ?? '')
-          setCreatinine(data.creatinine ?? '')
-          setAst(data.ast ?? '')
-          setAlt(data.alt ?? '')
-          setGgt(data.ggt ?? '')
-        }
+    if (editYear) {
+      fetch(`${base}/health-checkups/year/${editYear}`, {
+        headers: { Authorization: `Bearer ${getAccessToken()}` }
       })
-      .catch(() => {})
-  }, [])
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data) {
+            setCheckupId(data.id)
+            setYear(String(data.checkup_year))
+            setHeight(data.height ?? '')
+            setWeight(data.weight ?? '')
+            setWaist(data.waist ?? '')
+            setSystolic(data.bp_systolic ?? '')
+            setDiastolic(data.bp_diastolic ?? '')
+            setFastingGlucose(data.fasting_glucose ?? '')
+            setTotalCholesterol(data.total_cholesterol ?? '')
+            setHdl(data.hdl ?? '')
+            setLdl(data.ldl ?? '')
+            setTriglyceride(data.triglyceride ?? '')
+            setHemoglobin(data.hemoglobin ?? '')
+            setCreatinine(data.creatinine ?? '')
+            setAst(data.ast ?? '')
+            setAlt(data.alt ?? '')
+            setGgt(data.ggt ?? '')
+          }
+        })
+        .catch(() => {})
+    } else {
+      fetch(`${base}/health-checkups/latest`, {
+        headers: { Authorization: `Bearer ${getAccessToken()}` }
+      })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data) {
+            setHasPrev(true)
+            setHeight(data.height ?? '')
+            setWeight(data.weight ?? '')
+            setWaist(data.waist ?? '')
+            setSystolic(data.bp_systolic ?? '')
+            setDiastolic(data.bp_diastolic ?? '')
+            setFastingGlucose(data.fasting_glucose ?? '')
+            setTotalCholesterol(data.total_cholesterol ?? '')
+            setHdl(data.hdl ?? '')
+            setLdl(data.ldl ?? '')
+            setTriglyceride(data.triglyceride ?? '')
+            setHemoglobin(data.hemoglobin ?? '')
+            setCreatinine(data.creatinine ?? '')
+            setAst(data.ast ?? '')
+            setAlt(data.alt ?? '')
+            setGgt(data.ggt ?? '')
+          }
+        })
+        .catch(() => {})
+    }
+  }, [editYear])
 
   const isFormValid = year && height && weight && systolic && diastolic && fastingGlucose
 
@@ -88,34 +119,39 @@ function HealthCheckInput() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`${base}/health-checkups`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getAccessToken()}`
-        },
-        body: JSON.stringify({
-          checkup_year: parseInt(year),
-          height: parseFloat(height),
-          weight: parseFloat(weight),
-          waist: waist ? parseFloat(waist) : null,
-          bp_systolic: parseInt(systolic),
-          bp_diastolic: parseInt(diastolic),
-          fasting_glucose: parseInt(fastingGlucose),
-          total_cholesterol: totalCholesterol ? parseInt(totalCholesterol) : null,
-          hdl: hdl ? parseInt(hdl) : null,
-          ldl: ldl ? parseInt(ldl) : null,
-          triglyceride: triglyceride ? parseInt(triglyceride) : null,
-          hemoglobin: hemoglobin ? parseFloat(hemoglobin) : null,
-          creatinine: creatinine ? parseFloat(creatinine) : null,
-          ast: ast ? parseInt(ast) : null,
-          alt: alt ? parseInt(alt) : null,
-          ggt: ggt ? parseInt(ggt) : null,
-        })
-      })
+      const body = {
+        checkup_year: parseInt(year),
+        height: parseFloat(height),
+        weight: parseFloat(weight),
+        waist: waist ? parseFloat(waist) : null,
+        bp_systolic: parseInt(systolic),
+        bp_diastolic: parseInt(diastolic),
+        fasting_glucose: parseInt(fastingGlucose),
+        total_cholesterol: totalCholesterol ? parseInt(totalCholesterol) : null,
+        hdl: hdl ? parseInt(hdl) : null,
+        ldl: ldl ? parseInt(ldl) : null,
+        triglyceride: triglyceride ? parseInt(triglyceride) : null,
+        hemoglobin: hemoglobin ? parseFloat(hemoglobin) : null,
+        creatinine: creatinine ? parseFloat(creatinine) : null,
+        ast: ast ? parseInt(ast) : null,
+        alt: alt ? parseInt(alt) : null,
+        ggt: ggt ? parseInt(ggt) : null,
+      }
+
+      const res = await fetch(
+        editYear ? `${base}/health-checkups/${checkupId}` : `${base}/health-checkups`,
+        {
+          method: editYear ? 'PUT' : 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${getAccessToken()}`
+          },
+          body: JSON.stringify(body)
+        }
+      )
       const data = await res.json()
       if (!res.ok) throw new Error(data?.detail ?? '오류가 발생했어요')
-      navigate(`/health-checkup/results/${year}`)
+      navigate(`/health-checkup/results/${year}`, { replace: true })
     } catch (err) {
       setError(err.message)
     } finally {
@@ -127,7 +163,7 @@ function HealthCheckInput() {
     <FormLayout
       title="건강검진 입력"
       onNext={handleSubmit}
-      nextLabel={loading ? '저장 중...' : '저장하기'}
+      nextLabel={loading ? '저장 중...' : editYear ? '수정하기' : '저장하기'}
       nextDisabled={!isFormValid || loading}
     >
       {hasPrev && (
@@ -148,6 +184,7 @@ function HealthCheckInput() {
               type="number"
               value={year}
               onChange={e => setYear(e.target.value)}
+              disabled={!!editYear}
               className={inputClass}
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[14px] text-[#A1A1AA] pointer-events-none">년</span>
