@@ -29,11 +29,6 @@ import HealthCheckList from "./pages/health-checkup/HealthCheckList.jsx";
 import HealthCheckInput from "./pages/health-checkup/HealthCheckInput.jsx"
 import HealthCheckResults from "./pages/health-checkup/HealthCheckResults.jsx"
 
-import MedicalRecordDetail from './pages/medical-record/MedicalRecordDetail.jsx'
-import MedicalRecordList from './pages/medical-record/MedicalRecordList.jsx'
-import MedicalRecordForm from './pages/medical-record/MedicalRecordForm.jsx'
-
-
 let _setAuth = null
 export function logout() {
   clearTokens()
