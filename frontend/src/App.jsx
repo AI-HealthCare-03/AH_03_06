@@ -16,6 +16,7 @@ import RegisterHealth from './pages/auth/RegisterHealth'
 import AuthCallback from "./pages/auth/AuthCallback.jsx"
 import Home from './pages/dashboard/Home'
 import All from './pages/all/All'
+import GuidePage from './pages/guide/GuidePage'
 import MyPage from './pages/user/MyPage'
 import ProfileEdit from './pages/user/ProfileEdit'
 import HealthCheckList from "./pages/health-checkup/HealthCheckList.jsx";
@@ -62,6 +63,7 @@ function App() {
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/home" element={<PrivateRoute auth={auth}><Home /></PrivateRoute>} />
         <Route path="/all" element={<PrivateRoute auth={auth}><All /></PrivateRoute>} />
+        <Route path="/guide" element={<PrivateRoute auth={auth}><GuidePage /></PrivateRoute>} />
         <Route path="/user" element={<PrivateRoute auth={auth}><MyPage /></PrivateRoute>} />
         <Route path="/user/profile/edit" element={<PrivateRoute auth={auth}><ProfileEdit /></PrivateRoute>} />
         <Route path="/health-checkup" element={<PrivateRoute auth={auth}><HealthCheckList /></PrivateRoute>} />
