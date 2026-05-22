@@ -17,10 +17,6 @@ const MENU = [
   {
     category: '건강 기록',
     items: [
-
-      { icon: faStethoscope, title: '진료기록', desc: '진료받은 기록 모아보기',    path: '/medical-record', primary: true },
-      { icon: faHeartPulse,  title: '건강검진', desc: '건강검진 기록 모아보기',    path: '/health-checkup', primary: true },
-
       { icon: faStethoscope,               title: '진료기록',      desc: '진료받은 기록 모아보기',   path: '/medical-records', primary: true },
       { icon: faHeartPulse,                title: '건강검진 결과', desc: '혈압·혈당 등 수치 확인',   path: '/health-checkup', primary: true },
 

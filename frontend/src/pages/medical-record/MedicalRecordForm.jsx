@@ -75,14 +75,37 @@ function PrescriptionCard({ index, data, onChange, onRemove }) {
       </div>
 
       {/* 복용 정보 — 한 줄로 입력 (용량 · 횟수 · 기간) */}
-      <div className="mb-0">
-        <input
-          type="text"
-          value={data.dosage}
-          onChange={e => update('dosage', e.target.value)}
-          placeholder="복용 정보 (예: 1정 · 1일 3회 · 3일분)"
-          className={inputCls}
-        />
+      <div className="flex items-center gap-2">
+        <div className="flex-1 relative">
+          <input
+            type="number"
+            placeholder="1"
+            value={data.dosage ?? ''}
+            onChange={e => update('dosage', e.target.value)}
+            className="w-full h-11 bg-neutral-50 border border-neutral-200 rounded-xl px-3 text-sm text-right pr-8"
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">정</span>
+        </div>
+        <div className="flex-1 relative">
+          <input
+            type="number"
+            placeholder="3"
+            value={data.frequency ?? ''}
+            onChange={e => update('frequency', e.target.value)}
+            className="w-full h-11 bg-neutral-50 border border-neutral-200 rounded-xl px-3 text-sm text-right pr-10"
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">회/일</span>
+        </div>
+        <div className="flex-1 relative">
+          <input
+            type="number"
+            placeholder="3"
+            value={data.duration_days ?? ''}
+            onChange={e => update('duration_days', e.target.value)}
+            className="w-full h-11 bg-neutral-50 border border-neutral-200 rounded-xl px-3 text-sm text-right pr-10"
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">일분</span>
+        </div>
       </div>
     </div>
   )
@@ -183,10 +206,10 @@ export default function MedicalRecordForm() {
           .filter(p => p.drug_name.trim())
           .map(p => ({
             ...(p.id ? { id: p.id } : {}), // 수정 시 id 포함
-            drug_name:    p.drug_name.trim(),
-            dosage:       p.dosage.trim() || null,
-            frequency:    p.frequency.trim() || null,
-            duration_days: p.duration_days ? Number(p.duration_days) : null,
+        drug_name:    p.drug_name.trim(),
+        dosage:        (p.dosage ?? '').trim() || null,
+        frequency:     (p.frequency ?? '').trim() || null,
+        duration_days: p.duration_days ? Number(p.duration_days) : null,
           })),
       }
 
@@ -206,7 +229,7 @@ export default function MedicalRecordForm() {
   // ── 로딩 ──────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="mobile-container flex flex-col min-h-dvh bg-white max-w-[375px] mx-auto font-['Pretendard',sans-serif] items-center justify-center">
+      <div className="mobile-container flex flex-col min-h-dvh bg-white font-['Pretendard',sans-serif] items-center justify-center">
         <div className="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
       </div>
     )
@@ -215,7 +238,7 @@ export default function MedicalRecordForm() {
   const memoLen = form.memo.length
 
   return (
-    <div className="mobile-container flex flex-col min-h-dvh bg-white max-w-[375px] mx-auto font-['Pretendard',sans-serif]">
+    <div className="mobile-container flex flex-col min-h-dvh bg-white font-['Pretendard',sans-serif]">
 
       {/* 앱바 */}
       <header className="w-full h-14 flex items-center justify-between px-4 shrink-0 border-b border-neutral-50">
@@ -236,6 +259,20 @@ export default function MedicalRecordForm() {
 
       {/* 스크롤 영역 */}
       <main className="flex-1 overflow-y-auto px-5 py-6 flex flex-col gap-7 pb-32">
+
+        {/* 처방전으로 자동 입력 버튼 */}
+        <button
+          onClick={() => navigate('/medical-records/ocr')}
+          className="w-full flex items-center justify-center gap-2 h-11 rounded-xl border border-blue-200 bg-blue-50 text-blue-600 text-sm font-semibold mb-6 active:bg-blue-100 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          처방전으로 자동 입력
+        </button>
+
+        <SectionLabel>진료 정보</SectionLabel>
 
         {/* ── 진료 정보 ─────────────────────────────────── */}
         <section>

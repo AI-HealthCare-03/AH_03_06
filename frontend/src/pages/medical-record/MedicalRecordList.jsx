@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listMedicalRecords } from '../../api/medicalRecord'
+import BottomNav from '../../components/BottomNav'
 
 // ── 진료과 목록 (실제 서비스에서는 API로 조회) ───────────────
 const DEPARTMENTS = [
@@ -224,10 +225,10 @@ export default function MedicalRecordList() {
   const hasFilters = !!keyword || activeFilterCount > 0
 
   return (
-    <div className="mobile-container flex flex-col min-h-dvh bg-white max-w-[375px] mx-auto font-['Pretendard',sans-serif]">
+    <div className="mobile-container flex flex-col min-h-dvh bg-white font-['Pretendard',sans-serif]">
 
       {/* 앱바 */}
-      <header className="px-5 pt-14 pb-4 shrink-0">
+      <header className="px-5 pt-6 pb-4 shrink-0">
         <h1 className="text-xl font-bold text-neutral-900">진료기록</h1>
       </header>
 
@@ -314,7 +315,7 @@ export default function MedicalRecordList() {
       {/* FAB - 등록 버튼 */}
       <button
         onClick={() => navigate('/medical-records/new')}
-        className="fixed bottom-24 right-5 w-14 h-14 rounded-full bg-blue-600 text-white shadow-[0_8px_24px_rgba(37,99,235,0.4)] flex items-center justify-center active:scale-95 transition-transform duration-150 z-10"
+        className="fixed bottom-20 right-5 w-14 h-14 rounded-full bg-blue-600 text-white shadow-[0_8px_24px_rgba(37,99,235,0.4)] flex items-center justify-center active:scale-95 transition-transform duration-150 z-10"
         aria-label="진료기록 추가"
       >
         <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -330,6 +331,7 @@ export default function MedicalRecordList() {
           onClose={() => setShowFilter(false)}
         />
       )}
+      <BottomNav /> 
     </div>
   )
 }

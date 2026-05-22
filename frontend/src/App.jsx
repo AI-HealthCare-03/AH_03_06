@@ -18,6 +18,10 @@ import Home from './pages/dashboard/Home'
 import All from './pages/all/All'
 import MyPage from './pages/user/MyPage'
 import ProfileEdit from './pages/user/ProfileEdit'
+import MedicalRecordDetail from './pages/medical-record/MedicalRecordDetail.jsx'
+import MedicalRecordList from './pages/medical-record/MedicalRecordList.jsx'
+import MedicalRecordForm from './pages/medical-record/MedicalRecordForm.jsx'
+import PrescriptionOCR from './pages/medical-record/PrescriptionOCR'
 
 import HealthCheckList from "./pages/health-checkup/HealthCheckList.jsx";
 import HealthCheckInput from "./pages/health-checkup/HealthCheckInput.jsx"
@@ -89,6 +93,7 @@ function App() {
         <Route path="/medical-records/:id" element={<MedicalRecordDetail />} />
         <Route path="/medical-records/:id/edit" element={<MedicalRecordForm />} />
         <Route path="/all" element={<All />} />
+        <Route path="/medical-records/ocr" element={<PrescriptionOCR />} />
       </Routes>
     </BrowserRouter>
   )
