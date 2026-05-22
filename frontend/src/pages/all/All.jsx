@@ -19,21 +19,22 @@ const MENU = [
     items: [
       { icon: faStethoscope,               title: '진료기록',      desc: '진료받은 기록 모아보기',   path: '/medical-records', primary: true },
       { icon: faHeartPulse,                title: '건강검진 결과', desc: '혈압·혈당 등 수치 확인',   path: '/health-checkup', primary: true },
+
     ]
   },
   {
     category: '바로가기',
     items: [
-      { icon: faPrescriptionBottleMedical, title: '복약 등록',    desc: '새로운 약 추가하기',       path: '/medication',     primary: true },
-      { icon: faListCheck,                 title: '오늘의 체크',  desc: '오늘 복용한 약 체크',      path: '/medication',     primary: true },
-      { icon: faBookMedical,               title: '가이드 모음',  desc: '식단·운동·수면 AI 가이드', path: '/guide',          primary: true },
+      { icon: faPrescriptionBottleMedical, title: '복약 등록',   desc: '새로운 약 추가하기',         path: '/medication', primary: true },
+      { icon: faListCheck,                 title: '오늘의 체크', desc: '오늘 복용한 약 체크하기',    path: '/medication', primary: true },
+      { icon: faBookMedical,               title: '가이드 모음', desc: '식단·운동·수면 가이드 보기', path: '/guide',      primary: true },
     ]
   },
   {
     category: '기타',
     items: [
-      { icon: faBell,           title: '알림',   desc: '알림 설정 관리', path: '/notifications', primary: false },
-      { icon: faCircleQuestion, title: '도움말', desc: '자주 묻는 질문', path: '/help',          primary: false },
+      { icon: faBell,           title: '알림',   desc: '알림 설정 관리하기',  path: '/notifications', primary: false },
+      { icon: faCircleQuestion, title: '도움말', desc: '자주 묻는 질문 보기', path: '/help',          primary: false },
     ]
   },
 ]

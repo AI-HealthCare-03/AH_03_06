@@ -23,6 +23,15 @@ import MedicalRecordList from './pages/medical-record/MedicalRecordList.jsx'
 import MedicalRecordForm from './pages/medical-record/MedicalRecordForm.jsx'
 import PrescriptionOCR from './pages/medical-record/PrescriptionOCR'
 
+import HealthCheckList from "./pages/health-checkup/HealthCheckList.jsx";
+import HealthCheckInput from "./pages/health-checkup/HealthCheckInput.jsx"
+import HealthCheckResults from "./pages/health-checkup/HealthCheckResults.jsx"
+
+import MedicalRecordDetail from './pages/medical-record/MedicalRecordDetail.jsx'
+import MedicalRecordList from './pages/medical-record/MedicalRecordList.jsx'
+import MedicalRecordForm from './pages/medical-record/MedicalRecordForm.jsx'
+
+
 let _setAuth = null
 export function logout() {
   clearTokens()
@@ -68,6 +77,12 @@ function App() {
         <Route path="/all" element={<PrivateRoute auth={auth}><All /></PrivateRoute>} />
         <Route path="/user" element={<PrivateRoute auth={auth}><MyPage /></PrivateRoute>} />
         <Route path="/user/profile/edit" element={<PrivateRoute auth={auth}><ProfileEdit /></PrivateRoute>} />
+
+        <Route path="/health-checkup" element={<PrivateRoute auth={auth}><HealthCheckList /></PrivateRoute>} />
+        <Route path="/health-checkup/input" element={<PrivateRoute auth={auth}><HealthCheckInput /></PrivateRoute>} />
+        <Route path="/health-checkup/input/:year" element={<PrivateRoute auth={auth}><HealthCheckInput /></PrivateRoute>} />
+        <Route path="/health-checkup/results/:year" element={<PrivateRoute auth={auth}><HealthCheckResults /></PrivateRoute>} />
+
 
         <Route path="/home" element={<Home />} />
         <Route path="/user" element={<MyPage />} />
