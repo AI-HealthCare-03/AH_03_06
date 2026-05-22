@@ -368,13 +368,54 @@ def extract_fields(texts: list) -> dict:
     return fields
 
 
+def format_fields(fields: dict) -> dict:
+    """추출된 필드를 응답 형식에 맞게 가공"""
+    from datetime import date
+
+    result = dict(fields)
+
+    # issue_info → issue_date / issue_no 분리
+    issue_info = fields.get("issue_info")
+    if issue_info:
+        date_match = re.search(r'(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일', issue_info)
+        no_match   = re.search(r'제\s*(\d+)\s*호', issue_info)
+        if date_match:
+            year, month, day = int(date_match.group(1)), int(date_match.group(2)), int(date_match.group(3))
+            result["issue_date"] = date(year, month, day)
+        else:
+            result["issue_date"] = None
+        result["issue_no"] = no_match.group(1) if no_match else None
+    else:
+        result["issue_date"] = None
+        result["issue_no"]   = None
+    del result["issue_info"]
+
+    # license_no → 숫자만 추출
+    license_no = fields.get("license_no")
+    if license_no:
+        no_match = re.search(r'\d+', license_no)
+        result["license_no"] = no_match.group() if no_match else None
+
+    # valid_period → 숫자만 추출 후 int 변환
+    valid_period = fields.get("valid_period")
+    if valid_period:
+        no_match = re.search(r'\d+', valid_period)
+        result["valid_days"] = int(no_match.group()) if no_match else None
+    else:
+        result["valid_days"] = None
+    del result["valid_period"]
+
+    return result
+
+
 async def extract_prescription(file: UploadFile, db: Session) -> PrescriptionOCRResponse:
     """처방전 이미지 → Clova OCR 호출 → 필드 추출 → 응답 반환"""
     result = await call_clova_ocr(file)
     texts = parse_clova_result(result)
     fields = extract_fields(texts)
+    formatted = format_fields(fields)
 
-    fields["medications"] = [MedicationItem(**m) for m in fields["medications"]]
-    fields["inject_info"] = [InjectItem(**m) for m in fields["inject_info"]]
+    formatted["medications"] = [MedicationItem(**m) for m in formatted["medications"]]
+    formatted["inject_info"] = [InjectItem(**m) for m in formatted["inject_info"]]
 
-    return PrescriptionOCRResponse(**fields)
+    return PrescriptionOCRResponse(**formatted)

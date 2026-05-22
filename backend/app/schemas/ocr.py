@@ -1,6 +1,7 @@
 # app/schemas/ocr.py
 
 from typing import Optional, List
+from datetime import date
 from pydantic import BaseModel
 
 
@@ -21,7 +22,8 @@ class InjectItem(BaseModel):
 class PrescriptionOCRResponse(BaseModel):
     facility_code:  Optional[str]        = None
     facility_name:  Optional[str]        = None
-    issue_info:     Optional[str]        = None
+    issue_date:     Optional[date]       = None
+    issue_no:       Optional[str]        = None
     patient_name:   Optional[str]        = None
     patient_ssn:    Optional[str]        = None
     disease_code:   Optional[str]        = None
@@ -32,4 +34,4 @@ class PrescriptionOCRResponse(BaseModel):
     med_usage:      Optional[str]        = None
     inject_info:    List[InjectItem]     = []
     pharmacy_note:  Optional[str]        = None
-    valid_period:   Optional[str]        = None
+    valid_days:     Optional[int]        = None
