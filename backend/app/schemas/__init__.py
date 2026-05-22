@@ -18,10 +18,27 @@ from app.schemas.auth import (
     ResetPasswordRequest,
     ResetPasswordResponse,
 )
+
 from app.schemas.guide import (
     GenerateGuideRequest,
     GenerateGuideResponse,
     MedicationGuideSchema,
     GuideListResponse,
     DeleteGuideResponse,
+)
+
+from app.schemas.medical_record import (
+    PrescriptionRequest,
+    PrescriptionUpdateRequest,
+    PrescriptionResponse,
+    GuideResponse,
+    MedicalRecordCreateRequest,
+    MedicalRecordCreateResponse,
+    MedicalRecordUpdateRequest,
+    MedicalRecordUpdateResponse,
+    MedicalRecordSummary,
+    MedicalRecordListResponse,
+    MedicalRecordDetailResponse,
+    MedicalRecordDeleteResponse,
+
 )

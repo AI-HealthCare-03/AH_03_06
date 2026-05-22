@@ -42,3 +42,6 @@ app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboar
 @app.get("/")
 def root():
     return {"message": "Viva API is running"}
+
+# Medical_record 관련
+from app.models import MedicalRecord, Prescription, Guide, Department

@@ -32,13 +32,19 @@ class User(Base):
     health_info = relationship("UserHealthInfo", back_populates="user", uselist=False)
     underlying_diseases = relationship("UserUnderlyingDisease", back_populates="user")
     health_goals = relationship("UserHealthGoal", back_populates="user")
+
     smoking_info = relationship("SmokingInfo", back_populates="user", uselist=False)
     alcohol_info = relationship("AlcoholInfo", back_populates="user", uselist=False)
     exercise_info = relationship("ExerciseInfo", back_populates="user", uselist=False)
     sleep_info = relationship("SleepInfo", back_populates="user", uselist=False)
     diet_info = relationship("DietInfo", back_populates="user", uselist=False)
+
     health_checkups = relationship("HealthCheckup", back_populates="user")
     medication_guides = relationship("MedicationGuide", back_populates="user")
+
+
+    medical_records = relationship("MedicalRecord", back_populates="user")  # 260519 추가
+
 
 class UserProfile(Base):
     """사용자 기본 프로필 테이블 (생년월일, 성별)"""

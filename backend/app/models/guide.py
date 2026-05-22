@@ -30,4 +30,31 @@ class MedicationGuide(Base):
     is_fallback = Column(Boolean, nullable=False, default=False)               # 환각 차단 회피 응답 여부
     created_at = Column(DateTime, nullable=False, default=func.now())          # 생성일시
 
+
     user = relationship("User", back_populates="medication_guides")
+
+    user = relationship("User")
+
+
+from sqlalchemy import Column, BigInteger, String, Text, DateTime, ForeignKey, SmallInteger
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
+from app.database import Base
+
+
+class Guide(Base):
+    """복약 안내 및 생활습관 가이드 테이블"""
+    __tablename__ = "guide"
+
+    id                = Column(BigInteger, primary_key=True, autoincrement=True)            # 고유 ID
+    medical_record_id = Column(BigInteger, ForeignKey("medical_record.id"), nullable=False) # 진료기록 ID
+    guide_type        = Column(String(20), nullable=False)                                  # 가이드 유형 ("medication" / "lifestyle")
+    content           = Column(Text, nullable=True)                                         # 가이드 내용 (생성 전 null)
+    is_generated      = Column(SmallInteger, nullable=False, default=0)                     # 생성 완료 여부 (0: 생성 중, 1: 완료)
+    created_at        = Column(DateTime, nullable=False, default=func.now())                # 생성일시
+    updated_at        = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())  # 수정일시
+
+    # 관계 정의
+    medical_record = relationship("MedicalRecord", back_populates="guides")
+
