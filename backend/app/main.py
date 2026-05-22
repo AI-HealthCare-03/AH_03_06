@@ -4,9 +4,10 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1 import auth, users, medications, medical_records, health_checkups, guides, medication_guides, dashboard
+from app.api.v1 import auth, users, medications, medical_records, health_checkups, guides, medication_guides, dashboard, ocr
 from app.database import engine, Base
 from app.models import MedicationGuide
+
 app = FastAPI(title="Viva API", version="1.0.0")
 
 # DB 테이블 생성
@@ -30,6 +31,7 @@ app.include_router(health_checkups.router, prefix="/api/v1/health-checkups", tag
 app.include_router(guides.router, prefix="/api/v1/guides", tags=["Guide"])
 app.include_router(medication_guides.router, prefix="/api/v1/medication_guides", tags=["Guide"])
 app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
+app.include_router(ocr.router, prefix="/api/v1/ocr", tags=["OCR"])
 
 @app.get("/")
 def root():
