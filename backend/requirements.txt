@@ -31,3 +31,4 @@ pydantic-settings==2.14.1
 cryptography==47.0.0
 fastapi-mail==1.6.4
 pandas==3.0.3
+python-multipart==0.0.20

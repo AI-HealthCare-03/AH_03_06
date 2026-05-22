@@ -4,7 +4,7 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1 import auth, users, medications, medical_records, health_checkups, guides, medication_guides, dashboard, dur
+from app.api.v1 import auth, users, medications, medical_records, health_checkups, guides, medication_guides, dashboard, dur, ocr
 from app.database import engine, Base
 from app.models import (
     MedicationGuide,
@@ -39,6 +39,7 @@ app.include_router(guides.router, prefix="/api/v1/guides", tags=["Guide"])
 app.include_router(medication_guides.router, prefix="/api/v1/medication_guides", tags=["Guide"])
 app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
 app.include_router(dur.router, prefix="/api/v1/dur", tags=["DUR"])
+app.include_router(ocr.router, prefix="/api/v1/ocr", tags=["OCR"])
 
 @app.get("/")
 def root():
