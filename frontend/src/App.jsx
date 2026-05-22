@@ -18,9 +18,15 @@ import Home from './pages/dashboard/Home'
 import All from './pages/all/All'
 import MyPage from './pages/user/MyPage'
 import ProfileEdit from './pages/user/ProfileEdit'
+
 import HealthCheckList from "./pages/health-checkup/HealthCheckList.jsx";
 import HealthCheckInput from "./pages/health-checkup/HealthCheckInput.jsx"
 import HealthCheckResults from "./pages/health-checkup/HealthCheckResults.jsx"
+
+import MedicalRecordDetail from './pages/medical-record/MedicalRecordDetail.jsx'
+import MedicalRecordList from './pages/medical-record/MedicalRecordList.jsx'
+import MedicalRecordForm from './pages/medical-record/MedicalRecordForm.jsx'
+
 
 let _setAuth = null
 export function logout() {
@@ -44,6 +50,8 @@ function App() {
   const [auth, setAuth] = useState(!!getAccessToken())
   _setAuth = setAuth
 
+
+
   return (
     <BrowserRouter>
       <Routes>
@@ -60,14 +68,27 @@ function App() {
         <Route path="/register/sleep" element={<PublicRoute auth={auth}><RegisterSleep /></PublicRoute>} />
         <Route path="/register/health" element={<PublicRoute auth={auth}><RegisterHealth /></PublicRoute>} />
         <Route path="/auth/callback" element={<AuthCallback />} />
+
         <Route path="/home" element={<PrivateRoute auth={auth}><Home /></PrivateRoute>} />
         <Route path="/all" element={<PrivateRoute auth={auth}><All /></PrivateRoute>} />
         <Route path="/user" element={<PrivateRoute auth={auth}><MyPage /></PrivateRoute>} />
         <Route path="/user/profile/edit" element={<PrivateRoute auth={auth}><ProfileEdit /></PrivateRoute>} />
+
         <Route path="/health-checkup" element={<PrivateRoute auth={auth}><HealthCheckList /></PrivateRoute>} />
         <Route path="/health-checkup/input" element={<PrivateRoute auth={auth}><HealthCheckInput /></PrivateRoute>} />
         <Route path="/health-checkup/input/:year" element={<PrivateRoute auth={auth}><HealthCheckInput /></PrivateRoute>} />
         <Route path="/health-checkup/results/:year" element={<PrivateRoute auth={auth}><HealthCheckResults /></PrivateRoute>} />
+
+
+        <Route path="/home" element={<Home />} />
+        <Route path="/user" element={<MyPage />} />
+        <Route path="/user/profile/edit" element={<ProfileEdit />} />
+        {/*진료기록*/}
+        <Route path="/medical-records" element={<MedicalRecordList />} />
+        <Route path="/medical-records/new" element={<MedicalRecordForm />} />
+        <Route path="/medical-records/:id" element={<MedicalRecordDetail />} />
+        <Route path="/medical-records/:id/edit" element={<MedicalRecordForm />} />
+        <Route path="/all" element={<All />} />
       </Routes>
     </BrowserRouter>
   )
