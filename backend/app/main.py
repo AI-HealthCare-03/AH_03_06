@@ -6,8 +6,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import auth, users, medications, medical_records, health_checkups, guides, medication_guides, dashboard, ocr
 from app.database import engine, Base
-from app.models import MedicationGuide
-
+from app.models import (
+    MedicationGuide,
+    DrugInfo,
+    DrugInfoDetail,
+    DrugDoseLimit,
+    DrugIngredientMap,
+    DurConcurrentIngredient,
+    DurConcurrentProduct,
+)
 app = FastAPI(title="Viva API", version="1.0.0")
 
 # DB 테이블 생성
@@ -36,3 +43,6 @@ app.include_router(ocr.router, prefix="/api/v1/ocr", tags=["OCR"])
 @app.get("/")
 def root():
     return {"message": "Viva API is running"}
+
+# Medical_record 관련
+from app.models import MedicalRecord, Prescription, Guide, Department
