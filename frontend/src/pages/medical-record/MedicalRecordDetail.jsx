@@ -37,8 +37,14 @@ function Card({ children, className = '' }) {
 
 // ── 처방약 아이템 ─────────────────────────────────────────────
 function PrescriptionItem({ drug }) {
-  // dosage 필드에 복용 정보를 통합 저장 (Form에서 dosage에 전체 정보 입력)
-  const sub = [drug.dosage, drug.frequency, drug.duration_days != null ? `${drug.duration_days}일분` : '']
+  const dosageText = [
+    drug.dosage && `${drug.dosage}정`,
+    drug.frequency && `1일 ${drug.frequency}회`,
+    drug.duration_days && `${drug.duration_days}일분`,
+  ].filter(Boolean).join(' · ')
+  
+  // 기존 dosage 필드도 fallback으로 지원 (하위 호환)
+  const sub = dosageText || [drug.dosage, drug.frequency, drug.duration_days != null ? `${drug.duration_days}일분` : '']
     .filter(Boolean).join(' · ')
 
   return (
@@ -201,7 +207,7 @@ export default function MedicalRecordDetail() {
   // ── 로딩 ──────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="mobile-container flex flex-col min-h-dvh bg-white max-w-[375px] mx-auto font-['Pretendard',sans-serif] items-center justify-center">
+      <div className="mobile-container flex flex-col min-h-dvh bg-white font-['Pretendard',sans-serif] items-center justify-center">
         <div className="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
       </div>
     )
@@ -212,7 +218,7 @@ export default function MedicalRecordDetail() {
   const deptName = record.department_id ? DEPT_MAP[record.department_id] : null
 
   return (
-    <div className="mobile-container flex flex-col min-h-dvh bg-neutral-50 max-w-[375px] mx-auto font-['Pretendard',sans-serif]">
+    <div className="mobile-container flex flex-col min-h-dvh bg-neutral-50 font-['Pretendard',sans-serif]">
 
       {/* 앱바 */}
       <header className="w-full h-14 flex items-center justify-between px-4 bg-white shrink-0 border-b border-neutral-50">
