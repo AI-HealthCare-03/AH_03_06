@@ -35,7 +35,7 @@ function FormLayout({ step, total = 7, title, subtitle, children, onNext, nextLa
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 pt-4 pb-4">
+        <div className="flex-1 overflow-y-auto px-6 pt-4 pb-4 flex flex-col">
           {children}
         </div>
 
