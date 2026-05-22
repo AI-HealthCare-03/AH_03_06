@@ -36,3 +36,6 @@ firebase_key.json
 # OS
 .DS_Store
 Thumbs.db
+
+# 원본 데이터 (식약처 CSV/XLS 등 — 외부에서 받아오는 데이터, 코드에 포함시키지 않음)
+ml_data/

@@ -24,5 +24,5 @@ class DrugInfoDetail(Base):
 
     source_type = Column(String(200), nullable=False)                         # 출처 구분 (e_drug / permit_detail)
 
-    created_at = Column(DateTime, nullable=False, default=func.now())          # 등록일시
-    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())  # 수정일시
+    created_at = Column(DateTime, nullable=False, server_default=func.now())   # 등록일시
+    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())  # 수정일시

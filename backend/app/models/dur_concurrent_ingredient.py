@@ -22,7 +22,7 @@ class DurConcurrentIngredient(Base):
     grade = Column(String(20), nullable=True)                                 # 등급 (위험도)
     notice_date = Column(Date, nullable=True)                                 # 고시 일자
 
-    created_at = Column(DateTime, nullable=False, default=func.now())          # 등록일시
+    created_at = Column(DateTime, nullable=False, server_default=func.now())   # 등록일시
 
     __table_args__ = (
         UniqueConstraint("dur_seq", "ingredient_code_a", "ingredient_code_b", name="uq_dur_ingredient"),

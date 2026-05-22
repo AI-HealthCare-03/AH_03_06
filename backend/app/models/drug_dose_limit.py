@@ -20,4 +20,4 @@ class DrugDoseLimit(Base):
     dose_unit = Column(String(20), nullable=True)                             # 투여단위 (정, mg 등)
     max_daily_dose = Column(DECIMAL(10, 2), nullable=False)                   # 1일 최대 투여량
 
-    created_at = Column(DateTime, nullable=False, default=func.now())          # 등록일시
+    created_at = Column(DateTime, nullable=False, server_default=func.now())   # 등록일시

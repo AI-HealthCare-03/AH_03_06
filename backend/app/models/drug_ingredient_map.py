@@ -17,7 +17,7 @@ class DrugIngredientMap(Base):
     ingredient_name = Column(String(200), nullable=True)                      # 성분명 (한글)
     is_main = Column(Boolean, nullable=False, default=True)                   # 주성분 여부 (True=주성분)
 
-    created_at = Column(DateTime, nullable=False, default=func.now())          # 등록일시
+    created_at = Column(DateTime, nullable=False, server_default=func.now())   # 등록일시
 
     __table_args__ = (
         UniqueConstraint("drug_id", "ingredient_code", name="uq_drug_ingredient"),

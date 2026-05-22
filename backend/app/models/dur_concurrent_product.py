@@ -22,7 +22,7 @@ class DurConcurrentProduct(Base):
     grade = Column(String(20), nullable=True)                                 # 등급
     notice_date = Column(Date, nullable=True)                                 # 고시 일자
 
-    created_at = Column(DateTime, nullable=False, default=func.now())          # 등록일시
+    created_at = Column(DateTime, nullable=False, server_default=func.now())   # 등록일시
 
     __table_args__ = (
         UniqueConstraint("dur_seq", "item_seq_a", "item_seq_b", name="uq_dur_product"),

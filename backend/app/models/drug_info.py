@@ -23,5 +23,5 @@ class DrugInfo(Base):
     is_recalled = Column(Boolean, nullable=False, default=False)              # 회수 여부
     recall_reason = Column(Text, nullable=True)                               # 회수 사유 + 일자
 
-    created_at = Column(DateTime, nullable=False, default=func.now())          # 등록일시
-    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())  # 수정일시
+    created_at = Column(DateTime, nullable=False, server_default=func.now())   # 등록일시
+    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())  # 수정일시
