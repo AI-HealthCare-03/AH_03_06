@@ -21,7 +21,7 @@ function BottomNav() {
   const location = useLocation()
 
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full md:max-w-[480px] bg-white border-t border-[#E4E4E7] z-50">
+    <nav id="bottom-nav" className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full md:max-w-[480px] bg-white border-t border-[#E4E4E7] z-50">
       <div className="flex justify-around py-2">
         {tabs.map(({ label, path, icon }) => {
           const active = location.pathname === path
