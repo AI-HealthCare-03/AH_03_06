@@ -10,6 +10,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listMedicalRecords } from '../../api/medicalRecord'
 import BottomNav from '../../components/BottomNav'
+import Header from '../../components/Header'
 
 // ── 진료과 목록 (실제 서비스에서는 API로 조회) ───────────────
 const DEPARTMENTS = [
@@ -114,7 +115,7 @@ function FilterDrawer({ filters, onChange, onClose }) {
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
       {/* 드로어 */}
-      <div className="relative w-full max-w-[375px] bg-white rounded-t-3xl px-6 pt-5 pb-8 shadow-2xl">
+      <div className="relative w-full max-w-[375px] bg-white rounded-t-3xl px-6 pt-5 pb-24 shadow-2xl">
         {/* 핸들 */}
         <div className="w-10 h-1 rounded-full bg-neutral-200 mx-auto mb-5" />
 
@@ -188,6 +189,14 @@ export default function MedicalRecordList() {
   const [filters, setFilters]       = useState({ department_id: '', start_date: '', end_date: '' })
   const [showFilter, setShowFilter] = useState(false)
 
+  useEffect(() => {
+    const tabBar = document.querySelector('#bottom-nav')
+    if (!tabBar) return
+    tabBar.style.display = showFilter ? 'none' : ''
+    return () => { tabBar.style.display = '' }
+  }, [showFilter])
+
+
   // department_id → 이름 매핑
   const deptMap = Object.fromEntries(DEPARTMENTS.map(d => [String(d.id), d.name]))
 
@@ -228,17 +237,18 @@ export default function MedicalRecordList() {
     <div className="mobile-container flex flex-col min-h-dvh bg-white font-['Pretendard',sans-serif]">
 
       {/* 앱바 */}
-      <header className="px-5 pt-6 pb-4 shrink-0">
-        <h1 className="text-xl font-bold text-neutral-900">진료기록</h1>
-      </header>
+      <Header title="진료기록" showDivider={false} />
 
       {/* 검색바 */}
-      <div className="px-5 pb-3 shrink-0">
+      <div className="">
         <form onSubmit={handleSearch} className="relative">
           <input
             type="search"
             value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
+            onChange={e => {
+              setSearchInput(e.target.value)
+              if (e.target.value === '') setKeyword('')
+            }}
             placeholder="진단명 또는 병원명 검색"
             className="w-full h-11 bg-neutral-50 border border-neutral-200 rounded-xl pl-10 pr-4 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none focus:border-blue-500 focus:bg-white transition-colors"
           />
@@ -325,13 +335,39 @@ export default function MedicalRecordList() {
 
       {/* 필터 드로어 */}
       {showFilter && (
-        <FilterDrawer
-          filters={filters}
-          onChange={setFilters}
-          onClose={() => setShowFilter(false)}
-        />
+        <>
+          {/* 딤 배경 */}
+          <div className="fixed inset-0 bg-black/30 z-20" onClick={() => setIsFilterOpen(false)} />
+
+          {/* 바텀시트 — 탭바(64px) 위까지만 차지 */}
+          <div className="fixed bottom-16 left-0 right-0 bg-white rounded-t-2xl z-30 flex flex-col"
+               style={{ maxHeight: 'calc(100vh - 64px)' }}>
+
+            {/* 핸들 */}
+            <div className="flex justify-center pt-3 pb-2 shrink-0">
+              <div className="w-10 h-1 bg-neutral-200 rounded-full" />
+            </div>
+
+            {/* 스크롤 영역 */}
+            <div className="flex-1 overflow-y-auto px-5 pb-4">
+              {/* 기존 진료과, 기간 필터 내용 그대로 */}
+              <FilterDrawer
+                filters={filters}
+                onChange={setFilters}
+                onClose={() => setShowFilter(false)}
+              />
+            </div>
+
+            {/* 적용 버튼 고정 */}
+            <div className="shrink-0 px-5 pb-5 pt-2 border-t border-neutral-100">
+              <button className="w-full h-12 bg-blue-500 text-white rounded-xl font-semibold">
+                적용
+              </button>
+            </div>
+          </div>
+        </>
       )}
-      <BottomNav /> 
+      <BottomNav />
     </div>
   )
 }
