@@ -33,3 +33,5 @@ fastapi-mail==1.6.4
 python-multipart==0.0.20
 chromadb==1.5.9
 openai
+jamo==0.4.1
+rapidfuzz==3.14.5
