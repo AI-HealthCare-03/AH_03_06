@@ -30,6 +30,8 @@ import HealthCheckList from "./pages/health-checkup/HealthCheckList.jsx";
 import HealthCheckInput from "./pages/health-checkup/HealthCheckInput.jsx"
 import HealthCheckResults from "./pages/health-checkup/HealthCheckResults.jsx"
 
+import MedicationPage from './pages/medication/MedicationPage.jsx'
+
 let _setAuth = null
 export function logout() {
   clearTokens()
@@ -84,11 +86,12 @@ function App() {
         <Route path="/health-checkup/input/:year" element={<PrivateRoute auth={auth}><HealthCheckInput /></PrivateRoute>} />
         <Route path="/health-checkup/results/:year" element={<PrivateRoute auth={auth}><HealthCheckResults /></PrivateRoute>} />
 
+        <Route path="/medication" element={<PrivateRoute auth={auth}><MedicationPage /></PrivateRoute>} />
 
         <Route path="/home" element={<Home />} />
         <Route path="/user" element={<MyPage />} />
         <Route path="/user/profile/edit" element={<ProfileEdit />} />
-        {/*진료기록*/}
+
         <Route path="/medical-records" element={<MedicalRecordList />} />
         <Route path="/medical-records/new" element={<MedicalRecordForm />} />
         <Route path="/medical-records/:id" element={<MedicalRecordDetail />} />
