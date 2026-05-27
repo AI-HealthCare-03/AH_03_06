@@ -1,7 +1,7 @@
 # app/models/guide.py
 # MEDICATION_GUIDE 테이블 모델
 
-from sqlalchemy import Column, BigInteger, Text, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, BigInteger, String, Text, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -13,6 +13,9 @@ class MedicationGuide(Base):
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)              # 고유 ID
     user_id = Column(BigInteger, ForeignKey("user.id"), nullable=False)        # 사용자 ID (USER.id 참조)
+
+    medication_id = Column(BigInteger, nullable=True)                          # 처방 prescription.id 참조 (soft, FK 제약 없음)
+    drug_name = Column(String(255), nullable=True)                             # 약품명 캐시
 
     # 안전 알림 영역 (의논 ①번 (나) 결정 — 답변 전 점검 결과)
     safety_block = Column(Text, nullable=True)                                 # 차단 안내
