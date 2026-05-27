@@ -42,10 +42,10 @@ class User(Base):
     health_checkups = relationship("HealthCheckup", back_populates="user")
     medication_guides = relationship("MedicationGuide", back_populates="user")
 
-
     medical_records = relationship("MedicalRecord", back_populates="user")  # 260519 추가
     medication_logs = relationship("MedicationLog", back_populates="user")
 
+    fcm_tokens = relationship("FcmToken", back_populates="user")
 class UserProfile(Base):
     """사용자 기본 프로필 테이블 (생년월일, 성별)"""
     __tablename__ = "user_profile"

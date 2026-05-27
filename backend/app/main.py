@@ -2,20 +2,32 @@
 # FastAPI 앱 진입점
 # 라우터 등록 및 앱 초기화 담당
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1 import auth, users, medications, medical_records, health_checkups, guides, medication_guides, dashboard, dur, ocr
+from fastapi.staticfiles import StaticFiles
+from app.api.v1 import auth, users, medications, medical_records, health_checkups, guides, medication_guides, dashboard, ocr, push, dur
 from app.database import engine, Base
 from app.models import (
     MedicationGuide,
     DrugInfo,
-    DrugInfoDetail,
+    DrugInfoDetail, 
     DrugDoseLimit,
     DrugIngredientMap,
     DurConcurrentIngredient,
     DurConcurrentProduct,
 )
-app = FastAPI(title="Viva API", version="1.0.0")
+from app.scheduler import start_scheduler, stop_scheduler
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    start_scheduler()
+    yield
+    stop_scheduler()
+
+
+app = FastAPI(title="Viva API", version="1.0.0", lifespan=lifespan)
 
 # DB 테이블 생성
 Base.metadata.create_all(bind=engine)
@@ -40,10 +52,17 @@ app.include_router(medication_guides.router, prefix="/api/v1/medication_guides",
 app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
 app.include_router(dur.router, prefix="/api/v1/dur", tags=["DUR"])
 app.include_router(ocr.router, prefix="/api/v1/ocr", tags=["OCR"])
+app.include_router(push.router, prefix="/api/v1/push", tags=["Push"])
+
+# 정적 파일 서빙 (firebase-messaging-sw.js)
+app.mount("/", StaticFiles(directory="app/static"), name="static")
+
 
 @app.get("/")
 def root():
     return {"message": "Viva API is running"}
 
+
 # Medical_record 관련
 from app.models import MedicalRecord, Prescription, Guide, Department
+from app.models.fcm_token import FcmToken

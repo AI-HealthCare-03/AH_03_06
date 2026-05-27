@@ -56,6 +56,9 @@ class Settings(BaseSettings):
 
     # ML data (DUR 마스터 pickle 등)
     ML_DATA_DIR: str = _DEFAULT_ML_DATA_DIR
+      
+    # Firebase
+    FIREBASE_CREDENTIALS_PATH: str = "firebase_key.json"
 
     class Config:
         env_file = ".env"
