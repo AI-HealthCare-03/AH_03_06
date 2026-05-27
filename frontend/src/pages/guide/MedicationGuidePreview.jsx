@@ -183,7 +183,7 @@ function MedicationGuidePreview() {
               <div className="mt-1 space-y-0.5">
                 <p className="text-[11px] text-mute">
                   {drugListTotal > 0
-                    ? `검색 가능 ${drugListTotal}종 (e약은요 표본 · 입력 시 자동완성)`
+                    ? `검색 가능 ${drugListTotal}종 (복약 가이드 제공 약품 · 입력 시 자동완성)`
                     : '검색 가능 목록을 불러오는 중…'}
                 </p>
                 {matchedDrug && (
