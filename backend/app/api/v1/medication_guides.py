@@ -6,9 +6,11 @@
 # 가이드 미리보기 (데모, item_seq 직접 입력)
 # 자동완성 (데모, drug_name → item_seq)
 
+import json
 from typing import Any
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -20,7 +22,11 @@ from app.schemas.guide import (
     DeleteGuideResponse,
 )
 from app.services import guide_service
-from app.services.llm_service import generate_guide_for_drug
+from app.services.llm_service import (
+    generate_guide_for_drug,
+    generate_guide_for_drug_async,
+    generate_guide_for_drug_stream,
+)
 from app.utils.auth import get_current_user
 from app.utils.rag import get_chroma_client
 from app.models.user import User
@@ -158,9 +164,11 @@ def delete_medication_guide(
 
 # POST /api/v1/medication_guides/preview - 데모 가이드 생성 (item_seq 직접 입력)
 # (인증·DB·medication_id 흐름 우회. 추후 정식 medication_id 흐름과 통합 시 제거)
+# async 전환 — 임베딩 3회(drug_info/drug_detail/guideline) 동시 호출 + chat completion await.
+# 롤백 시: async/await 두 단어 제거 + generate_guide_for_drug_async → generate_guide_for_drug.
 @router.post("/preview", response_model=GuidePreviewResponse)
-def preview_medication_guide(request: GuidePreviewRequest):
-    payload = generate_guide_for_drug(
+async def preview_medication_guide(request: GuidePreviewRequest):
+    payload = await generate_guide_for_drug_async(
         item_seq=request.item_seq,
         drug_name=request.drug_name,
         user_query=request.user_query,
@@ -169,3 +177,25 @@ def preview_medication_guide(request: GuidePreviewRequest):
         top_k=request.top_k,
     )
     return payload
+
+
+# POST /api/v1/medication_guides/preview-stream - 데모 가이드 NDJSON 스트림.
+# 응답 라인 시퀀스: meta(1) → token(N) → done(1). 각 라인은 단일 JSON 객체 + '\n'.
+#   meta : {"type":"meta", drug_name, is_fallback, safety_block, disclaimer, references, safety_*}
+#   token: {"type":"token","text":"..."}    (정상: chat completion 청크 반복 / 거절: FALLBACK_TEXT 한 번)
+#   done : {"type":"done"}
+# 기존 /preview JSON 단발은 그대로 보존 — 프론트는 호출 URL만 갈아끼우면 됨.
+@router.post("/preview-stream")
+async def preview_medication_guide_stream(request: GuidePreviewRequest):
+    async def ndjson_iter():
+        async for event in generate_guide_for_drug_stream(
+            item_seq=request.item_seq,
+            drug_name=request.drug_name,
+            user_query=request.user_query,
+            patient=request.patient,
+            safety=request.safety,
+            top_k=request.top_k,
+        ):
+            yield json.dumps(event, ensure_ascii=False) + "\n"
+
+    return StreamingResponse(ndjson_iter(), media_type="application/x-ndjson")

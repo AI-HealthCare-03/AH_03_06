@@ -6,10 +6,11 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import chromadb
-from openai import OpenAI
+from openai import AsyncOpenAI, OpenAI
 
 from app.config import settings
 
@@ -167,6 +168,158 @@ def prepare_rag_context(
         if guideline_query.strip()
         else []
     )
+
+    return {
+        "safety": safety,
+        "drug_info_per_med": drug_info_per_med,
+        "drug_detail_per_med": drug_detail_per_med,
+        "guideline_general": guideline_general,
+        "user_query": user_query,
+        "medications": medications,
+        "patient": patient,
+    }
+
+
+# ============================================================
+# async 변종 — /preview 핸들러 async 전환 슬라이스의 인프라
+# sync 함수는 모두 보존. chromadb 1.5.9 는 native async 미지원이라
+# OpenAI 임베딩만 await, collection.query() 는 sync 그대로 호출.
+# ============================================================
+_async_openai_client: AsyncOpenAI | None = None
+
+
+def _get_async_openai_client() -> AsyncOpenAI:
+    global _async_openai_client
+    if _async_openai_client is None:
+        _async_openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    return _async_openai_client
+
+
+async def embed_query_async(text: str) -> list[float]:
+    client = _get_async_openai_client()
+    resp = await client.embeddings.create(model=settings.EMBEDDING_MODEL, input=text)
+    return resp.data[0].embedding
+
+
+async def retrieve_async(
+    query: str,
+    collection_name: str,
+    top_k: int = 3,
+    where: dict[str, Any] | None = None,
+    threshold: float = SIMILARITY_THRESHOLD,
+) -> list[dict[str, Any]]:
+    """retrieve 의 async 변종. 임베딩만 await, chroma 호출은 sync 유지."""
+    collection = get_chroma_client().get_collection(name=collection_name)
+    vec = await embed_query_async(query)
+
+    kwargs: dict[str, Any] = {"query_embeddings": [vec], "n_results": top_k}
+    if where:
+        kwargs["where"] = where
+    raw = collection.query(**kwargs)
+
+    docs = (raw.get("documents") or [[]])[0]
+    metas = (raw.get("metadatas") or [[]])[0]
+    dists = (raw.get("distances") or [[]])[0]
+
+    results: list[dict[str, Any]] = []
+    for content, metadata, distance in zip(docs, metas, dists):
+        sim = 1.0 - float(distance)
+        if sim < threshold:
+            continue
+        results.append(
+            {
+                "content": content,
+                "metadata": metadata or {},
+                "similarity": round(sim, 3),
+            }
+        )
+    return results
+
+
+async def retrieve_drug_info_async(
+    query: str,
+    item_seq: Any,
+    top_k: int = 3,
+    threshold: float = 0.0,
+) -> dict[str, Any]:
+    """retrieve_drug_info 의 async 변종 — drug_info_rag + drug_detail_rag 두 호출을 gather 로 동시.
+
+    threshold 기본 0.0 / where item_seq 필터 등 sync 변종과 동일 정책 유지.
+    """
+    if not item_seq:
+        return {"item_seq": "", "drug_info": [], "drug_detail": []}
+
+    seq = str(item_seq)
+    drug_info, drug_detail = await asyncio.gather(
+        retrieve_async(
+            query, "drug_info_rag",
+            top_k=top_k, where={"item_seq": seq}, threshold=threshold,
+        ),
+        retrieve_async(
+            query, "drug_detail_rag",
+            top_k=top_k, where={"item_seq": seq}, threshold=threshold,
+        ),
+    )
+    return {"item_seq": seq, "drug_info": drug_info, "drug_detail": drug_detail}
+
+
+async def prepare_rag_context_async(
+    medications: list[dict[str, Any]],
+    patient: dict[str, Any] | None = None,
+    user_query: str | None = None,
+    safety: dict[str, Any] | None = None,
+    top_k: int = 3,
+) -> dict[str, Any]:
+    """prepare_rag_context 의 async 변종 — 약품별 retrieve 와 guideline retrieve 를 한 번의 gather 로.
+
+    1약품 1쿼리 케이스의 임베딩 3회(drug_info/drug_detail/guideline) 가 동시 호출됨.
+    sync 변종의 쿼리 우선순위(user_query → drug_name) 와 dict 모양은 그대로 보존.
+    """
+    uq = (user_query or "").strip()
+
+    async def _per_med(med: dict[str, Any]) -> dict[str, Any]:
+        drug_name = str(med.get("drug_name", ""))
+        query = uq if uq else drug_name.strip()
+        if query:
+            return await retrieve_drug_info_async(
+                query, str(med.get("item_seq", "")), top_k=top_k
+            )
+        return {
+            "item_seq": str(med.get("item_seq", "")),
+            "drug_info": [],
+            "drug_detail": [],
+        }
+
+    if user_query:
+        guideline_query = user_query
+    else:
+        guideline_query = " ".join(str(m.get("drug_name", "")) for m in medications)
+
+    async def _guideline() -> list[dict[str, Any]]:
+        if guideline_query and guideline_query.strip():
+            return await retrieve_async(guideline_query, "guideline_rag", top_k=top_k)
+        return []
+
+    med_tasks = [_per_med(m) for m in medications]
+    gather_results = await asyncio.gather(*med_tasks, _guideline())
+    med_results = list(gather_results[:-1])
+    guideline_general = gather_results[-1]
+
+    drug_info_per_med: list[dict[str, Any]] = []
+    drug_detail_per_med: list[dict[str, Any]] = []
+    for med, result in zip(medications, med_results):
+        item_seq = str(med.get("item_seq", ""))
+        drug_name = str(med.get("drug_name", ""))
+        drug_info_per_med.append({
+            "item_seq": item_seq,
+            "drug_name": drug_name,
+            "retrieved": result["drug_info"],
+        })
+        drug_detail_per_med.append({
+            "item_seq": item_seq,
+            "drug_name": drug_name,
+            "retrieved": result["drug_detail"],
+        })
 
     return {
         "safety": safety,
