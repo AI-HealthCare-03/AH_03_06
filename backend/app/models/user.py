@@ -44,7 +44,7 @@ class User(Base):
 
 
     medical_records = relationship("MedicalRecord", back_populates="user")  # 260519 추가
-
+    medication_logs = relationship("MedicationLog", back_populates="user")
 
 class UserProfile(Base):
     """사용자 기본 프로필 테이블 (생년월일, 성별)"""

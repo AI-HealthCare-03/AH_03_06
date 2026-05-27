@@ -50,3 +50,38 @@ export async function deleteMedicationGuide(guideId) {
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
+
+// 데모용 — item_seq 직접 입력으로 /preview 를 호출.
+// 추후 medication_id 흐름과 통합 예정 (이때 본 함수는 제거 또는 내부 헬퍼로 흡수).
+export async function previewMedicationGuide({
+  item_seq,
+  drug_name = '',
+  user_query = null,
+  patient = null,
+  safety = null,
+  top_k = 3,
+}) {
+  const res = await fetch(`${base()}/medication_guides/preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ item_seq, drug_name, user_query, patient, safety, top_k }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+
+// 데모용 — drug_info_rag + drug_detail_rag 메타데이터 union을 dedupe해
+// [{item_seq, drug_name}] 반환. q 가 비어있으면 처음 limit 개.
+// AbortController 지원 — 빠른 타이핑 시 직전 요청 abort 로 race condition 차단.
+export async function fetchDrugSuggest({ q = '', limit = 20 } = {}, signal) {
+  const params = new URLSearchParams()
+  if (q) params.set('q', q)
+  params.set('limit', String(limit))
+  const res = await fetch(
+    `${base()}/medication_guides/drug-suggest?${params.toString()}`,
+    signal ? { signal } : undefined,
+  )
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()  // { drugs: [{item_seq, drug_name}], total: number }
+}
