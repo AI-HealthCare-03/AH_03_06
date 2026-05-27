@@ -31,6 +31,7 @@ import HealthCheckInput from "./pages/health-checkup/HealthCheckInput.jsx"
 import HealthCheckResults from "./pages/health-checkup/HealthCheckResults.jsx"
 
 import MedicationPage from './pages/medication/MedicationPage.jsx'
+import MedicationRecordPage from './pages/medication/MedicationRecordPage.jsx'
 
 let _setAuth = null
 export function logout() {
@@ -98,6 +99,7 @@ function App() {
         <Route path="/medical-records/:id/edit" element={<MedicalRecordForm />} />
         <Route path="/all" element={<All />} />
         <Route path="/medical-records/ocr" element={<PrescriptionOCR />} />
+        <Route path='/medication/record' element={<PrivateRoute auth={auth}><MedicationRecordPage /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   )
