@@ -7,15 +7,18 @@ import {
   faUtensils,
   faPersonRunning,
   faMoon,
+  faPills,
   faChevronRight,
 } from '@fortawesome/free-solid-svg-icons'
 
 // TODO: 각 가이드의 한 줄 요약(desc)은 추후 '오늘의 가이드' 응답에서 받아 채움.
 //       path는 각 가이드 상세 화면 경로 (식단/운동/수면 상세는 아직 미구현 — 라우트 추가 필요)
+//       복약 가이드는 데모 — 추후 medication_id 흐름과 통합 시 진입점 변경 예정.
 const guides = [
   { title: '식단 가이드', desc: '혈압 관리 저염식 권장', icon: faUtensils, path: '/guide/meal' },
   { title: '운동 가이드', desc: '중간 강도 유산소 30분', icon: faPersonRunning, path: '/guide/exercise' },
   { title: '수면 가이드', desc: '취침 전 카페인 회피', icon: faMoon, path: '/guide/sleep' },
+  { title: '복약 가이드 (데모)', desc: 'item_seq 직접 입력으로 미리보기', icon: faPills, path: '/medication-guides/preview' },
 ]
 
 function GuideHubPage() {
