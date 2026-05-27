@@ -23,3 +23,5 @@ from app.models.medication_schedule import MedicationSchedule
 from app.models.schedule_day import ScheduleDay
 from app.models.medication_log import MedicationLog
 from app.models.notification import Notification
+
+from app.models.fcm_token import FcmToken
