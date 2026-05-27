@@ -10,6 +10,7 @@ import {
   faTriangleExclamation,
   faBan,
   faTrash,
+  faChevronDown,
 } from '@fortawesome/free-solid-svg-icons'
 import {
   getMedicationGuide,
@@ -61,18 +62,30 @@ function formatCreatedAt(iso) {
 }
 
 
+// 단일 마크다운 본문을 빈 줄(\n\n) 기준 블록 배열로 분할.
+// slice 후 join('\n\n') 으로 원문 복원 가능 — 요약·절단 없이 보존.
+function splitMarkdownBlocks(content) {
+  if (!content) return []
+  return content.split('\n\n')
+}
+
+const PREVIEW_BLOCK_COUNT = 2
+
+
 function MedicationGuidePage() {
   const { guideId } = useParams()
   const navigate = useNavigate()
   const [guide, setGuide] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [bodyExpanded, setBodyExpanded] = useState(false)
 
   useEffect(() => {
     if (!guideId) return
     let cancelled = false
     setLoading(true)
     setError('')
+    setBodyExpanded(false)
     getMedicationGuide(guideId)
       .then((data) => { if (!cancelled) setGuide(data) })
       .catch((err) => { if (!cancelled) setError(err?.message ?? '가이드를 불러오지 못했어요.') })
@@ -90,6 +103,17 @@ function MedicationGuidePage() {
       window.alert(err?.message ?? '삭제에 실패했어요.')
     }
   }
+
+  // 본문 fold 계산 (정상 가이드 케이스에서만 의미 있음, fallback 분기는 미사용).
+  // 블록 2개 이하면 hasFold=false → 토글 버튼 숨김, 전체 그대로 표시 (방어적 분할).
+  const bodyBlocks = guide ? splitMarkdownBlocks(guide.main_content) : []
+  const bodyHasFold = bodyBlocks.length > PREVIEW_BLOCK_COUNT
+  const bodyPreview = bodyHasFold
+    ? bodyBlocks.slice(0, PREVIEW_BLOCK_COUNT).join('\n\n')
+    : (guide?.main_content ?? '')
+  const bodyRest = bodyHasFold
+    ? bodyBlocks.slice(PREVIEW_BLOCK_COUNT).join('\n\n')
+    : ''
 
   return (
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
@@ -128,7 +152,7 @@ function MedicationGuidePage() {
                 </button>
               </div>
 
-              {/* 안전 카드 (조건부) */}
+              {/* 안전 카드 (조건부) — 위험도 최상위, 절대 접지 않음 */}
               {guide.safety_block && (
                 <section className="bg-white border border-error/40 rounded-[10px] p-5">
                   <div className="flex items-center gap-2 mb-2">
@@ -159,7 +183,7 @@ function MedicationGuidePage() {
                 </section>
               )}
 
-              {/* 본문 — fallback 분기 (빨강 금지, primarySoft 톤) */}
+              {/* 본문 — fallback 분기 (빨강 금지, primarySoft 톤). 아코디언 미적용 (짧고 평이) */}
               {guide.is_fallback ? (
                 <section className="bg-primarySoft border border-primary/20 rounded-[10px] p-5">
                   <div className="flex items-center gap-2 mb-3">
@@ -186,14 +210,38 @@ function MedicationGuidePage() {
                   </div>
 
                   <div className="divide-y divide-borderHairline">
+                    {/* 복약 안내 — 본문 한 덩어리를 \n\n 블록 단위로 접기.
+                        기본 첫 2블록(인용+보충)만 보이고, 나머지는 '더보기' 클릭 시 펼침.
+                        블록 ≤2면 토글 숨기고 전체 그대로 표시. 원문 보존(요약·절단 없음). */}
                     <div className="px-5 py-4">
                       <h3 className="text-[11px] font-[700] text-mute mb-2 tracking-wider uppercase">
                         복약 안내
                       </h3>
                       <div>
                         <ReactMarkdown components={markdownComponents}>
-                          {guide.main_content}
+                          {bodyPreview}
                         </ReactMarkdown>
+                        {bodyHasFold && bodyExpanded && (
+                          <ReactMarkdown components={markdownComponents}>
+                            {bodyRest}
+                          </ReactMarkdown>
+                        )}
+                        {bodyHasFold && (
+                          <div className="mt-3 flex justify-center">
+                            <button
+                              type="button"
+                              onClick={() => setBodyExpanded((v) => !v)}
+                              aria-expanded={bodyExpanded}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] text-mute hover:text-textBody transition-colors"
+                            >
+                              <span>{bodyExpanded ? '접기' : '더보기'}</span>
+                              <FontAwesomeIcon
+                                icon={faChevronDown}
+                                className={`text-[10px] transition-transform duration-200 ${bodyExpanded ? 'rotate-180' : ''}`}
+                              />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
 
