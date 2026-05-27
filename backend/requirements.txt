@@ -32,4 +32,6 @@ cryptography==47.0.0
 fastapi-mail==1.6.4
 python-multipart==0.0.20
 chromadb==1.5.9
-openai
+openai==2.38.0
+apscheduler==3.11.2
+firebase-admin==6.9.0
