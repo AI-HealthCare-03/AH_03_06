@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.api.v1 import auth, users, medications, medical_records, health_checkups, guides, medication_guides, dashboard, ocr, push
+from app.api.v1 import auth, users, medications, medical_records, health_checkups, guides, medication_guides, dashboard, ocr, push, medication_histories
 from app.database import engine, Base
 from app.models import (
     MedicationGuide,
@@ -45,6 +45,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["User"])
 app.include_router(medications.router, prefix="/api/v1/medications", tags=["Medication"])
+app.include_router(medication_histories.router, prefix="/api/v1/medication-histories", tags=["Medication"])
 app.include_router(medical_records.router, prefix="/api/v1/medical-records", tags=["MedicalRecord"])
 app.include_router(health_checkups.router, prefix="/api/v1/health-checkups", tags=["HealthCheckup"])
 app.include_router(guides.router, prefix="/api/v1/guides", tags=["Guide"])
