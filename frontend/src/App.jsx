@@ -19,6 +19,7 @@ import All from './pages/all/All'
 import GuideHubPage from './pages/guide/GuideHubPage'
 import MedicationGuidePage from './pages/guide/MedicationGuidePage'
 import MedicationGuidePreview from './pages/guide/MedicationGuidePreview'
+import MedicationGuideListPage from './pages/guide/MedicationGuideListPage'
 import MyPage from './pages/user/MyPage'
 import ProfileEdit from './pages/user/ProfileEdit'
 import MedicalRecordDetail from './pages/medical-record/MedicalRecordDetail.jsx'
@@ -76,6 +77,7 @@ function App() {
         <Route path="/home" element={<PrivateRoute auth={auth}><Home /></PrivateRoute>} />
         <Route path="/all" element={<PrivateRoute auth={auth}><All /></PrivateRoute>} />
         <Route path="/guide" element={<PrivateRoute auth={auth}><GuideHubPage /></PrivateRoute>} />
+        <Route path="/medication-guides" element={<PrivateRoute auth={auth}><MedicationGuideListPage /></PrivateRoute>} />
         <Route path="/medication-guides/preview" element={<MedicationGuidePreview />} />
         <Route path="/medication-guides/:guideId" element={<PrivateRoute auth={auth}><MedicationGuidePage /></PrivateRoute>} />
         <Route path="/user" element={<PrivateRoute auth={auth}><MyPage /></PrivateRoute>} />
