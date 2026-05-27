@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     # Frontend
     FRONTEND_URL: str = ""
 
+    # Firebase
+    FIREBASE_CREDENTIALS_PATH: str = "firebase_key.json"
+
     class Config:
         env_file = ".env"
 
