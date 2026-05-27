@@ -1,72 +1,119 @@
 # api/v1/medications.py
 # 복약 관련 엔드포인트 담당
-# 약 등록/조회/수정/삭제
-# 복약 완료 체크/취소
-# 복약 이력 조회/내보내기
-# 복약 완료율 통계
-# 월간 복약 리포트
-# 알림 발송 이력 조회
+# 복용 약 등록/삭제
+# 복약 일정 등록/조회/수정
+# 복약 알림 수정
+# 복약 완료율 대시보드
+# 복약 이력 기간별 조회
 
-from fastapi import APIRouter
+from typing import Optional
+from datetime import date
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.utils.auth import get_current_user
+from app.services import medication_service
+from app.schemas.medication import (
+    PrescriptionCreateRequest,
+    PrescriptionResponse,
+    PrescriptionDeleteResponse,
+    MedicationScheduleRequest,
+    MedicationScheduleResponse,
+    MedicationScheduleListResponse,
+    MedicationAlarmUpdateRequest,
+    MedicationAlarmUpdateResponse,
+    MedicationDashboardResponse,
+)
 
 router = APIRouter()
 
-# POST /api/v1/medications - 약 등록
-@router.post("")
-def register_medication():
-    pass
 
-# GET /api/v1/medications - 약 목록 조회
-@router.get("")
-def get_medications():
-    pass
+# POST /api/v1/prescriptions - 복용 약 등록
+@router.post("/prescriptions", response_model=PrescriptionResponse, status_code=201)
+def create_prescription(
+    request: PrescriptionCreateRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.create_prescription(current_user.id, request, db)
 
-# GET /api/v1/medications/{id} - 약 상세 조회
-@router.get("/{medication_id}")
-def get_medication(medication_id: int):
-    pass
 
-# PUT /api/v1/medications/{id} - 약 정보 수정
-@router.put("/{medication_id}")
-def update_medication(medication_id: int):
-    pass
+# DELETE /api/v1/prescriptions/{id} - 복용 약 삭제
+@router.delete("/prescriptions/{prescription_id}", response_model=PrescriptionDeleteResponse)
+def delete_prescription(
+    prescription_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.delete_prescription(current_user.id, prescription_id, db)
 
-# DELETE /api/v1/medications/{id} - 약 삭제
-@router.delete("/{medication_id}")
-def delete_medication(medication_id: int):
-    pass
 
-# POST /api/v1/medications/{id}/check - 복약 완료 체크
-@router.post("/{medication_id}/check")
-def check_medication(medication_id: int):
-    pass
+# POST /api/v1/medications/{medicationId}/schedules - 복약 일정 등록
+@router.post("/{medication_id}/schedules", response_model=MedicationScheduleResponse, status_code=201)
+def create_schedule(
+    medication_id: int,
+    request: MedicationScheduleRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.create_schedule(current_user.id, medication_id, request, db)
 
-# DELETE /api/v1/medications/{id}/check - 복약 완료 체크 취소
-@router.delete("/{medication_id}/check")
-def uncheck_medication(medication_id: int):
-    pass
 
-# GET /api/v1/medications/history - 복약 이력 조회
-@router.get("/history")
-def get_medication_history():
-    pass
+# GET /api/v1/medications/{medicationId}/schedules - 복약 일정 조회
+@router.get("/{medication_id}/schedules", response_model=MedicationScheduleListResponse)
+def get_schedules(
+    medication_id: int,
+    active: Optional[bool] = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.get_schedules(current_user.id, medication_id, active, db)
 
-# GET /api/v1/medications/history/export - 복약 이력 파일 내보내기
-@router.get("/history/export")
-def export_medication_history():
-    pass
 
-# GET /api/v1/medications/statistics - 복약 완료율 통계 조회
-@router.get("/statistics")
-def get_medication_statistics():
-    pass
+# PUT /api/v1/medications/{medicationId}/schedules - 복약 일정 수정
+@router.put("/{medication_id}/schedules", response_model=MedicationScheduleResponse, status_code=201)
+def update_schedule(
+    medication_id: int,
+    request: MedicationScheduleRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.update_schedule(current_user.id, medication_id, request, db)
 
-# GET /api/v1/medications/report/monthly - 월간 복약 리포트 조회
-@router.get("/report/monthly")
-def get_monthly_report():
-    pass
 
-# GET /api/v1/medications/notifications/history - 알림 발송 이력 조회
-@router.get("/notifications/history")
-def get_notification_history():
-    pass
+# PATCH /api/v1/medication-alarms/{alarm_id} - 복약 알림 수정
+@router.patch("/alarms/{alarm_id}", response_model=MedicationAlarmUpdateResponse)
+def update_alarm(
+    alarm_id: int,
+    request: MedicationAlarmUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.update_alarm(current_user.id, alarm_id, request, db)
+
+
+# GET /api/v1/medications/dashboard - 복약 완료율 대시보드
+@router.get("/dashboard", response_model=MedicationDashboardResponse)
+def get_dashboard(
+    period: str = Query(...),
+    date: Optional[date] = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.get_dashboard(current_user.id, period, date, db)
+
+
+# GET /api/v1/medication-schedules - 복약 이력 기간별 조회
+@router.get("/schedules", response_model=None)
+def get_medication_history(
+    start_date: date = Query(...),
+    end_date: date = Query(...),
+    drug_name: Optional[str] = Query(default=None),
+    page: int = Query(default=1),
+    size: int = Query(default=20),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.get_medication_history(current_user.id, start_date, end_date, drug_name, page, size, db)
