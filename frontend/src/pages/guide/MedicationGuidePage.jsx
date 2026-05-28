@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import ReactMarkdown from 'react-markdown'
 import Header from '../../components/Header.jsx'
 import MedicationGuideButton from '../../components/MedicationGuideButton.jsx'
+import FoldableMarkdown from '../../components/FoldableMarkdown.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faWandMagicSparkles,
@@ -10,47 +10,11 @@ import {
   faTriangleExclamation,
   faBan,
   faTrash,
-  faChevronDown,
 } from '@fortawesome/free-solid-svg-icons'
 import {
   getMedicationGuide,
   deleteMedicationGuide,
 } from '../../api/medicationGuides.js'
-
-
-const markdownComponents = {
-  h1: ({ children }) => (
-    <h2 className="text-[15px] font-[700] text-textHeading mt-4 mb-2">{children}</h2>
-  ),
-  h2: ({ children }) => (
-    <h2 className="text-[14px] font-[700] text-textHeading mt-4 mb-2">{children}</h2>
-  ),
-  h3: ({ children }) => (
-    <h3 className="text-[13px] font-[700] text-textHeading mt-3 mb-1">{children}</h3>
-  ),
-  p: ({ children }) => (
-    <p className="text-[14px] text-textBody leading-[1.85] my-3">{children}</p>
-  ),
-  blockquote: ({ children }) => (
-    <blockquote className="border-l-4 border-primary bg-primarySoft py-3 px-4 mt-6 mb-3 text-[14px] text-textBody leading-relaxed not-italic">
-      {children}
-    </blockquote>
-  ),
-  ul: ({ children }) => <ul className="list-none space-y-1.5 my-2">{children}</ul>,
-  ol: ({ children }) => <ol className="list-decimal pl-5 space-y-1 my-2 text-[14px] text-textBody">{children}</ol>,
-  li: ({ children }) => (
-    <li className="flex items-start gap-2 text-[14px] text-textBody leading-relaxed">
-      <span className="mt-2 w-1 h-1 rounded-full bg-mute flex-shrink-0"></span>
-      <span>{children}</span>
-    </li>
-  ),
-  strong: ({ children }) => <strong className="text-textHeading font-[700]">{children}</strong>,
-  em: ({ children }) => <em className="italic">{children}</em>,
-  code: ({ children }) => (
-    <code className="bg-borderLight px-1 py-0.5 rounded text-[12px] font-mono">{children}</code>
-  ),
-  hr: () => <hr className="border-borderHairline my-3" />,
-}
 
 
 function formatCreatedAt(iso) {
@@ -62,30 +26,18 @@ function formatCreatedAt(iso) {
 }
 
 
-// 단일 마크다운 본문을 빈 줄(\n\n) 기준 블록 배열로 분할.
-// slice 후 join('\n\n') 으로 원문 복원 가능 — 요약·절단 없이 보존.
-function splitMarkdownBlocks(content) {
-  if (!content) return []
-  return content.split('\n\n')
-}
-
-const PREVIEW_BLOCK_COUNT = 2
-
-
 function MedicationGuidePage() {
   const { guideId } = useParams()
   const navigate = useNavigate()
   const [guide, setGuide] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [bodyExpanded, setBodyExpanded] = useState(false)
 
   useEffect(() => {
     if (!guideId) return
     let cancelled = false
     setLoading(true)
     setError('')
-    setBodyExpanded(false)
     getMedicationGuide(guideId)
       .then((data) => { if (!cancelled) setGuide(data) })
       .catch((err) => { if (!cancelled) setError(err?.message ?? '가이드를 불러오지 못했어요.') })
@@ -103,17 +55,6 @@ function MedicationGuidePage() {
       window.alert(err?.message ?? '삭제에 실패했어요.')
     }
   }
-
-  // 본문 fold 계산 (정상 가이드 케이스에서만 의미 있음, fallback 분기는 미사용).
-  // 블록 2개 이하면 hasFold=false → 토글 버튼 숨김, 전체 그대로 표시 (방어적 분할).
-  const bodyBlocks = guide ? splitMarkdownBlocks(guide.main_content) : []
-  const bodyHasFold = bodyBlocks.length > PREVIEW_BLOCK_COUNT
-  const bodyPreview = bodyHasFold
-    ? bodyBlocks.slice(0, PREVIEW_BLOCK_COUNT).join('\n\n')
-    : (guide?.main_content ?? '')
-  const bodyRest = bodyHasFold
-    ? bodyBlocks.slice(PREVIEW_BLOCK_COUNT).join('\n\n')
-    : ''
 
   return (
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
@@ -217,32 +158,7 @@ function MedicationGuidePage() {
                       <h3 className="text-[11px] font-[700] text-mute mb-2 tracking-wider uppercase">
                         복약 안내
                       </h3>
-                      <div>
-                        <ReactMarkdown components={markdownComponents}>
-                          {bodyPreview}
-                        </ReactMarkdown>
-                        {bodyHasFold && bodyExpanded && (
-                          <ReactMarkdown components={markdownComponents}>
-                            {bodyRest}
-                          </ReactMarkdown>
-                        )}
-                        {bodyHasFold && (
-                          <div className="mt-3 flex justify-center">
-                            <button
-                              type="button"
-                              onClick={() => setBodyExpanded((v) => !v)}
-                              aria-expanded={bodyExpanded}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] text-mute hover:text-textBody transition-colors"
-                            >
-                              <span>{bodyExpanded ? '접기' : '더보기'}</span>
-                              <FontAwesomeIcon
-                                icon={faChevronDown}
-                                className={`text-[10px] transition-transform duration-200 ${bodyExpanded ? 'rotate-180' : ''}`}
-                              />
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                      <FoldableMarkdown content={guide.main_content} />
                     </div>
 
                     {guide.references && (

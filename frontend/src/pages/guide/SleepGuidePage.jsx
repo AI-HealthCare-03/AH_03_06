@@ -11,6 +11,7 @@ import {
   faLightbulb,
   faBullseye,
   faClipboardCheck,
+  faChevronDown,
 } from '@fortawesome/free-solid-svg-icons'
 import { getSleepGuide, deleteSleepGuide } from '../../api/sleepGuides.js'
 
@@ -60,6 +61,7 @@ function SleepGuidePage() {
   const [guide, setGuide] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
     if (!guideId) return
@@ -85,6 +87,11 @@ function SleepGuidePage() {
   }
 
   const status = guide ? STATUS_META[guide.overall_status] || STATUS_META[0] : null
+
+  // 접기 대상: 핵심 포인트·오늘 할 일은 항상 표시, 그 아래 보조 섹션들을 더보기로 접는다.
+  const hasFoldableSections = !!(
+    guide && (guide.weekly_goal || guide.coping_strategy || guide.lifestyle_adjustment || guide.next_checkup_guide)
+  )
 
   return (
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
@@ -166,28 +173,49 @@ function SleepGuidePage() {
                     </Section>
                   )}
 
-                  {guide.weekly_goal && (
-                    <Section icon={faBullseye} title="이번 주 수면 목표">
-                      <p className="text-[14px] text-textBody leading-[1.7]">{guide.weekly_goal}</p>
-                    </Section>
+                  {expanded && (
+                    <>
+                      {guide.weekly_goal && (
+                        <Section icon={faBullseye} title="이번 주 수면 목표">
+                          <p className="text-[14px] text-textBody leading-[1.7]">{guide.weekly_goal}</p>
+                        </Section>
+                      )}
+
+                      {guide.coping_strategy && (
+                        <Section title="잠이 잘 오지 않을 때">
+                          <p className="text-[14px] text-textBody leading-[1.7]">{guide.coping_strategy}</p>
+                        </Section>
+                      )}
+
+                      {guide.lifestyle_adjustment && (
+                        <Section title="생활습관 조정">
+                          <p className="text-[14px] text-textBody leading-[1.7]">{guide.lifestyle_adjustment}</p>
+                        </Section>
+                      )}
+
+                      {guide.next_checkup_guide && (
+                        <Section title="다음 점검 안내">
+                          <p className="text-[13px] text-subtext leading-relaxed">{guide.next_checkup_guide}</p>
+                        </Section>
+                      )}
+                    </>
                   )}
 
-                  {guide.coping_strategy && (
-                    <Section title="잠이 잘 오지 않을 때">
-                      <p className="text-[14px] text-textBody leading-[1.7]">{guide.coping_strategy}</p>
-                    </Section>
-                  )}
-
-                  {guide.lifestyle_adjustment && (
-                    <Section title="생활습관 조정">
-                      <p className="text-[14px] text-textBody leading-[1.7]">{guide.lifestyle_adjustment}</p>
-                    </Section>
-                  )}
-
-                  {guide.next_checkup_guide && (
-                    <Section title="다음 점검 안내">
-                      <p className="text-[13px] text-subtext leading-relaxed">{guide.next_checkup_guide}</p>
-                    </Section>
+                  {hasFoldableSections && (
+                    <div className="px-5 py-3 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => setExpanded((v) => !v)}
+                        aria-expanded={expanded}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] text-mute hover:text-textBody transition-colors"
+                      >
+                        <span>{expanded ? '접기' : '더보기'}</span>
+                        <FontAwesomeIcon
+                          icon={faChevronDown}
+                          className={`text-[10px] transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+                        />
+                      </button>
+                    </div>
                   )}
                 </div>
               </section>
