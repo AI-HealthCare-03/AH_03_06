@@ -123,6 +123,23 @@ async def request_medication_guide_generation(
     )
 
 
+# POST /api/v1/medication_guides/generate-stream - 복약 가이드 스트리밍 생성
+# meta → token×N → done{guide_id, is_fallback} NDJSON. 끝까지 완료된 경우에만 저장.
+@router.post("/generate-stream")
+async def generate_medication_guide_stream(
+    request: GenerateGuideRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    async def ndjson_iter():
+        async for event in guide_service.stream_guide_generation(
+            request, user_id=current_user.id, db=db
+        ):
+            yield json.dumps(event, ensure_ascii=False) + "\n"
+
+    return StreamingResponse(ndjson_iter(), media_type="application/x-ndjson")
+
+
 # GET /api/v1/medication_guides/drug-suggest - 데모 자동완성 검색
 # (static path 라 /{guide_id} 보다 먼저 정의)
 @router.get("/drug-suggest", response_model=DrugSuggestResponse)

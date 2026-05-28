@@ -17,7 +17,10 @@ from app.schemas.guide import (
     MedicationGuideSchema,
 )
 from app.services.drug_matching_service import get_index, match_drug
-from app.services.llm_service import generate_guide_for_drug_async
+from app.services.llm_service import (
+    generate_guide_for_drug_async,
+    generate_guide_for_drug_stream,
+)
 
 
 DISCLAIMER = (
@@ -43,17 +46,15 @@ def _to_schema(guide: MedicationGuide) -> MedicationGuideSchema:
     )
 
 
-# 복약 가이드 생성 (동기 처리, 5~10초 블로킹)
-async def request_guide_generation(
-    request: GenerateGuideRequest,
-    user_id: int,
-    db: Session,
-) -> GenerateGuideResponse:
+# 처방 → (prescription, item_seq, drug_name) 해결. drug_id 있으면 그 drug_code 사용,
+# 없으면 약명→item_seq 매칭 폴백(confidence ≥ 90만 채택; 오매칭이 정보부족보다 위험).
+# 블로킹/스트림 생성이 공유.
+def _resolve_prescription_item_seq(medication_id: int, user_id: int, db: Session):
     prescription = (
         db.query(Prescription)
         .join(MedicalRecord)
         .filter(
-            Prescription.id == request.medication_id,
+            Prescription.id == medication_id,
             MedicalRecord.user_id == user_id,
             MedicalRecord.is_deleted == 0,
         )
@@ -70,15 +71,25 @@ async def request_guide_generation(
             item_seq = drug_info.drug_code or ""
             drug_name = drug_info.drug_name or prescription.drug_name
 
-    # drug_id 미연결 처방 폴백: 약명 → item_seq 매칭. 오매칭이 정보부족보다 위험하므로
-    # high(confidence ≥ 90, exact/prefix/고득점 fuzzy)만 채택. 미달이면 item_seq 빈 채로
-    # 두어 RAG 빈검색 게이트가 fallback 안내를 내도록 한다.
+    # drug_id 미연결 처방 폴백: 약명 → item_seq 매칭. 미달이면 item_seq 빈 채로 두어
+    # RAG 빈검색 게이트가 fallback 안내를 내도록 한다.
     if not item_seq:
         match = match_drug(prescription.drug_name, get_index(db))
         best = match.get("best_match")
         if best and match.get("confidence", 0) >= 90:
             item_seq = best.get("drug_code") or ""
             drug_name = best.get("drug_name") or drug_name
+
+    return prescription, item_seq, drug_name
+
+
+# 복약 가이드 생성 (동기 처리, 5~10초 블로킹)
+async def request_guide_generation(
+    request: GenerateGuideRequest,
+    user_id: int,
+    db: Session,
+) -> GenerateGuideResponse:
+    _, item_seq, drug_name = _resolve_prescription_item_seq(request.medication_id, user_id, db)
 
     payload = await generate_guide_for_drug_async(
         item_seq=item_seq,
@@ -102,6 +113,49 @@ async def request_guide_generation(
     db.refresh(guide)
 
     return GenerateGuideResponse(detail="medication_guide_generating")
+
+
+# 복약 가이드 스트리밍 생성 — 토큰을 흘리며 누적, 끝까지 완료된 경우에만 저장.
+# yield: meta → token×N → done{guide_id, is_fallback}. (NDJSON 직렬화는 라우터에서)
+# 중간 끊김 시 제너레이터가 취소되어 저장 코드에 도달하지 않음 → 미저장.
+async def stream_guide_generation(
+    request: GenerateGuideRequest,
+    user_id: int,
+    db: Session,
+):
+    _, item_seq, drug_name = _resolve_prescription_item_seq(request.medication_id, user_id, db)
+
+    main_content = ""
+    meta: dict | None = None
+    async for ev in generate_guide_for_drug_stream(item_seq=item_seq, drug_name=drug_name):
+        etype = ev.get("type")
+        if etype == "meta":
+            meta = ev
+            yield ev
+        elif etype == "token":
+            main_content += ev.get("text", "")
+            yield ev
+        # 내부 done 은 흘리지 않음 — 루프가 자연 종료(내부 TIMING 로그 보존)된 뒤
+        # guide_id 를 실어 아래에서 done 을 재발행한다.
+
+    meta = meta or {}
+    guide = MedicationGuide(
+        user_id=user_id,
+        medication_id=request.medication_id,
+        drug_name=drug_name,
+        safety_block=meta.get("safety_block"),
+        safety_warn=meta.get("safety_warn"),
+        safety_info=meta.get("safety_info"),
+        main_content=main_content,
+        references=meta.get("references"),
+        safety_recommendations=meta.get("safety_recommendations"),
+        is_fallback=meta.get("is_fallback", False),
+    )
+    db.add(guide)
+    db.commit()
+    db.refresh(guide)
+
+    yield {"type": "done", "guide_id": guide.id, "is_fallback": guide.is_fallback}
 
 
 # 복약 가이드 단건 조회
