@@ -9,6 +9,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMedicalRecord, deleteMedicalRecord } from '../../api/medicalRecord'
+import MedicationGuideButton from '../../components/MedicationGuideButton.jsx'
 
 // ── 진료과 매핑 ───────────────────────────────────────────────
 const DEPT_MAP = {
@@ -36,13 +37,13 @@ function Card({ children, className = '' }) {
 }
 
 // ── 처방약 아이템 ─────────────────────────────────────────────
-function PrescriptionItem({ drug }) {
+function PrescriptionItem({ drug, onGuideSuccess }) {
   const dosageText = [
     drug.dosage && `${drug.dosage}정`,
     drug.frequency && `1일 ${drug.frequency}회`,
     drug.duration_days && `${drug.duration_days}일분`,
   ].filter(Boolean).join(' · ')
-  
+
   // 기존 dosage 필드도 fallback으로 지원 (하위 호환)
   const sub = dosageText || [drug.dosage, drug.frequency, drug.duration_days != null ? `${drug.duration_days}일분` : '']
     .filter(Boolean).join(' · ')
@@ -54,10 +55,18 @@ function PrescriptionItem({ drug }) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
         </svg>
       </div>
-      <div>
+      <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-neutral-900">{drug.drug_name}</p>
         {sub && <p className="text-xs text-neutral-400 mt-0.5">{sub}</p>}
       </div>
+      <MedicationGuideButton
+        medicationId={drug.id}
+        medicationName={drug.drug_name}
+        variant="compact"
+        label="AI 가이드"
+        className="shrink-0 self-center"
+        onSuccess={onGuideSuccess}
+      />
     </div>
   )
 }
@@ -280,7 +289,11 @@ export default function MedicalRecordDetail() {
             <p className="text-sm font-bold text-neutral-900 mb-1">처방약</p>
             <div>
               {record.prescriptions.map(drug => (
-                <PrescriptionItem key={drug.id} drug={drug} />
+                <PrescriptionItem
+                  key={drug.id}
+                  drug={drug}
+                  onGuideSuccess={() => navigate('/medication-guides')}
+                />
               ))}
             </div>
           </Card>

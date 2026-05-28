@@ -16,6 +16,7 @@ from app.schemas.guide import (
     GuideListResponse,
     MedicationGuideSchema,
 )
+from app.services.drug_matching_service import get_index, match_drug
 from app.services.llm_service import generate_guide_for_drug_async
 
 
@@ -68,6 +69,16 @@ async def request_guide_generation(
         if drug_info:
             item_seq = drug_info.drug_code or ""
             drug_name = drug_info.drug_name or prescription.drug_name
+
+    # drug_id 미연결 처방 폴백: 약명 → item_seq 매칭. 오매칭이 정보부족보다 위험하므로
+    # high(confidence ≥ 90, exact/prefix/고득점 fuzzy)만 채택. 미달이면 item_seq 빈 채로
+    # 두어 RAG 빈검색 게이트가 fallback 안내를 내도록 한다.
+    if not item_seq:
+        match = match_drug(prescription.drug_name, get_index(db))
+        best = match.get("best_match")
+        if best and match.get("confidence", 0) >= 90:
+            item_seq = best.get("drug_code") or ""
+            drug_name = best.get("drug_name") or drug_name
 
     payload = await generate_guide_for_drug_async(
         item_seq=item_seq,
