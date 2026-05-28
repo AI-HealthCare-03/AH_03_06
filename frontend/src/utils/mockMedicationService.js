@@ -3,7 +3,10 @@
 // Mock 서비스 함수 (API 연결 전 임시 사용)
 // ============================================================
 
-import { MOCK_MEDICATIONS, MOCK_TODAY_MEDICATION } from './mockMedicationData.js';
+import {
+  MOCK_MEDICATIONS, MOCK_TODAY_MEDICATION,
+  MOCK_CALENDAR, MOCK_ANALYSIS, MOCK_MEDICATIONS_BY_DATE
+} from './mockMedicationData.js';
 
 // ────────────────────────────────────────────────────────────
 // 유틸
@@ -216,8 +219,6 @@ export function __resetMockData() {
   _medications = [...MOCK_MEDICATIONS];
   _todayMedication = JSON.parse(JSON.stringify(MOCK_TODAY_MEDICATION));
 }
-<<<<<<< Updated upstream
-=======
 
 
 // ── In-memory 상태 (새로고침 시 초기화) ─────────────────────
@@ -251,7 +252,7 @@ export const fetchAnalysis = () =>
 export const fetchMedicationsByDate = (dateStr) =>
   new Promise((resolve) => {
     const data = medicationRecordState[dateStr] ?? null;
-    setTimeout(() => resolve(data ? ok(data) : fail('해당 날짜의 복약 데이터가 없습니다.')), 300);
+    setTimeout(() => resolve(data ? ok(data) : err('해당 날짜의 복약 데이터가 없습니다.')), 300);
   });
 
 /**
@@ -340,4 +341,3 @@ export const getSchedules = (medicationId) =>
 
     setTimeout(() => resolve(ok({ schedules })), 300)
   })
->>>>>>> Stashed changes

@@ -243,3 +243,93 @@ export const MOCK_TODAY_MEDICATION = {
     },
   ],
 };
+
+export const MOCK_CALENDAR = {
+  year: 2026,
+  month: 5, // 1-indexed
+  doneDays: [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 14, 15, 16, 17, 18],
+  missedDays: [10, 13],
+  selectedDay: 12,
+};
+
+export const MOCK_ANALYSIS = {
+  periodLabel: '최근 30일',
+  achievementRate: 85, // %
+};
+
+// 복약 상태 타입
+// "done"      - 복용 완료
+// "pending"   - 복용하기 (현재 시간대, 액션 필요)
+// "scheduled" - 예정 (아직 시간 안 됨)
+// "missed"    - 누락
+
+export const MOCK_MEDICATIONS_BY_DATE = {
+  '2026-05-12': {
+    date: '2026-05-12',
+    dateLabel: '5월 12일 화요일',
+    totalCount: 4,
+    doneCount: 3,
+    timeSlots: [
+      {
+        id: 'morning',
+        label: '아침',
+        time: '오전 8:00',
+        icon: 'sun',
+        medications: [
+          {
+            id: 'med-001',
+            name: '아모잘탄정 5mg',
+            dosage: '1정',
+            category: '고혈압약',
+            timing: '식후 30분',
+            type: 'prescription',
+            status: 'done',
+          },
+          {
+            id: 'med-002',
+            name: '메트포르민 500mg',
+            dosage: '1정',
+            category: '당뇨병약',
+            timing: '식후 30분',
+            type: 'prescription',
+            status: 'done',
+          },
+        ],
+      },
+      {
+        id: 'lunch',
+        label: '점심',
+        time: '오후 12:00',
+        icon: 'clock',
+        medications: [
+          {
+            id: 'med-003',
+            name: '종합비타민',
+            dosage: '1정',
+            category: '영양제',
+            timing: '식후 30분',
+            type: 'supplement',
+            status: 'pending',
+          },
+        ],
+      },
+      {
+        id: 'evening',
+        label: '저녁',
+        time: '오후 7:00',
+        icon: 'moon',
+        medications: [
+          {
+            id: 'med-004',
+            name: '타이레놀 500mg',
+            dosage: '1정',
+            category: '진통제',
+            timing: '식관계없음',
+            type: 'supplement',
+            status: 'scheduled',
+          },
+        ],
+      },
+    ],
+  },
+};
