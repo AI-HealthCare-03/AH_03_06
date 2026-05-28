@@ -1,45 +1,81 @@
-# api/v1/guides.py
-# 가이드 관련 엔드포인트 담당
-# 식단 가이드 조회/생성
-# 운동 가이드 조회/생성
-# 수면 가이드 조회/생성
-# 복약 안내 조회
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from sqlalchemy.orm import Session
 
-from fastapi import APIRouter
+from app.database import get_db
+from app.dependencies.auth import get_current_user
+from app.services.diet import DietService
+from app.schemas.diet import (
+    DietGuideResponse,
+    DietGuideListResponse,
+    DietGuideGenerateRequest,
+)
 
 router = APIRouter()
+diet_service = DietService()
 
-# GET /api/v1/guides/diet - 식단 가이드 조회
-@router.get("/diet")
-def get_diet_guide():
-    pass
 
-# POST /api/v1/guides/diet/generate - 식단 가이드 생성 요청
-@router.post("/diet/generate")
-def generate_diet_guide():
-    pass
+@router.get('/diet/{id}', response_model=DietGuideResponse)
+def get_diet_guide(
+    id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    result = diet_service.get_diet_guide(db, id, current_user.id)
+    if not result:
+        raise HTTPException(status_code=404, detail='diet_guide_not_found')
+    return result
 
-# GET /api/v1/guides/exercise - 운동 가이드 조회
-@router.get("/exercise")
+
+@router.get('/diet', response_model=DietGuideListResponse)
+def get_diet_guide_list(
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    guides = diet_service.get_diet_guide_list(db, current_user.id)
+    return {'guides': guides}
+
+
+@router.post('/diet/generate', status_code=202)
+def generate_diet_guide(
+    request: DietGuideGenerateRequest,
+    background_tasks: BackgroundTasks,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    checkup = diet_service.get_checkup_by_id(db, request.checkup_id, current_user.id)
+    if not checkup:
+        raise HTTPException(status_code=404, detail='checkup_not_found')
+
+    background_tasks.add_task(
+        diet_service.generate_diet_guide,
+        db=db,
+        user_id=current_user.id,
+        checkup=checkup,
+    )
+
+    return {'detail': 'diet_guide_generating'}
+
+
+@router.get('/exercise')
 def get_exercise_guide():
     pass
 
-# POST /api/v1/guides/exercise/generate - 운동 가이드 생성 요청
-@router.post("/exercise/generate")
+
+@router.post('/exercise/generate')
 def generate_exercise_guide():
     pass
 
-# GET /api/v1/guides/sleep - 수면 가이드 조회
-@router.get("/sleep")
+
+@router.get('/sleep')
 def get_sleep_guide():
     pass
 
-# POST /api/v1/guides/sleep/generate - 수면 가이드 생성 요청
-@router.post("/sleep/generate")
+
+@router.post('/sleep/generate')
 def generate_sleep_guide():
     pass
 
-# GET /api/v1/guides/medication - 복약 안내 조회
-@router.get("/medication")
+
+@router.get('/medication')
 def get_medication_guide():
     pass
