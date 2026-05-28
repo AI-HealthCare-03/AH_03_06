@@ -31,6 +31,11 @@ import HealthCheckInput from "./pages/health-checkup/HealthCheckInput.jsx"
 import HealthCheckResults from "./pages/health-checkup/HealthCheckResults.jsx"
 
 import MedicationPage from './pages/medication/MedicationPage.jsx'
+<<<<<<< Updated upstream
+=======
+import MedicationRecordPage from './pages/medication/MedicationRecordPage.jsx'
+import MedicationFormPage from './pages/medication/MedicationFormPage.jsx'
+>>>>>>> Stashed changes
 
 let _setAuth = null
 export function logout() {
@@ -86,8 +91,6 @@ function App() {
         <Route path="/health-checkup/input/:year" element={<PrivateRoute auth={auth}><HealthCheckInput /></PrivateRoute>} />
         <Route path="/health-checkup/results/:year" element={<PrivateRoute auth={auth}><HealthCheckResults /></PrivateRoute>} />
 
-        <Route path="/medication" element={<PrivateRoute auth={auth}><MedicationPage /></PrivateRoute>} />
-
         <Route path="/home" element={<Home />} />
         <Route path="/user" element={<MyPage />} />
         <Route path="/user/profile/edit" element={<ProfileEdit />} />
@@ -98,6 +101,12 @@ function App() {
         <Route path="/medical-records/:id/edit" element={<MedicalRecordForm />} />
         <Route path="/all" element={<All />} />
         <Route path="/medical-records/ocr" element={<PrescriptionOCR />} />
+<<<<<<< Updated upstream
+=======
+        <Route path="/medication" element={<PrivateRoute auth={auth}><MedicationPage /></PrivateRoute>} />
+        <Route path='/medication/record' element={<PrivateRoute auth={auth}><MedicationRecordPage /></PrivateRoute>} />
+        <Route path="/medication/form" element={<PrivateRoute auth={auth}><MedicationFormPage /></PrivateRoute>}/>
+>>>>>>> Stashed changes
       </Routes>
     </BrowserRouter>
   )
