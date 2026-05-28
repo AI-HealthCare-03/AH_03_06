@@ -20,6 +20,9 @@ import GuideHubPage from './pages/guide/GuideHubPage'
 import MedicationGuidePage from './pages/guide/MedicationGuidePage'
 import MedicationGuidePreview from './pages/guide/MedicationGuidePreview'
 import MedicationGuideListPage from './pages/guide/MedicationGuideListPage'
+import SleepGuideListPage from './pages/guide/SleepGuideListPage'
+import SleepGuideInputPage from './pages/guide/SleepGuideInputPage'
+import SleepGuidePage from './pages/guide/SleepGuidePage'
 import MyPage from './pages/user/MyPage'
 import ProfileEdit from './pages/user/ProfileEdit'
 import MedicalRecordDetail from './pages/medical-record/MedicalRecordDetail.jsx'
@@ -80,6 +83,9 @@ function App() {
         <Route path="/medication-guides" element={<PrivateRoute auth={auth}><MedicationGuideListPage /></PrivateRoute>} />
         <Route path="/medication-guides/preview" element={<MedicationGuidePreview />} />
         <Route path="/medication-guides/:guideId" element={<PrivateRoute auth={auth}><MedicationGuidePage /></PrivateRoute>} />
+        <Route path="/sleep-guides" element={<PrivateRoute auth={auth}><SleepGuideListPage /></PrivateRoute>} />
+        <Route path="/sleep-guides/new" element={<PrivateRoute auth={auth}><SleepGuideInputPage /></PrivateRoute>} />
+        <Route path="/sleep-guides/:guideId" element={<PrivateRoute auth={auth}><SleepGuidePage /></PrivateRoute>} />
         <Route path="/user" element={<PrivateRoute auth={auth}><MyPage /></PrivateRoute>} />
         <Route path="/user/profile/edit" element={<PrivateRoute auth={auth}><ProfileEdit /></PrivateRoute>} />
 

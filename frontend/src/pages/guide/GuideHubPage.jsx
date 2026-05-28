@@ -16,7 +16,7 @@ import {
 const guides = [
   { title: '식단 가이드', desc: '혈압 관리 저염식 권장', icon: faUtensils, path: '/guide/meal' },
   { title: '운동 가이드', desc: '중간 강도 유산소 30분', icon: faPersonRunning, path: '/guide/exercise' },
-  { title: '수면 가이드', desc: '취침 전 카페인 회피', icon: faMoon, path: '/guide/sleep' },
+  { title: '수면 가이드', desc: '내 수면 패턴 AI 분석·코칭', icon: faMoon, path: '/sleep-guides' },
   { title: '복약 가이드', desc: '내 처방약별 AI 복약 안내', icon: faPills, path: '/medication-guides' },
 ]
 
