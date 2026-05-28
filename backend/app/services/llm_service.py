@@ -10,12 +10,12 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from openai import OpenAI
+from openai import AsyncOpenAI, OpenAI
 
 from app.config import settings
 from app.database import SessionLocal
 from app.models.drug_info import DrugInfo
-from app.utils.rag import prepare_rag_context
+from app.utils.rag import prepare_rag_context, prepare_rag_context_async
 
 
 _openai_client: OpenAI | None = None
@@ -366,6 +366,189 @@ def generate_guide_for_drug(
     t_total = time.perf_counter() - t0
     print(
         f"[TIMING] item_seq={item_seq} drug_name={drug_name[:30]} "
+        f"retrieve={t_retrieve:.2f}s gate={t_gate:.3f}s "
+        f"llm={t_llm:.2f}s total={t_total:.2f}s "
+        f"(fallback={is_fallback})",
+        flush=True,
+    )
+
+    return {
+        "drug_name": drug_name,
+        "main_content": main_content,
+        "is_fallback": is_fallback,
+        "disclaimer": DISCLAIMER,
+        "references": None,
+        "safety_block": safety_block,
+        "safety_warn": None,
+        "safety_info": None,
+        "safety_recommendations": None,
+    }
+
+
+# ============================================================
+# stream 변종 — /preview-stream 핸들러의 인프라.
+# generate_markdown_stream: chat.completions stream=True. 토큰 청크 yield.
+# generate_guide_for_drug_stream: meta → token (반복) → done 의 dict 이벤트 시퀀스 yield.
+#                                 게이트 발동 시 단발 (FALLBACK_TEXT 한 번에 yield, LLM 미호출).
+# sync/async 변종 모두 보존. is_retrieval_empty 와 _lookup_recall_warning 호출 위치·결과 동일.
+# ============================================================
+async def generate_markdown_stream(ctx: dict[str, Any]):
+    """generate_markdown_async 의 stream 변종 — 토큰 청크를 비동기 yield."""
+    client = _get_async_openai_client()
+    stream = await client.chat.completions.create(
+        model=settings.GENERATION_MODEL,
+        temperature=settings.GENERATION_TEMPERATURE,
+        messages=[
+            {"role": "system", "content": GUIDE_SYSTEM_PROMPT},
+            {"role": "user", "content": format_rag_context(ctx)},
+        ],
+        stream=True,
+    )
+    async for chunk in stream:
+        try:
+            delta = chunk.choices[0].delta.content
+        except (IndexError, AttributeError):
+            continue
+        if delta:
+            yield delta
+
+
+async def generate_guide_for_drug_stream(
+    item_seq: str,
+    drug_name: str = "",
+    user_query: str | None = None,
+    patient: dict[str, Any] | None = None,
+    safety: dict[str, Any] | None = None,
+    top_k: int = 3,
+):
+    """generate_guide_for_drug_async 의 stream 변종.
+
+    yield 순서:
+        1. meta  — drug_name, is_fallback, safety_block, disclaimer, references, safety_*.
+                   safety_block 빨강 BLOCK 카드를 토큰 도착 전에 즉시 표시할 수 있도록 첫 이벤트로 전송.
+        2. token — 본문 청크. 정상 케이스는 generate_markdown_stream 의 청크 반복.
+                   거절 케이스(게이트 발동)는 FALLBACK_TEXT 한 번에 (LLM 미호출).
+        3. done  — 종료 신호.
+
+    is_retrieval_empty 게이트와 _lookup_recall_warning 은 sync/async 변종과 동일하게 호출 — 판단 로직 보존.
+    """
+    t0 = time.perf_counter()
+    ctx = await prepare_rag_context_async(
+        [{"item_seq": str(item_seq), "drug_name": drug_name}],
+        patient=patient,
+        user_query=user_query,
+        safety=safety,
+        top_k=top_k,
+    )
+    t_retrieve = time.perf_counter() - t0
+
+    gate_empty = is_retrieval_empty(ctx)
+    safety_block = _lookup_recall_warning(str(item_seq)) if item_seq else None
+
+    yield {
+        "type": "meta",
+        "drug_name": drug_name,
+        "is_fallback": gate_empty,
+        "disclaimer": DISCLAIMER,
+        "references": None,
+        "safety_block": safety_block,
+        "safety_warn": None,
+        "safety_info": None,
+        "safety_recommendations": None,
+    }
+
+    t2 = time.perf_counter()
+    token_count = 0
+    if gate_empty:
+        yield {"type": "token", "text": FALLBACK_TEXT}
+        token_count = 1
+    else:
+        async for delta in generate_markdown_stream(ctx):
+            yield {"type": "token", "text": delta}
+            token_count += 1
+    t_llm = time.perf_counter() - t2
+
+    yield {"type": "done"}
+
+    t_total = time.perf_counter() - t0
+    print(
+        f"[TIMING-STREAM] item_seq={item_seq} drug_name={drug_name[:30]} "
+        f"retrieve={t_retrieve:.2f}s llm={t_llm:.2f}s total={t_total:.2f}s "
+        f"tokens={token_count} (fallback={gate_empty})",
+        flush=True,
+    )
+
+
+# ============================================================
+# async 변종 — /preview 핸들러 async 전환 슬라이스의 인프라
+# sync 함수는 모두 보존. is_retrieval_empty 게이트와 _lookup_recall_warning 은
+# sync 그대로 호출(판단 로직 보존). 호출 방식만 await 로 바뀜.
+# ============================================================
+_async_openai_client: AsyncOpenAI | None = None
+
+
+def _get_async_openai_client() -> AsyncOpenAI:
+    global _async_openai_client
+    if _async_openai_client is None:
+        _async_openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    return _async_openai_client
+
+
+async def generate_markdown_async(ctx: dict[str, Any]) -> str:
+    """generate_markdown 의 async 변종. stream 미사용(별도 슬라이스)."""
+    client = _get_async_openai_client()
+    resp = await client.chat.completions.create(
+        model=settings.GENERATION_MODEL,
+        temperature=settings.GENERATION_TEMPERATURE,
+        messages=[
+            {"role": "system", "content": GUIDE_SYSTEM_PROMPT},
+            {"role": "user", "content": format_rag_context(ctx)},
+        ],
+    )
+    return resp.choices[0].message.content
+
+
+async def generate_guide_for_drug_async(
+    item_seq: str,
+    drug_name: str = "",
+    user_query: str | None = None,
+    patient: dict[str, Any] | None = None,
+    safety: dict[str, Any] | None = None,
+    top_k: int = 3,
+) -> dict[str, Any]:
+    """generate_guide_for_drug 의 async 변종.
+
+    sync 변종과 동일한 dict 를 반환. 차이는 호출 방식뿐:
+        - prepare_rag_context_async (임베딩 3회 동시)
+        - generate_markdown_async (chat completions await, stream 미사용)
+    is_retrieval_empty 게이트와 _lookup_recall_warning 은 sync 그대로 호출.
+    """
+    t0 = time.perf_counter()
+    ctx = await prepare_rag_context_async(
+        [{"item_seq": str(item_seq), "drug_name": drug_name}],
+        patient=patient,
+        user_query=user_query,
+        safety=safety,
+        top_k=top_k,
+    )
+    t_retrieve = time.perf_counter() - t0
+
+    t1 = time.perf_counter()
+    gate_empty = is_retrieval_empty(ctx)
+    t_gate = time.perf_counter() - t1
+
+    t2 = time.perf_counter()
+    if gate_empty:
+        main_content, is_fallback = FALLBACK_TEXT, True
+    else:
+        main_content, is_fallback = await generate_markdown_async(ctx), False
+    t_llm = time.perf_counter() - t2
+
+    safety_block = _lookup_recall_warning(str(item_seq)) if item_seq else None
+
+    t_total = time.perf_counter() - t0
+    print(
+        f"[TIMING-ASYNC] item_seq={item_seq} drug_name={drug_name[:30]} "
         f"retrieve={t_retrieve:.2f}s gate={t_gate:.3f}s "
         f"llm={t_llm:.2f}s total={t_total:.2f}s "
         f"(fallback={is_fallback})",
