@@ -55,7 +55,7 @@ function Card({ children, className = '' }) {
 }
 
 // ── 처방약 아이템 ─────────────────────────────────────────────
-function PrescriptionItem({ drug, onGuideSuccess, onAsk, asking }) {
+function PrescriptionItem({ drug, onAsk, asking }) {
   const dosageText = [
     drug.dosage && `${drug.dosage}정`,
     drug.frequency && `1일 ${drug.frequency}회`,
@@ -83,7 +83,6 @@ function PrescriptionItem({ drug, onGuideSuccess, onAsk, asking }) {
           medicationName={drug.drug_name}
           variant="compact"
           label="AI 가이드"
-          onSuccess={onGuideSuccess}
         />
         <button
           type="button"
@@ -339,7 +338,6 @@ export default function MedicalRecordDetail() {
                 <PrescriptionItem
                   key={drug.id}
                   drug={drug}
-                  onGuideSuccess={() => navigate('/medication-guides')}
                   onAsk={() => handleAskDrug(drug)}
                   asking={askingId === drug.id}
                 />

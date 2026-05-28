@@ -189,7 +189,6 @@ function MedicationGuidePage() {
                 medicationId={guide.medication_id}
                 medicationName={guide.drug_name}
                 label="가이드 다시 받기"
-                onSuccess={() => navigate('/medication-guides')}
               />
 
               {guide.disclaimer && (
