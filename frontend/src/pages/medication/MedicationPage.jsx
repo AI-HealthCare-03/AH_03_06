@@ -14,6 +14,12 @@ export default function MedicationPage() {
 // [Image 1] 복약 관리 목록
 // ────────────────────────────────────────────────────────────
 
+// MedicationPage.jsx - MedicationList 함수 수정본
+// 변경된 부분:
+// 1. openMenuId state 추가 (어떤 카드의 메뉴가 열려있는지 추적)
+// 2. ⋮ 버튼 → 드롭다운 메뉴 (수정 / 종료 처리)로 교체
+// 3. 메뉴 외부 클릭 시 닫힘 처리
+
 function MedicationList({ onTodayClick, navigate }) {
   const [activeTab, setActiveTab]         = useState('복약 중')
   const [keyword, setKeyword]             = useState('')
@@ -22,8 +28,8 @@ function MedicationList({ onTodayClick, navigate }) {
   const [allMedications, setAllMedications] = useState([])
   const [isLoading, setIsLoading]         = useState(false)
   const [error, setError]                 = useState(null)
+  const [openMenuId, setOpenMenuId]       = useState(null)  // ← 추가
 
-  // 전체 목록 한 번만 불러와서 탭/필터는 프론트에서 처리
   useEffect(() => {
     const fetch = async () => {
       setIsLoading(true)
@@ -41,6 +47,14 @@ function MedicationList({ onTodayClick, navigate }) {
     fetch()
   }, [])
 
+  // 메뉴 외부 클릭 시 닫힘 처리  ← 추가
+  useEffect(() => {
+    if (!openMenuId) return
+    const close = () => setOpenMenuId(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [openMenuId])
+
   const handleDelete = async (id) => {
     if (!window.confirm('복약을 종료 처리할까요?')) return
     await deleteMedication(id)
@@ -48,11 +62,15 @@ function MedicationList({ onTodayClick, navigate }) {
     if (res.success) setAllMedications(res.data)
   }
 
-  // 탭 카운트
+  // ⋮ 버튼 클릭 핸들러  ← 추가
+  const handleMenuToggle = (e, id) => {
+    e.stopPropagation()  // 외부 클릭 이벤트 버블링 방지
+    setOpenMenuId((prev) => (prev === id ? null : id))
+  }
+
   const activeCount   = allMedications.filter(m => m.status === '진행 중').length
   const inactiveCount = allMedications.filter(m => m.status === '종료').length
 
-  // 현재 탭 + 필터 적용
   const filtered = allMedications
     .filter(m => m.status === (activeTab === '복약 중' ? '진행 중' : '종료'))
     .filter(m => categoryFilter === '전체' || m.category === categoryFilter)
@@ -161,14 +179,14 @@ function MedicationList({ onTodayClick, navigate }) {
                     <p className="text-[13px] text-[#71717A] mt-0.5">{med.description}</p>
 
                     {/* 복약 스케줄 */}
-                    {med.schedule.slots.map((slot, i) => (
+                    {med.schedule?.slots?.map((slot, i) => (
                       <div key={i} className="flex items-center gap-1.5 mt-2">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                         </svg>
                         <span className="text-[12px] text-[#71717A]">
                           {slot.dosageAmount}{slot.dosageUnit} ·{' '}
-                          {med.schedule.isAsNeeded
+                          {med.schedule?.isAsNeeded
                             ? `필요시 (저녁 ${slot.clockTime})`
                             : `매일 ${slot.mealTime} ${slot.timing}${slot.timingMinutes ? ` ${slot.timingMinutes}분` : ''}`}
                         </span>
@@ -176,23 +194,75 @@ function MedicationList({ onTodayClick, navigate }) {
                     ))}
 
                     <p className="text-[11px] text-[#A1A1AA] mt-1.5">
-                      {med.startDate.replace(/-/g, '.')}
-                      {med.endDate ? ` ~ ${med.endDate.replace(/-/g, '.')}` : ' ~ 진행 중'}
+                      {med.startDate?.replace(/-/g, '.')}
+                      {med.endDate ? ` ~ ${med.endDate?.replace(/-/g, '.')}` : ' ~ 진행 중'}
                     </p>
                   </div>
                 </div>
 
-                {/* 더보기 버튼 (복약 중 탭에서만) */}
+                {/* ── ⋮ 버튼 + 드롭다운 메뉴 (복약 중 탭에서만) ── */}
                 {activeTab === '복약 중' && (
-                  <button
-                    onClick={() => handleDelete(med.id)}
-                    className="p-1 text-[#A1A1AA] hover:text-[#52525B] shrink-0"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                      <circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" />
-                    </svg>
-                  </button>
+                  <div className="relative shrink-0">
+                    {/* ⋮ 버튼 */}
+                    <button
+                      onClick={(e) => handleMenuToggle(e, med.id)}
+                      className="p-1 text-[#A1A1AA] hover:text-[#52525B]"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="5" r="1.5" />
+                        <circle cx="12" cy="12" r="1.5" />
+                        <circle cx="12" cy="19" r="1.5" />
+                      </svg>
+                    </button>
+
+                    {/* 드롭다운 메뉴 */}
+                    {openMenuId === med.id && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute right-0 top-7 z-20 w-32 bg-white border border-[#E4E4E7] rounded-[10px] shadow-lg overflow-hidden"
+                      >
+                        {/* 수정 */}
+                        <button
+                          onClick={() => {
+                            setOpenMenuId(null)
+                            navigate('/medication/form', {
+                              state: { mode: 'edit', medicationId: med.id }
+                            })
+                          }}
+                          className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-[#09090B] font-[500] hover:bg-[#F4F4F5] transition-colors"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                          수정
+                        </button>
+
+                        {/* 구분선 */}
+                        <div className="border-t border-[#F4F4F5]" />
+
+                        {/* 종료 처리 */}
+                        <button
+                          onClick={() => {
+                            setOpenMenuId(null)
+                            handleDelete(med.id)
+                          }}
+                          className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-red-400 font-[500] hover:bg-red-50 transition-colors"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                            <path d="M10 11v6M14 11v6" />
+                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                          </svg>
+                          종료 처리
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
+                {/* ── 드롭다운 끝 ── */}
+
               </div>
             </div>
           ))}
@@ -221,7 +291,10 @@ function MedicationList({ onTodayClick, navigate }) {
             </svg>
             오늘의 복약
           </button>
-          <button className="w-14 h-14 bg-[#2563EB] rounded-full flex items-center justify-center shadow-lg">
+          <button
+            onClick={() => navigate('/medication/form')}
+            className="w-14 h-14 bg-[#2563EB] rounded-full flex items-center justify-center shadow-lg"
+          >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
               <path d="M12 5v14M5 12h14" />
             </svg>

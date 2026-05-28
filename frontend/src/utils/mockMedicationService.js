@@ -106,9 +106,24 @@ export async function addMedication(req) {
   await delay(600);
 
   const newMed = {
-    id: `med-${Date.now()}`,
+    id:          `med-${Date.now()}`,
+    name:        req.drug_name ?? req.name ?? '',   // drug_name → name 매핑
+    description: req.purpose  ?? '',
+    category:    req.is_active !== false ? '일반의약품' : '일반의약품',
+    status:      '진행 중',
+    startDate:   req.start_date ?? req.startDate ?? '',  // start_date → startDate 매핑
+    endDate:     req.end_date   ?? req.endDate   ?? null,
+    schedule: {
+      isAsNeeded: false,
+      slots: req.dosage ? [{
+        dosageAmount: req.dosage.replace(/[^0-9.]/g, ''),
+        dosageUnit:   req.dosage.replace(/[0-9.]/g, '').trim(),
+        mealTime:     '아침',
+        timing:       '식후',
+        timingMinutes: 30,
+      }] : [],
+    },
     ...req,
-    status: '진행 중',
   };
 
   _medications = [newMed, ..._medications];
@@ -292,3 +307,37 @@ export const undoTakeMedication = (dateStr, medicationId) =>
 
     setTimeout(() => resolve(ok(null)), 300);
   });
+
+export const createSchedule = (medicationId, req) =>
+  new Promise((resolve) =>
+    setTimeout(() => resolve(ok({ id: Date.now(), medication_id: medicationId, ...req })), 300)
+  );
+
+export const updateSchedule = (medicationId, req) =>
+  new Promise((resolve) =>
+    setTimeout(() => resolve(ok({ id: medicationId, ...req })), 300)
+  );
+
+/**
+ * 복약 일정 조회
+ * 실제 API: GET /medications/{medicationId}/schedules
+ * @param {string|number} medicationId
+ */
+export const getSchedules = (medicationId) =>
+  new Promise((resolve) => {
+    const med = _medications.find((m) => m.id === medicationId || m.id === String(medicationId))
+    if (!med) return setTimeout(() => resolve(fail('해당 약을 찾을 수 없습니다.', 'NOT_FOUND')), 300)
+
+    // MedicationScheduleListResponse 구조에 맞게 반환
+    const schedules = med.schedule?.slots?.map((slot, i) => ({
+      id:                i + 1,
+      medication_id:     medicationId,
+      intake_time:       '08:00',
+      dosage_message:    `${slot.dosageAmount}${slot.dosageUnit}`,
+      notification_type: 'PUSH',
+      is_active:         true,
+      days:              ['MON','TUE','WED','THU','FRI','SAT','SUN'],
+    })) ?? []
+
+    setTimeout(() => resolve(ok({ schedules })), 300)
+  })

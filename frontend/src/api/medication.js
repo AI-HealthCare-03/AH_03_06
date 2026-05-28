@@ -22,6 +22,9 @@ const apiClient = {
   post: async (url, body) => {
     throw new Error(`[Real API] POST ${url} 미구현`);
   },
+  put: async (url, body) => {                                  // ← 추가
+    throw new Error(`[Real API] PUT ${url} 미구현`);
+  },
   patch: async (url, body) => {
     throw new Error(`[Real API] PATCH ${url} 미구현`);
   },
@@ -38,6 +41,19 @@ const RealService = {
   deleteMedication:   (id)     => apiClient.delete(`/medications/${id}`),
   getTodayMedication: ()       => apiClient.get('/medications/today'),
   checkMedication:    (req)    => apiClient.patch('/medications/today/check', req),
+  getSchedules: (medicationId) => apiClient.get(`/medications/${medicationId}/schedules`),
+
+  // ── 복약 기록 (달력) ──────────────────────────────────────
+  fetchCalendar:          (year, month)           => apiClient.get(`/medications/calendar?year=${year}&month=${month}`),
+  fetchAnalysis:          ()                       => apiClient.get('/medications/analysis?period=30d'),
+  fetchMedicationsByDate: (dateStr)                => apiClient.get(`/medications/record?date=${dateStr}`),
+  takeMedication:         (dateStr, medicationId) => apiClient.post(`/medications/${medicationId}/take`, { date: dateStr }),
+  undoTakeMedication:     (dateStr, medicationId) => apiClient.delete(`/medications/${medicationId}/take`, { date: dateStr }),
+
+  // ── 복약 일정 (MedicationFormPage) - 추가 ─────────────────
+  createSchedule: (medicationId, req) => apiClient.post(`/medications/${medicationId}/schedules`, req),
+  updateSchedule: (medicationId, req) => apiClient.put(`/medications/${medicationId}/schedules`, req),
+
 
   // ── 복약 기록 (달력) - 이번에 추가 ───────────────────────
   fetchCalendar:          (year, month) => apiClient.get(`/medications/calendar?year=${year}&month=${month}`),
@@ -61,12 +77,18 @@ export const deleteMedication   = (id)           => Service.deleteMedication(id)
 export const getTodayMedication = ()             => Service.getTodayMedication();
 export const checkMedication    = (req)          => Service.checkMedication(req);
 
+// ── 복약 기록 (달력) ──────────────────────────────────────────
 // ── 복약 기록 (달력) - 이번에 추가 ───────────────────────────
 export const fetchCalendar          = (year, month)           => Service.fetchCalendar(year, month);
 export const fetchAnalysis          = ()                       => Service.fetchAnalysis();
 export const fetchMedicationsByDate = (dateStr)                => Service.fetchMedicationsByDate(dateStr);
 export const takeMedication         = (dateStr, medicationId) => Service.takeMedication(dateStr, medicationId);
 export const undoTakeMedication     = (dateStr, medicationId) => Service.undoTakeMedication(dateStr, medicationId);
+
+// ── 복약 일정 (MedicationFormPage) - 추가 ────────────────────
+export const createSchedule = (medicationId, req) => Service.createSchedule(medicationId, req);
+export const updateSchedule = (medicationId, req) => Service.updateSchedule(medicationId, req);
+export const getSchedules = (medicationId) => Service.getSchedules(medicationId);
 
 if (import.meta.env.DEV) {
   console.log(`[medication.js] 모드: ${USE_MOCK ? '🟡 Mock' : '🟢 Real API'}`);
