@@ -2,7 +2,7 @@ import os
 import re
 from datetime import date
 from sqlalchemy.orm import Session
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 
 from app.repositories.diet import NutrientStandardRepository, DietGuideRepository
