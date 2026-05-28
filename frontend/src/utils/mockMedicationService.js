@@ -3,7 +3,10 @@
 // Mock 서비스 함수 (API 연결 전 임시 사용)
 // ============================================================
 
-import { MOCK_MEDICATIONS, MOCK_TODAY_MEDICATION } from './mockMedicationData.js';
+import {
+  MOCK_MEDICATIONS, MOCK_TODAY_MEDICATION,
+  MOCK_CALENDAR, MOCK_ANALYSIS, MOCK_MEDICATIONS_BY_DATE
+} from './mockMedicationData.js';
 
 // ────────────────────────────────────────────────────────────
 // 유틸
@@ -201,3 +204,91 @@ export function __resetMockData() {
   _medications = [...MOCK_MEDICATIONS];
   _todayMedication = JSON.parse(JSON.stringify(MOCK_TODAY_MEDICATION));
 }
+
+
+// ── In-memory 상태 (새로고침 시 초기화) ─────────────────────
+let medicationRecordState = structuredClone(MOCK_MEDICATIONS_BY_DATE);
+
+// ── 복약 기록 (달력) ─────────────────────────────────────────
+
+/**
+ * 월별 복약 달력 조회
+ * 실제 API: GET /medications/calendar?year={year}&month={month}
+ */
+export const fetchCalendar = (year, month) =>
+  new Promise((resolve) =>
+    setTimeout(() => resolve(ok(MOCK_CALENDAR)), 300)
+  );
+
+/**
+ * 기간별 복약 달성율 조회
+ * 실제 API: GET /medications/analysis?period=30d
+ */
+export const fetchAnalysis = () =>
+  new Promise((resolve) =>
+    setTimeout(() => resolve(ok(MOCK_ANALYSIS)), 300)
+  );
+
+/**
+ * 날짜별 복약 목록 조회
+ * 실제 API: GET /medications/record?date={dateStr}
+ * @param {string} dateStr - "YYYY-MM-DD"
+ */
+export const fetchMedicationsByDate = (dateStr) =>
+  new Promise((resolve) => {
+    const data = medicationRecordState[dateStr] ?? null;
+    setTimeout(() => resolve(data ? ok(data) : err('해당 날짜의 복약 데이터가 없습니다.')), 300);
+  });
+
+/**
+ * 복약 완료 처리
+ * 실제 API: POST /medications/{medicationId}/take  { date: dateStr }
+ * @param {string} dateStr
+ * @param {string} medicationId
+ */
+export const takeMedication = (dateStr, medicationId) =>
+  new Promise((resolve) => {
+    const dayData = medicationRecordState[dateStr];
+    if (!dayData) return setTimeout(() => resolve(err('날짜 데이터 없음')), 300);
+
+    let updatedMed = null;
+    dayData.timeSlots = dayData.timeSlots.map((slot) => ({
+      ...slot,
+      medications: slot.medications.map((med) => {
+        if (med.id === medicationId) {
+          updatedMed = { ...med, status: 'done' };
+          return updatedMed;
+        }
+        return med;
+      }),
+    }));
+    dayData.doneCount = dayData.timeSlots
+      .flatMap((s) => s.medications)
+      .filter((m) => m.status === 'done').length;
+
+    setTimeout(() => resolve(ok({ updatedMedication: updatedMed })), 300);
+  });
+
+/**
+ * 복약 취소 (완료 → pending 복원)
+ * 실제 API: DELETE /medications/{medicationId}/take  { date: dateStr }
+ * @param {string} dateStr
+ * @param {string} medicationId
+ */
+export const undoTakeMedication = (dateStr, medicationId) =>
+  new Promise((resolve) => {
+    const dayData = medicationRecordState[dateStr];
+    if (!dayData) return setTimeout(() => resolve(err('날짜 데이터 없음')), 300);
+
+    dayData.timeSlots = dayData.timeSlots.map((slot) => ({
+      ...slot,
+      medications: slot.medications.map((med) =>
+        med.id === medicationId ? { ...med, status: 'pending' } : med
+      ),
+    }));
+    dayData.doneCount = dayData.timeSlots
+      .flatMap((s) => s.medications)
+      .filter((m) => m.status === 'done').length;
+
+    setTimeout(() => resolve(ok(null)), 300);
+  });

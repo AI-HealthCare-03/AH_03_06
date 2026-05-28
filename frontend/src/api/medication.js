@@ -31,12 +31,20 @@ const apiClient = {
 };
 
 const RealService = {
+  // ── 기존 ──────────────────────────────────────────────────
   getMedications:     (filter) => apiClient.get('/medications', filter),
   getMedicationById:  (id)     => apiClient.get(`/medications/${id}`),
   addMedication:      (req)    => apiClient.post('/medications', req),
   deleteMedication:   (id)     => apiClient.delete(`/medications/${id}`),
   getTodayMedication: ()       => apiClient.get('/medications/today'),
   checkMedication:    (req)    => apiClient.patch('/medications/today/check', req),
+
+  // ── 복약 기록 (달력) - 이번에 추가 ───────────────────────
+  fetchCalendar:          (year, month) => apiClient.get(`/medications/calendar?year=${year}&month=${month}`),
+  fetchAnalysis:          ()            => apiClient.get('/medications/analysis?period=30d'),
+  fetchMedicationsByDate: (dateStr)     => apiClient.get(`/medications/record?date=${dateStr}`),
+  takeMedication:         (dateStr, medicationId) => apiClient.post(`/medications/${medicationId}/take`, { date: dateStr }),
+  undoTakeMedication:     (dateStr, medicationId) => apiClient.delete(`/medications/${medicationId}/take`, { date: dateStr }),
 };
 
 // ────────────────────────────────────────────────────────────
@@ -45,12 +53,20 @@ const RealService = {
 
 const Service = USE_MOCK ? MockService : RealService;
 
+// ── 기존 함수 (유지) ─────────────────────────────────────────
 export const getMedications     = (filter = {}) => Service.getMedications(filter);
 export const getMedicationById  = (id)          => Service.getMedicationById(id);
 export const addMedication      = (req)          => Service.addMedication(req);
 export const deleteMedication   = (id)           => Service.deleteMedication(id);
 export const getTodayMedication = ()             => Service.getTodayMedication();
 export const checkMedication    = (req)          => Service.checkMedication(req);
+
+// ── 복약 기록 (달력) - 이번에 추가 ───────────────────────────
+export const fetchCalendar          = (year, month)           => Service.fetchCalendar(year, month);
+export const fetchAnalysis          = ()                       => Service.fetchAnalysis();
+export const fetchMedicationsByDate = (dateStr)                => Service.fetchMedicationsByDate(dateStr);
+export const takeMedication         = (dateStr, medicationId) => Service.takeMedication(dateStr, medicationId);
+export const undoTakeMedication     = (dateStr, medicationId) => Service.undoTakeMedication(dateStr, medicationId);
 
 if (import.meta.env.DEV) {
   console.log(`[medication.js] 모드: ${USE_MOCK ? '🟡 Mock' : '🟢 Real API'}`);
