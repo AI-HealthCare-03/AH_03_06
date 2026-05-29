@@ -118,6 +118,11 @@ async def request_guide_generation(
 # 복약 가이드 스트리밍 생성 — 토큰을 흘리며 누적, 끝까지 완료된 경우에만 저장.
 # yield: meta → token×N → done{guide_id, is_fallback}. (NDJSON 직렬화는 라우터에서)
 # 중간 끊김 시 제너레이터가 취소되어 저장 코드에 도달하지 않음 → 미저장.
+#
+# 처방 해결은 제너레이터 본문 밖(코루틴 본문)에서 먼저 수행한다. 제너레이터 안에서
+# 풀면 StreamingResponse 가 이미 200 을 내보낸 뒤 404 가 raise 되어 스트림이 잘리므로,
+# 응답 시작 전에 미리 해결해 없는/권한 없는 처방이면 깨끗한 404 를 던진다.
+# (라우터는 이 함수를 await 해서 해결 단계가 먼저 실행되도록 한다.)
 async def stream_guide_generation(
     request: GenerateGuideRequest,
     user_id: int,
@@ -125,37 +130,40 @@ async def stream_guide_generation(
 ):
     _, item_seq, drug_name = _resolve_prescription_item_seq(request.medication_id, user_id, db)
 
-    main_content = ""
-    meta: dict | None = None
-    async for ev in generate_guide_for_drug_stream(item_seq=item_seq, drug_name=drug_name):
-        etype = ev.get("type")
-        if etype == "meta":
-            meta = ev
-            yield ev
-        elif etype == "token":
-            main_content += ev.get("text", "")
-            yield ev
-        # 내부 done 은 흘리지 않음 — 루프가 자연 종료(내부 TIMING 로그 보존)된 뒤
-        # guide_id 를 실어 아래에서 done 을 재발행한다.
+    async def _emit():
+        main_content = ""
+        meta: dict | None = None
+        async for ev in generate_guide_for_drug_stream(item_seq=item_seq, drug_name=drug_name):
+            etype = ev.get("type")
+            if etype == "meta":
+                meta = ev
+                yield ev
+            elif etype == "token":
+                main_content += ev.get("text", "")
+                yield ev
+            # 내부 done 은 흘리지 않음 — 루프가 자연 종료(내부 TIMING 로그 보존)된 뒤
+            # guide_id 를 실어 아래에서 done 을 재발행한다.
 
-    meta = meta or {}
-    guide = MedicationGuide(
-        user_id=user_id,
-        medication_id=request.medication_id,
-        drug_name=drug_name,
-        safety_block=meta.get("safety_block"),
-        safety_warn=meta.get("safety_warn"),
-        safety_info=meta.get("safety_info"),
-        main_content=main_content,
-        references=meta.get("references"),
-        safety_recommendations=meta.get("safety_recommendations"),
-        is_fallback=meta.get("is_fallback", False),
-    )
-    db.add(guide)
-    db.commit()
-    db.refresh(guide)
+        meta_d = meta or {}
+        guide = MedicationGuide(
+            user_id=user_id,
+            medication_id=request.medication_id,
+            drug_name=drug_name,
+            safety_block=meta_d.get("safety_block"),
+            safety_warn=meta_d.get("safety_warn"),
+            safety_info=meta_d.get("safety_info"),
+            main_content=main_content,
+            references=meta_d.get("references"),
+            safety_recommendations=meta_d.get("safety_recommendations"),
+            is_fallback=meta_d.get("is_fallback", False),
+        )
+        db.add(guide)
+        db.commit()
+        db.refresh(guide)
 
-    yield {"type": "done", "guide_id": guide.id, "is_fallback": guide.is_fallback}
+        yield {"type": "done", "guide_id": guide.id, "is_fallback": guide.is_fallback}
+
+    return _emit()
 
 
 # 복약 가이드 단건 조회

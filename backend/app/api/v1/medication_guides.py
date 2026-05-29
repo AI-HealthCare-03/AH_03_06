@@ -131,10 +131,14 @@ async def generate_medication_guide_stream(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # 처방 해결을 응답 시작 전에 먼저 수행 → 없는/권한 없는 처방이면 여기서 깨끗한 404
+    # (await 시점에 _resolve_prescription_item_seq 가 실행된다. 스트림 시작 전.)
+    guide_stream = await guide_service.stream_guide_generation(
+        request, user_id=current_user.id, db=db
+    )
+
     async def ndjson_iter():
-        async for event in guide_service.stream_guide_generation(
-            request, user_id=current_user.id, db=db
-        ):
+        async for event in guide_stream:
             yield json.dumps(event, ensure_ascii=False) + "\n"
 
     return StreamingResponse(ndjson_iter(), media_type="application/x-ndjson")
