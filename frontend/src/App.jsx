@@ -38,9 +38,6 @@ import MedicationPage from './pages/medication/MedicationPage.jsx'
 import MedicationRecordPage from './pages/medication/MedicationRecordPage.jsx'
 import MedicationFormPage from './pages/medication/MedicationFormPage.jsx'
 
-import MedicationRecordPage from './pages/medication/MedicationRecordPage.jsx'
-
-
 let _setAuth = null
 export function logout() {
   clearTokens()
