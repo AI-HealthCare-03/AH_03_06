@@ -66,13 +66,14 @@ def _schedule_to_response(schedule: MedicationSchedule) -> MedicationScheduleRes
 
 
 def create_prescription(user_id: int, request: PrescriptionCreateRequest, db: Session) -> PrescriptionResponse:
-    medical_record = db.query(MedicalRecord).filter(
-        MedicalRecord.id == request.medical_record_id,
-        MedicalRecord.user_id == user_id,
-        MedicalRecord.is_deleted == 0
-    ).first()
-    if not medical_record:
-        raise HTTPException(status_code=404, detail="medical_record_not_found")
+    if request.medical_record_id:
+        medical_record = db.query(MedicalRecord).filter(
+            MedicalRecord.id == request.medical_record_id,
+            MedicalRecord.user_id == user_id,
+            MedicalRecord.is_deleted == 0
+        ).first()
+        if not medical_record:
+            raise HTTPException(status_code=404, detail="medical_record_not_found")
     if request.start_date and request.end_date:
         if request.end_date < request.start_date:
             raise HTTPException(status_code=400, detail="invalid_prescription_period")
