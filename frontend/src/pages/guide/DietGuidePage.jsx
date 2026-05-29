@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { createChatSession } from '../../api/chat.js'
 import Header from '../../components/Header.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
@@ -7,6 +8,7 @@ import {
   faCircleInfo,
   faChevronDown,
   faRotateRight,
+  faComments,
 } from '@fortawesome/free-solid-svg-icons'
 import { getDietGuide, generateDietGuide } from '../../api/dietGuides.js'
 
@@ -121,6 +123,15 @@ function DietGuidePage() {
     }
   }
 
+  const handleChat = async () => {
+    try {
+      const data = await createChatSession('DIET_GUIDE', Number(id))
+      navigate(`/chat/${data.id}?context_type=DIET_GUIDE`)
+    } catch {
+      window.alert('채팅 세션 생성에 실패했어요.')
+    }
+  }
+
   return (
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
       <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 pb-10">
@@ -199,6 +210,14 @@ function DietGuidePage() {
               >
                 <FontAwesomeIcon icon={faRotateRight} className={regenerating ? 'animate-spin' : ''} />
                 <span>{regenerating ? '생성 요청 중…' : '가이드 다시 받기'}</span>
+              </button>
+
+              <button
+                onClick={handleChat}
+                className="w-full h-12 bg-white border border-primary text-primary text-[14px] font-[700] rounded-[12px] flex items-center justify-center gap-2 hover:bg-primarySoft transition-colors"
+              >
+                <FontAwesomeIcon icon={faComments} className="text-[14px]" />
+                <span>AI에게 질문하기</span>
               </button>
 
               <p className="text-[11px] text-mute leading-relaxed pt-2 pb-2 flex items-start gap-1.5">
