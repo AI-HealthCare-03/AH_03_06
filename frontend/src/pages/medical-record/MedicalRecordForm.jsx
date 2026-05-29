@@ -11,6 +11,7 @@ import {
   getMedicalRecord,
   updateMedicalRecord,
 } from '../../api/medicalRecord'
+import Header from '../../components/Header'
 
 // ── 진료과 목록 ────────────────────────────────────────────────
 const DEPARTMENTS = [
@@ -74,38 +75,40 @@ function PrescriptionCard({ index, data, onChange, onRemove }) {
         />
       </div>
 
-      {/* 복용 정보 — 한 줄로 입력 (용량 · 횟수 · 기간) */}
-      <div className="flex items-center gap-2">
-        <div className="flex-1 relative">
-          <input
-            type="number"
-            placeholder="1"
-            value={data.dosage ?? ''}
-            onChange={e => update('dosage', e.target.value)}
-            className="w-full h-11 bg-neutral-50 border border-neutral-200 rounded-xl px-3 text-sm text-right pr-8"
-          />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">정</span>
-        </div>
-        <div className="flex-1 relative">
-          <input
-            type="number"
-            placeholder="3"
-            value={data.frequency ?? ''}
-            onChange={e => update('frequency', e.target.value)}
-            className="w-full h-11 bg-neutral-50 border border-neutral-200 rounded-xl px-3 text-sm text-right pr-10"
-          />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">회/일</span>
-        </div>
-        <div className="flex-1 relative">
-          <input
-            type="number"
-            placeholder="3"
-            value={data.duration_days ?? ''}
-            onChange={e => update('duration_days', e.target.value)}
-            className="w-full h-11 bg-neutral-50 border border-neutral-200 rounded-xl px-3 text-sm text-right pr-10"
-          />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">일분</span>
-        </div>
+      {/* 용량 */}
+      <div className="flex-1 flex items-center justify-center gap-0.3 h-11 bg-neutral-50 border border-neutral-200 rounded-xl px-3">
+        <input
+          type="number"
+          placeholder="1"
+          value={data.dosage ?? ''}
+          onChange={e => update('dosage', e.target.value)}
+          className="w-8 bg-transparent text-sm text-center text-neutral-900 placeholder:text-neutral-400 outline-none"
+        />
+        <span className="text-sm text-neutral-400 shrink-0">정</span>
+      </div>
+
+      {/* 횟수 */}
+      <div className="flex-1 flex items-center justify-center gap-0.3 h-11 bg-neutral-50 border border-neutral-200 rounded-xl px-3">
+        <input
+          type="number"
+          placeholder="3"
+          value={data.frequency ?? ''}
+          onChange={e => update('frequency', e.target.value)}
+          className="w-8 bg-transparent text-sm text-center text-neutral-900 placeholder:text-neutral-400 outline-none"
+        />
+        <span className="text-sm text-neutral-400 shrink-0">회 / 일</span>
+      </div>
+
+      {/* 기간 */}
+      <div className="flex-1 flex items-center justify-center gap-0.3 h-11 bg-neutral-50 border border-neutral-200 rounded-xl px-3">
+        <input
+          type="number"
+          placeholder="3"
+          value={data.duration_days ?? ''}
+          onChange={e => update('duration_days', e.target.value)}
+          className="w-8 bg-transparent text-sm text-center text-neutral-900 placeholder:text-neutral-400 outline-none"
+        />
+        <span className="text-sm text-neutral-400 shrink-0">일분</span>
       </div>
     </div>
   )
@@ -252,24 +255,10 @@ export default function MedicalRecordForm() {
     <div className="mobile-container flex flex-col min-h-dvh bg-white font-['Pretendard',sans-serif]">
 
       {/* 앱바 */}
-      <header className="w-full h-14 flex items-center justify-between px-4 shrink-0 border-b border-neutral-50">
-        <button
-          onClick={() => navigate(-1)}
-          className="w-10 h-10 flex items-center justify-center -ml-1 text-neutral-900"
-          aria-label="뒤로가기"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h1 className="text-base font-bold text-neutral-900">
-          {isEdit ? '진료기록 수정' : '진료기록 입력'}
-        </h1>
-        <div className="w-10" />
-      </header>
+      <Header variant="back" title={isEdit ? '진료기록 수정' : '진료기록 입력'} showDivider={true} />
 
       {/* 스크롤 영역 */}
-      <main className="flex-1 overflow-y-auto px-5 py-6 flex flex-col gap-7 pb-32">
+      <main className="flex-1 px-5 py-6 flex flex-col gap-7 pb-32">
 
         {/* 처방전으로 자동 입력 버튼 */}
         <button
@@ -283,7 +272,6 @@ export default function MedicalRecordForm() {
           처방전으로 자동 입력
         </button>
 
-        <SectionLabel>진료 정보</SectionLabel>
 
         {/* ── 진료 정보 ─────────────────────────────────── */}
         <section>

@@ -14,9 +14,20 @@ from app.models.drug_ingredient_map import DrugIngredientMap
 from app.models.dur_concurrent_ingredient import DurConcurrentIngredient
 from app.models.dur_concurrent_product import DurConcurrentProduct
 
-
 from app.models.medical_record import MedicalRecord
 from app.models.prescription import Prescription
 from app.models.guide import Guide
 from app.models.department import Department
 
+from app.models.medication_schedule import MedicationSchedule
+from app.models.schedule_day import ScheduleDay
+from app.models.medication_log import MedicationLog
+from app.models.notification import Notification
+
+from app.models.fcm_token import FcmToken
+
+# 수면 가이드 (SLEEP_INFO, CAFFEINE_DRINK_TYPE 는 user.py 안에 정의되어 있음)
+from app.models.user import CaffeineDrinkType
+from app.models.clinical_guideline import ClinicalGuideline
+from app.models.sleep_survey import SleepSurveyResponse, SleepSurveyCaffeine
+from app.models.sleep_guide import SleepGuide, SleepGuideGuideline

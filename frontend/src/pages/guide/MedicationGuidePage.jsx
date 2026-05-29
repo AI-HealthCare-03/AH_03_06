@@ -1,70 +1,130 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
 import Header from '../../components/Header.jsx'
+import MedicationGuideButton from '../../components/MedicationGuideButton.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faWandMagicSparkles,
-  faCircleExclamation,
   faCircleInfo,
+  faTriangleExclamation,
+  faBan,
+  faTrash,
+  faChevronDown,
 } from '@fortawesome/free-solid-svg-icons'
 import {
   getMedicationGuide,
-  generateMedicationGuide,
+  deleteMedicationGuide,
 } from '../../api/medicationGuides.js'
 
-// 응답 스키마 (참고용):
-//   guide_id, safety_block, safety_warn, safety_info, main_content,
-//   references, safety_recommendations, is_fallback, created_at,
-//   disclaimer, medication_id, drug_name
-// → 본 화면은 safety_warn / main_content / references / disclaimer 4개만 표시.
-//   block/info/recommendations/drug_name 시각화는 다음 단계로 미룸 (응답 객체는 전체 보관).
+
+const markdownComponents = {
+  h1: ({ children }) => (
+    <h2 className="text-[15px] font-[700] text-textHeading mt-4 mb-2">{children}</h2>
+  ),
+  h2: ({ children }) => (
+    <h2 className="text-[14px] font-[700] text-textHeading mt-4 mb-2">{children}</h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="text-[13px] font-[700] text-textHeading mt-3 mb-1">{children}</h3>
+  ),
+  p: ({ children }) => (
+    <p className="text-[14px] text-textBody leading-[1.85] my-3">{children}</p>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-4 border-primary bg-primarySoft py-3 px-4 mt-6 mb-3 text-[14px] text-textBody leading-relaxed not-italic">
+      {children}
+    </blockquote>
+  ),
+  ul: ({ children }) => <ul className="list-none space-y-1.5 my-2">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal pl-5 space-y-1 my-2 text-[14px] text-textBody">{children}</ol>,
+  li: ({ children }) => (
+    <li className="flex items-start gap-2 text-[14px] text-textBody leading-relaxed">
+      <span className="mt-2 w-1 h-1 rounded-full bg-mute flex-shrink-0"></span>
+      <span>{children}</span>
+    </li>
+  ),
+  strong: ({ children }) => <strong className="text-textHeading font-[700]">{children}</strong>,
+  em: ({ children }) => <em className="italic">{children}</em>,
+  code: ({ children }) => (
+    <code className="bg-borderLight px-1 py-0.5 rounded text-[12px] font-mono">{children}</code>
+  ),
+  hr: () => <hr className="border-borderHairline my-3" />,
+}
+
+
+function formatCreatedAt(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+
+// 단일 마크다운 본문을 빈 줄(\n\n) 기준 블록 배열로 분할.
+// slice 후 join('\n\n') 으로 원문 복원 가능 — 요약·절단 없이 보존.
+function splitMarkdownBlocks(content) {
+  if (!content) return []
+  return content.split('\n\n')
+}
+
+const PREVIEW_BLOCK_COUNT = 2
+
 
 function MedicationGuidePage() {
   const { guideId } = useParams()
+  const navigate = useNavigate()
   const [guide, setGuide] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [regenerating, setRegenerating] = useState(false)
+  const [bodyExpanded, setBodyExpanded] = useState(false)
 
   useEffect(() => {
     if (!guideId) return
     let cancelled = false
     setLoading(true)
     setError('')
+    setBodyExpanded(false)
     getMedicationGuide(guideId)
-      .then(data => { if (!cancelled) setGuide(data) })
-      .catch(err => { if (!cancelled) setError(err.message ?? '가이드를 불러오지 못했어요.') })
+      .then((data) => { if (!cancelled) setGuide(data) })
+      .catch((err) => { if (!cancelled) setError(err?.message ?? '가이드를 불러오지 못했어요.') })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [guideId])
 
-  // Phase 1: BE가 "medication_guide_generating" 메시지만 즉시 응답 → 본 화면은 그대로 유지.
-  // Phase 2: BackgroundTask 완료 후 새 guide_id로 redirect 또는 polling으로 setGuide 갱신.
-  const handleRegenerate = async () => {
-    if (!guide?.medication_id) return
-    setRegenerating(true)
+  const handleDelete = async () => {
+    if (!guide) return
+    if (!window.confirm('이 복약 가이드를 삭제할까요?')) return
     try {
-      await generateMedicationGuide(guide.medication_id, true)
+      await deleteMedicationGuide(guideId)
+      navigate('/medication-guides')
     } catch (err) {
-      setError(err.message ?? '재생성 요청에 실패했어요.')
-    } finally {
-      setRegenerating(false)
+      window.alert(err?.message ?? '삭제에 실패했어요.')
     }
   }
 
-  const buttonDisabled = loading || regenerating || !guide?.medication_id
+  // 본문 fold 계산 (정상 가이드 케이스에서만 의미 있음, fallback 분기는 미사용).
+  // 블록 2개 이하면 hasFold=false → 토글 버튼 숨김, 전체 그대로 표시 (방어적 분할).
+  const bodyBlocks = guide ? splitMarkdownBlocks(guide.main_content) : []
+  const bodyHasFold = bodyBlocks.length > PREVIEW_BLOCK_COUNT
+  const bodyPreview = bodyHasFold
+    ? bodyBlocks.slice(0, PREVIEW_BLOCK_COUNT).join('\n\n')
+    : (guide?.main_content ?? '')
+  const bodyRest = bodyHasFold
+    ? bodyBlocks.slice(PREVIEW_BLOCK_COUNT).join('\n\n')
+    : ''
 
   return (
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
       <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 pb-10">
 
-        {/* 상세 화면: 뒤로가기 헤더 (탭바 없음 — 뒤로가기로 빠져나옴) */}
         <Header variant="back" title="복약 가이드" />
 
         <main className="px-5 pt-5 pb-2 space-y-4">
 
           {loading && (
-            <p className="text-[13px] text-mute text-center py-10">불러오는 중...</p>
+            <p className="text-[13px] text-mute text-center py-10">불러오는 중…</p>
           )}
 
           {!loading && error && (
@@ -73,70 +133,149 @@ function MedicationGuidePage() {
 
           {!loading && !error && guide && (
             <>
-              {/* 안전 경고 — 약물 상호작용은 고위험 정보이므로 error 토큰 사용.
-                  단 시안 상태카드 패턴(흰 톤 + 색 테두리)을 따라 과한 빨강 채움은 지양 */}
-              {guide.safety_warn && (
-                <section className="bg-error/5 border border-error/30 rounded-[10px] p-5">
+              {/* drug_name 제목 + created_at + 삭제 버튼 */}
+              <div className="pt-1 flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-[20px] font-[700] text-textHeading leading-tight">
+                    {guide.drug_name || '복약 가이드'}
+                  </h1>
+                  {guide.created_at && (
+                    <p className="text-[11px] text-mute mt-1">{formatCreatedAt(guide.created_at)}</p>
+                  )}
+                </div>
+                <button
+                  onClick={handleDelete}
+                  aria-label="가이드 삭제"
+                  className="p-2 -mr-2 text-mute hover:text-error transition-colors"
+                >
+                  <FontAwesomeIcon icon={faTrash} className="text-[14px]" />
+                </button>
+              </div>
+
+              {/* 안전 카드 (조건부) — 위험도 최상위, 절대 접지 않음 */}
+              {guide.safety_block && (
+                <section className="bg-white border border-error/40 rounded-[10px] p-5">
                   <div className="flex items-center gap-2 mb-2">
-                    <FontAwesomeIcon icon={faCircleExclamation} className="text-error text-[16px]" />
-                    <h2 className="text-[14px] font-[700] text-error">안전 경고</h2>
+                    <FontAwesomeIcon icon={faBan} className="text-error text-[16px]" />
+                    <h2 className="text-[14px] font-[700] text-error">차단 안내</h2>
                   </div>
-                  <p className="text-[14px] font-[500] text-textBody leading-relaxed">
-                    {guide.safety_warn}
-                  </p>
+                  <p className="text-[14px] font-[500] text-textBody leading-relaxed">{guide.safety_block}</p>
                 </section>
               )}
 
-              {/* AI 복약 가이드 카드 — 식단/운동/수면 가이드와 동일한 AI 카드 구조 */}
-              <section className="bg-white border border-borderHairline rounded-[10px] shadow-soft overflow-hidden">
-
-                <div className="flex items-center justify-between px-5 py-4 border-b border-borderHairline">
-                  <div className="flex items-center gap-2">
-                    <FontAwesomeIcon icon={faWandMagicSparkles} className="text-primary text-[14px]" />
-                    <h2 className="text-[14px] font-[700] text-textHeading">오늘의 AI 복약 가이드</h2>
+              {guide.safety_warn && (
+                <section className="bg-white border border-warning/40 rounded-[10px] p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FontAwesomeIcon icon={faTriangleExclamation} className="text-warning text-[16px]" />
+                    <h2 className="text-[14px] font-[700] text-warning">안전 경고</h2>
                   </div>
-                  <span className="px-2 py-0.5 bg-primarySoft text-primary text-[10px] font-[700] rounded tracking-wider">
-                    AI
-                  </span>
-                </div>
+                  <p className="text-[14px] font-[500] text-textBody leading-relaxed">{guide.safety_warn}</p>
+                </section>
+              )}
 
-                <div className="divide-y divide-borderHairline">
+              {guide.safety_info && (
+                <section className="bg-white border border-primary/30 rounded-[10px] p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FontAwesomeIcon icon={faCircleInfo} className="text-primary text-[16px]" />
+                    <h2 className="text-[14px] font-[700] text-primary">안내</h2>
+                  </div>
+                  <p className="text-[14px] font-[500] text-textBody leading-relaxed">{guide.safety_info}</p>
+                </section>
+              )}
 
-                  {/* 복약 안내 본문 */}
-                  <div className="px-5 py-4">
-                    <h3 className="text-[11px] font-[700] text-mute mb-2 tracking-wider uppercase">
-                      복약 안내
-                    </h3>
-                    <p className="text-[14px] text-textBody leading-[1.7] whitespace-pre-line">
-                      {guide.main_content}
-                    </p>
+              {/* 본문 — fallback 분기 (빨강 금지, primarySoft 톤). 아코디언 미적용 (짧고 평이) */}
+              {guide.is_fallback ? (
+                <section className="bg-primarySoft border border-primary/20 rounded-[10px] p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <FontAwesomeIcon icon={faCircleInfo} className="text-primary text-[16px]" />
+                    <h2 className="text-[14px] font-[700] text-primary">
+                      안내드릴 정보가 부족해요
+                    </h2>
+                  </div>
+                  <p className="text-[13px] text-textBody leading-relaxed">
+                    {guide.main_content}
+                  </p>
+                </section>
+              ) : (
+                <section className="bg-white border border-borderHairline rounded-[10px] shadow-soft overflow-hidden">
+
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-borderHairline">
+                    <div className="flex items-center gap-2">
+                      <FontAwesomeIcon icon={faWandMagicSparkles} className="text-primary text-[14px]" />
+                      <h2 className="text-[14px] font-[700] text-textHeading">오늘의 AI 복약 가이드</h2>
+                    </div>
+                    <span className="px-2 py-0.5 bg-primarySoft text-primary text-[10px] font-[700] rounded tracking-wider">
+                      AI
+                    </span>
                   </div>
 
-                  {/* 출처 */}
-                  {guide.references && (
+                  <div className="divide-y divide-borderHairline">
+                    {/* 복약 안내 — 본문 한 덩어리를 \n\n 블록 단위로 접기.
+                        기본 첫 2블록(인용+보충)만 보이고, 나머지는 '더보기' 클릭 시 펼침.
+                        블록 ≤2면 토글 숨기고 전체 그대로 표시. 원문 보존(요약·절단 없음). */}
                     <div className="px-5 py-4">
                       <h3 className="text-[11px] font-[700] text-mute mb-2 tracking-wider uppercase">
-                        출처
+                        복약 안내
                       </h3>
-                      <p className="text-[12px] text-subtext leading-relaxed">
-                        {guide.references}
-                      </p>
+                      <div>
+                        <ReactMarkdown components={markdownComponents}>
+                          {bodyPreview}
+                        </ReactMarkdown>
+                        {bodyHasFold && bodyExpanded && (
+                          <ReactMarkdown components={markdownComponents}>
+                            {bodyRest}
+                          </ReactMarkdown>
+                        )}
+                        {bodyHasFold && (
+                          <div className="mt-3 flex justify-center">
+                            <button
+                              type="button"
+                              onClick={() => setBodyExpanded((v) => !v)}
+                              aria-expanded={bodyExpanded}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] text-mute hover:text-textBody transition-colors"
+                            >
+                              <span>{bodyExpanded ? '접기' : '더보기'}</span>
+                              <FontAwesomeIcon
+                                icon={faChevronDown}
+                                className={`text-[10px] transition-transform duration-200 ${bodyExpanded ? 'rotate-180' : ''}`}
+                              />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
 
-                </div>
-              </section>
+                    {guide.references && (
+                      <div className="px-5 py-4">
+                        <h3 className="text-[11px] font-[700] text-mute mb-2 tracking-wider uppercase">
+                          출처
+                        </h3>
+                        <p className="text-[12px] text-subtext leading-relaxed">{guide.references}</p>
+                      </div>
+                    )}
 
-              {/* Primary CTA — 로딩/재생성/medication_id 부재 시 비활성 */}
-              <button
-                onClick={handleRegenerate}
-                disabled={buttonDisabled}
-                className="w-full h-12 bg-primary hover:bg-primaryDark text-white text-[14px] font-[700] rounded-[10px] transition-colors disabled:bg-mute disabled:cursor-not-allowed"
-              >
-                {regenerating ? '재생성 요청 중…' : '가이드 다시 받기'}
-              </button>
+                    {guide.safety_recommendations && (
+                      <div className="px-5 py-4">
+                        <h3 className="text-[11px] font-[700] text-mute mb-2 tracking-wider uppercase">
+                          안전 권고
+                        </h3>
+                        <p className="text-[12px] text-subtext leading-relaxed">
+                          {guide.safety_recommendations}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
 
-              {/* 면책 — 시안과 동일하게 info 아이콘 + 좌측 정렬 */}
+              {/* 재생성 CTA — 공통 버튼 컴포넌트. medication_id 없으면 자동으로 렌더 안 됨 */}
+              <MedicationGuideButton
+                medicationId={guide.medication_id}
+                medicationName={guide.drug_name}
+                label="가이드 다시 받기"
+                onSuccess={() => navigate('/medication-guides')}
+              />
+
               {guide.disclaimer && (
                 <p className="text-[11px] text-mute leading-relaxed pt-2 pb-2 flex items-start gap-1.5">
                   <FontAwesomeIcon icon={faCircleInfo} className="mt-0.5 text-[10px]" />
