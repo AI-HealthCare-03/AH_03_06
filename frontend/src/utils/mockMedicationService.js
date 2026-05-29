@@ -3,7 +3,7 @@
 // Mock 서비스 함수 (API 연결 전 임시 사용)
 // ============================================================
 
-import { MOCK_MEDICATIONS, MOCK_TODAY_MEDICATION } from './mockMedicationData.js';
+import { MOCK_MEDICATIONS, MOCK_TODAY_MEDICATION, MOCK_CALENDAR, MOCK_ANALYSIS, MOCK_MEDICATIONS_BY_DATE } from './mockMedicationData.js';
 
 // ────────────────────────────────────────────────────────────
 // 유틸
@@ -216,8 +216,6 @@ export function __resetMockData() {
   _medications = [...MOCK_MEDICATIONS];
   _todayMedication = JSON.parse(JSON.stringify(MOCK_TODAY_MEDICATION));
 }
-<<<<<<< Updated upstream
-=======
 
 
 // ── In-memory 상태 (새로고침 시 초기화) ─────────────────────
@@ -340,4 +338,103 @@ export const getSchedules = (medicationId) =>
 
     setTimeout(() => resolve(ok({ schedules })), 300)
   })
->>>>>>> Stashed changes
+
+// ── 알람 수정 (PATCH /alarms/{id}) ───────────────────────
+export const updateAlarm = (alarmId, req) => {
+  console.log('[Mock] updateAlarm', alarmId, req);
+  return new Promise((resolve) =>
+    setTimeout(() =>
+      resolve({
+        ok: true,
+        data: {
+          id: alarmId,
+          enabled: req.enabled,
+          alarm_time: req.alarm_time,
+          updated_at: new Date().toISOString(),
+        },
+      }),
+    300)
+  );
+};
+
+// ── 대시보드 (GET /dashboard?period=) ────────────────────
+export const fetchDashboard = (period) => {
+  console.log('[Mock] fetchDashboard', period);
+  const isWeekly = period === 'weekly';
+  return new Promise((resolve) =>
+    setTimeout(() =>
+      resolve({
+        ok: true,
+        data: {
+          period,
+          overall_rate: 78,
+          daily_rates: isWeekly
+            ? [
+                { date: '2026-05-22', rate: 100, taken: 3, total: 3 },
+                { date: '2026-05-23', rate: 67,  taken: 2, total: 3 },
+                { date: '2026-05-24', rate: 100, taken: 3, total: 3 },
+                { date: '2026-05-25', rate: 33,  taken: 1, total: 3 },
+                { date: '2026-05-26', rate: 100, taken: 3, total: 3 },
+                { date: '2026-05-27', rate: 67,  taken: 2, total: 3 },
+                { date: '2026-05-28', rate: 100, taken: 3, total: 3 },
+              ]
+            : Array.from({ length: 30 }, (_, i) => {
+                const d = new Date('2026-05-01');
+                d.setDate(d.getDate() + i);
+                const rate = Math.floor(Math.random() * 60) + 40;
+                return {
+                  date: d.toISOString().slice(0, 10),
+                  rate,
+                  taken: Math.round((rate / 100) * 3),
+                  total: 3,
+                };
+              }),
+          medication_rates: [
+            { id: 'med-001', name: '아스피린 100mg', rate: 92, taken: 23, total: 25 },
+            { id: 'med-002', name: '오메가3',        rate: 68, taken: 17, total: 25 },
+            { id: 'med-003', name: '비타민D 1000IU', rate: 72, taken: 18, total: 25 },
+          ],
+        },
+      }),
+    400)
+  );
+};
+
+// ── 복약 이력 기간별 (GET /schedules?start_date=&end_date=) ─
+export const fetchScheduleHistory = (startDate, endDate) => {
+  console.log('[Mock] fetchScheduleHistory', startDate, endDate);
+  const names = ['아스피린 100mg', '오메가3', '비타민D 1000IU'];
+  const slots = ['아침 식후', '점심 식후', '저녁 식후'];
+  const statuses = ['taken', 'taken', 'taken', 'missed', 'pending'];
+
+  const days = [];
+  const cur = new Date(startDate);
+  const end = new Date(endDate);
+  while (cur <= end) {
+    days.push(cur.toISOString().slice(0, 10));
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  const records = days.flatMap((date) =>
+    names.map((name, idx) => ({
+      id: `hist-${date}-${idx}`,
+      date,
+      medication_name: name,
+      slot: slots[idx % slots.length],
+      status: statuses[Math.floor(Math.random() * statuses.length)],
+      taken_at:
+        statuses[Math.floor(Math.random() * statuses.length)] === 'taken'
+          ? `${date}T0${8 + idx * 4}:12:00`
+          : null,
+    }))
+  );
+
+  return new Promise((resolve) =>
+    setTimeout(() =>
+      resolve({
+        ok: true,
+        data: { start_date: startDate, end_date: endDate, records },
+      }),
+    350)
+  );
+};

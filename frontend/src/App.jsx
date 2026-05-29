@@ -31,11 +31,13 @@ import HealthCheckInput from "./pages/health-checkup/HealthCheckInput.jsx"
 import HealthCheckResults from "./pages/health-checkup/HealthCheckResults.jsx"
 
 import MedicationPage from './pages/medication/MedicationPage.jsx'
-<<<<<<< Updated upstream
-=======
+
+
 import MedicationRecordPage from './pages/medication/MedicationRecordPage.jsx'
 import MedicationFormPage from './pages/medication/MedicationFormPage.jsx'
->>>>>>> Stashed changes
+import MedicationDashboardPage from './pages/medication/MedicationDashboardPage.jsx';
+import MedicationHistoryPage from './pages/medication/MedicationHistoryPage.jsx';
+
 
 let _setAuth = null
 export function logout() {
@@ -101,12 +103,12 @@ function App() {
         <Route path="/medical-records/:id/edit" element={<MedicalRecordForm />} />
         <Route path="/all" element={<All />} />
         <Route path="/medical-records/ocr" element={<PrescriptionOCR />} />
-<<<<<<< Updated upstream
-=======
+
         <Route path="/medication" element={<PrivateRoute auth={auth}><MedicationPage /></PrivateRoute>} />
         <Route path='/medication/record' element={<PrivateRoute auth={auth}><MedicationRecordPage /></PrivateRoute>} />
         <Route path="/medication/form" element={<PrivateRoute auth={auth}><MedicationFormPage /></PrivateRoute>}/>
->>>>>>> Stashed changes
+        <Route path="/medication/dashboard" element={<PrivateRoute auth={auth}><MedicationDashboardPage /></PrivateRoute>} />
+        <Route path="/medication/history" element={<PrivateRoute auth={auth}><MedicationHistoryPage /></PrivateRoute>}/>
       </Routes>
     </BrowserRouter>
   )
