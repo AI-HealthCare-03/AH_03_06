@@ -38,6 +38,14 @@ import HealthCheckList from "./pages/health-checkup/HealthCheckList.jsx"
 import HealthCheckInput from "./pages/health-checkup/HealthCheckInput.jsx"
 import HealthCheckResults from "./pages/health-checkup/HealthCheckResults.jsx"
 import MedicationPage from './pages/medication/MedicationPage.jsx'
+
+
+
+import MedicationRecordPage from './pages/medication/MedicationRecordPage.jsx'
+import MedicationFormPage from './pages/medication/MedicationFormPage.jsx'
+import MedicationDashboardPage from './pages/medication/MedicationDashboardPage.jsx';
+import MedicationHistoryPage from './pages/medication/MedicationHistoryPage.jsx';
+
 import MedicationRecordPage from './pages/medication/MedicationRecordPage.jsx'
 import MedicationFormPage from './pages/medication/MedicationFormPage.jsx'
 

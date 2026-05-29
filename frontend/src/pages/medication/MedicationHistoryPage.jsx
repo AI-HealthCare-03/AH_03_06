@@ -1,0 +1,334 @@
+// src/pages/medication/MedicationHistoryPage.jsx
+// GET /schedules?start_date=&end_date= — 복약 이력 기간별 조회
+
+import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { fetchScheduleHistory } from '../../api/medication';
+
+// ── 상수 ─────────────────────────────────────────────────────
+const QUICK_RANGES = [
+  { label: '최근 7일',  days: 7  },
+  { label: '최근 14일', days: 14 },
+  { label: '최근 30일', days: 30 },
+  { label: '최근 90일', days: 90 },
+];
+
+const STATUS_META = {
+  taken:   { label: '완료',   bg: 'bg-[#EFF6FF]', text: 'text-[#2563EB]',  dot: 'bg-[#2563EB]'  },
+  missed:  { label: '누락',   bg: 'bg-[#FEF2F2]', text: 'text-[#DC2626]',  dot: 'bg-[#EF4444]'  },
+  pending: { label: '예정',   bg: 'bg-[#F4F4F5]', text: 'text-[#71717A]',  dot: 'bg-[#A1A1AA]'  },
+};
+
+// ── 유틸 ─────────────────────────────────────────────────────
+const today = () => new Date().toISOString().slice(0, 10);
+
+const addDays = (dateStr, n) => {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+const fmtDate = (dateStr) => {
+  const d   = new Date(dateStr);
+  const day = ['일','월','화','수','목','금','토'][d.getDay()];
+  return `${d.getMonth() + 1}/${d.getDate()}(${day})`;
+};
+
+const fmtTime = (isoStr) => {
+  if (!isoStr) return null;
+  const d = new Date(isoStr);
+  const h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2, '0');
+  const ampm = h < 12 ? '오전' : '오후';
+  return `${ampm} ${h % 12 || 12}:${m}`;
+};
+
+// 날짜별로 records 그룹화
+const groupByDate = (records) => {
+  const map = {};
+  for (const r of records) {
+    if (!map[r.date]) map[r.date] = [];
+    map[r.date].push(r);
+  }
+  // 날짜 내림차순
+  return Object.entries(map).sort((a, b) => b[0].localeCompare(a[0]));
+};
+
+// ── 서브 컴포넌트 ─────────────────────────────────────────────
+
+function StatusBadge({ status }) {
+  const meta = STATUS_META[status] ?? STATUS_META.pending;
+  return (
+    <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${meta.bg} ${meta.text}`}>
+      {meta.label}
+    </span>
+  );
+}
+
+function HistoryRecord({ record }) {
+  const meta = STATUS_META[record.status] ?? STATUS_META.pending;
+  return (
+    <div className="flex items-center gap-3 py-3 border-b border-[#F4F4F5] last:border-0">
+      {/* 상태 점 */}
+      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${meta.dot}`} />
+
+      {/* 약 정보 */}
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-medium text-[#09090B] truncate">{record.medication_name}</p>
+        <p className="text-[11px] text-[#A1A1AA] mt-0.5">{record.slot}</p>
+      </div>
+
+      {/* 복용 시간 or 뱃지 */}
+      <div className="text-right flex-shrink-0">
+        {record.taken_at && (
+          <p className="text-[11px] text-[#71717A] mb-1">{fmtTime(record.taken_at)}</p>
+        )}
+        <StatusBadge status={record.status} />
+      </div>
+    </div>
+  );
+}
+
+function DateSection({ dateStr, records }) {
+  const taken  = records.filter(r => r.status === 'taken').length;
+  const total  = records.length;
+  const rate   = total > 0 ? Math.round((taken / total) * 100) : 0;
+
+  const rateColor =
+    rate >= 80 ? 'text-[#2563EB] bg-[#EFF6FF]' :
+    rate >= 50 ? 'text-[#D97706] bg-[#FFFBEB]' :
+                 'text-[#DC2626] bg-[#FEF2F2]';
+
+  return (
+    <div className="bg-white rounded-2xl px-4 py-1 shadow-sm mb-3">
+      {/* 날짜 헤더 */}
+      <div className="flex items-center justify-between py-3 border-b border-[#F4F4F5]">
+        <span className="text-[13px] font-semibold text-[#09090B]">{fmtDate(dateStr)}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-[#A1A1AA]">{taken}/{total}회</span>
+          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${rateColor}`}>
+            {rate}%
+          </span>
+        </div>
+      </div>
+
+      {/* 기록 목록 */}
+      {records.map(r => (
+        <HistoryRecord key={r.id} record={r} />
+      ))}
+    </div>
+  );
+}
+
+// ── 통계 요약 카드 ────────────────────────────────────────────
+function SummaryCard({ records }) {
+  const taken  = records.filter(r => r.status === 'taken').length;
+  const missed = records.filter(r => r.status === 'missed').length;
+  const total  = records.length;
+  const rate   = total > 0 ? Math.round((taken / total) * 100) : 0;
+
+  return (
+    <div className="bg-white rounded-2xl px-5 py-4 shadow-sm mb-3">
+      <div className="flex items-center justify-between">
+        {/* 달성율 */}
+        <div>
+          <p className="text-[11px] text-[#71717A] mb-0.5">전체 달성율</p>
+          <p className="text-[28px] font-bold text-[#09090B] leading-tight">
+            {rate}<span className="text-[16px] font-normal text-[#71717A]">%</span>
+          </p>
+        </div>
+
+        {/* 구분선 */}
+        <div className="w-px h-12 bg-[#F4F4F5]" />
+
+        {/* 완료 */}
+        <div className="text-center">
+          <p className="text-[11px] text-[#71717A] mb-0.5">완료</p>
+          <p className="text-[20px] font-bold text-[#2563EB]">
+            {taken}<span className="text-[12px] font-normal">회</span>
+          </p>
+        </div>
+
+        {/* 구분선 */}
+        <div className="w-px h-12 bg-[#F4F4F5]" />
+
+        {/* 누락 */}
+        <div className="text-center">
+          <p className="text-[11px] text-[#71717A] mb-0.5">누락</p>
+          <p className="text-[20px] font-bold text-[#EF4444]">
+            {missed}<span className="text-[12px] font-normal">회</span>
+          </p>
+        </div>
+
+        {/* 구분선 */}
+        <div className="w-px h-12 bg-[#F4F4F5]" />
+
+        {/* 전체 */}
+        <div className="text-center">
+          <p className="text-[11px] text-[#71717A] mb-0.5">전체</p>
+          <p className="text-[20px] font-bold text-[#09090B]">
+            {total}<span className="text-[12px] font-normal">회</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── 메인 컴포넌트 ─────────────────────────────────────────────
+export default function MedicationHistoryPage() {
+  const navigate = useNavigate();
+
+  const [startDate, setStartDate] = useState(addDays(today(), -6));
+  const [endDate,   setEndDate]   = useState(today());
+  const [records,   setRecords]   = useState(null);   // null = 미조회
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState('');
+
+  // ── 빠른 기간 선택 ──
+  const applyQuickRange = (days) => {
+    const end   = today();
+    const start = addDays(end, -(days - 1));
+    setStartDate(start);
+    setEndDate(end);
+    setRecords(null);
+  };
+
+  // ── 조회 ──
+  const handleSearch = useCallback(async () => {
+    if (!startDate || !endDate) { alert('기간을 선택해 주세요.'); return; }
+    if (startDate > endDate)    { alert('시작일이 종료일보다 늦을 수 없어요.'); return; }
+
+    try {
+      setLoading(true);
+      setError('');
+      const res = await fetchScheduleHistory(startDate, endDate);
+      const data = res.data ?? res;
+      setRecords(data.records ?? []);
+    } catch (e) {
+      console.error(e);
+      setError('이력을 불러오지 못했어요. 다시 시도해 주세요.');
+    } finally {
+      setLoading(false);
+    }
+  }, [startDate, endDate]);
+
+  const grouped = records ? groupByDate(records) : [];
+
+  return (
+    <div className="min-h-screen bg-[#F4F4F5]">
+
+      {/* ── 헤더 ── */}
+      <div className="sticky top-0 z-10 bg-white border-b border-[#E4E4E7] px-4 py-3 flex items-center gap-3">
+        <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-[#F4F4F5]">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#09090B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
+        </button>
+        <h1 className="text-[16px] font-semibold text-[#09090B]">복약 이력 조회</h1>
+      </div>
+
+      <div className="px-4 py-4 max-w-lg mx-auto space-y-3">
+
+        {/* ── 기간 선택 카드 ── */}
+        <div className="bg-white rounded-2xl px-4 py-4 shadow-sm">
+          <h2 className="text-[13px] font-semibold text-[#71717A] uppercase tracking-wide mb-3">
+            조회 기간
+          </h2>
+
+          {/* 빠른 선택 */}
+          <div className="flex gap-2 flex-wrap mb-4">
+            {QUICK_RANGES.map(({ label, days }) => {
+              const end   = today();
+              const start = addDays(end, -(days - 1));
+              const isActive = startDate === start && endDate === end;
+              return (
+                <button
+                  key={days}
+                  onClick={() => applyQuickRange(days)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+                    ${isActive
+                      ? 'bg-[#2563EB] text-white'
+                      : 'bg-[#F4F4F5] text-[#71717A] hover:bg-[#E4E4E7]'}`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 직접 날짜 입력 */}
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={startDate}
+              max={endDate}
+              onChange={e => { setStartDate(e.target.value); setRecords(null); }}
+              className="flex-1 border border-[#E4E4E7] rounded-xl px-3 py-2.5 text-sm text-[#09090B] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+            />
+            <span className="text-[#A1A1AA] text-sm flex-shrink-0">~</span>
+            <input
+              type="date"
+              value={endDate}
+              min={startDate}
+              max={today()}
+              onChange={e => { setEndDate(e.target.value); setRecords(null); }}
+              className="flex-1 border border-[#E4E4E7] rounded-xl px-3 py-2.5 text-sm text-[#09090B] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+            />
+          </div>
+
+          {/* 조회 버튼 */}
+          <button
+            onClick={handleSearch}
+            disabled={loading}
+            className="w-full mt-3 py-3 bg-[#2563EB] text-white rounded-xl text-sm font-semibold disabled:opacity-50"
+          >
+            {loading ? '조회 중...' : '이력 조회'}
+          </button>
+        </div>
+
+        {/* ── 에러 ── */}
+        {error && (
+          <p className="text-center text-sm text-[#DC2626] py-2">{error}</p>
+        )}
+
+        {/* ── 결과 ── */}
+        {records !== null && !loading && (
+          <>
+            {records.length === 0 ? (
+              <div className="py-12 text-center text-sm text-[#A1A1AA]">
+                해당 기간의 복약 이력이 없어요
+              </div>
+            ) : (
+              <>
+                {/* 요약 */}
+                <SummaryCard records={records} />
+
+                {/* 날짜별 목록 */}
+                {grouped.map(([dateStr, recs]) => (
+                  <DateSection key={dateStr} dateStr={dateStr} records={recs} />
+                ))}
+              </>
+            )}
+          </>
+        )}
+
+        {/* ── 초기 안내 (미조회 상태) ── */}
+        {records === null && !loading && (
+          <div className="py-12 text-center">
+            <div className="w-12 h-12 bg-[#EFF6FF] rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </div>
+            <p className="text-sm text-[#71717A]">기간을 선택하고 조회해 보세요</p>
+          </div>
+        )}
+
+        <div className="h-4" />
+      </div>
+    </div>
+  );
+}
