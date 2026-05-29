@@ -1,20 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 
-from app.database import get_db
 from app.dependencies.auth import get_current_user
+from app.dependencies.database import get_db
 from app.services.diet import DietService
 from app.schemas.diet import (
     DietGuideResponse,
     DietGuideListResponse,
     DietGuideGenerateRequest,
+    DietGuideGenerateResponse,
 )
 
-router = APIRouter()
+router = APIRouter(prefix='/api/v1/diet_guides', tags=['diet'])
 diet_service = DietService()
 
 
-@router.get('/diet/{id}', response_model=DietGuideResponse)
+@router.get('/{id}', response_model=DietGuideResponse)
 def get_diet_guide(
     id: int,
     current_user=Depends(get_current_user),
@@ -26,7 +27,7 @@ def get_diet_guide(
     return result
 
 
-@router.get('/diet', response_model=DietGuideListResponse)
+@router.get('', response_model=DietGuideListResponse)
 def get_diet_guide_list(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -35,7 +36,7 @@ def get_diet_guide_list(
     return {'guides': guides}
 
 
-@router.post('/diet/generate', status_code=202)
+@router.post('/generate', status_code=202)
 def generate_diet_guide(
     request: DietGuideGenerateRequest,
     background_tasks: BackgroundTasks,
@@ -54,28 +55,3 @@ def generate_diet_guide(
     )
 
     return {'detail': 'diet_guide_generating'}
-
-
-@router.get('/exercise')
-def get_exercise_guide():
-    pass
-
-
-@router.post('/exercise/generate')
-def generate_exercise_guide():
-    pass
-
-
-@router.get('/sleep')
-def get_sleep_guide():
-    pass
-
-
-@router.post('/sleep/generate')
-def generate_sleep_guide():
-    pass
-
-
-@router.get('/medication')
-def get_medication_guide():
-    pass
