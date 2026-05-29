@@ -46,9 +46,6 @@ import MedicationFormPage from './pages/medication/MedicationFormPage.jsx'
 import MedicationDashboardPage from './pages/medication/MedicationDashboardPage.jsx';
 import MedicationHistoryPage from './pages/medication/MedicationHistoryPage.jsx';
 
-import MedicationRecordPage from './pages/medication/MedicationRecordPage.jsx'
-import MedicationFormPage from './pages/medication/MedicationFormPage.jsx'
-
 let _setAuth = null
 export function logout() {
   clearTokens()
@@ -115,6 +112,7 @@ function App() {
         <Route path="/medication" element={<PrivateRoute auth={auth}><MedicationPage /></PrivateRoute>} />
         <Route path="/medication/record" element={<PrivateRoute auth={auth}><MedicationRecordPage /></PrivateRoute>} />
         <Route path="/medication/form" element={<PrivateRoute auth={auth}><MedicationFormPage /></PrivateRoute>} />
+        <Route path="/medication/history" element={<PrivateRoute auth={auth}><MedicationHistoryPage /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   )
