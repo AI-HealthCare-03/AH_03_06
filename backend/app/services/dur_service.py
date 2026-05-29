@@ -18,12 +18,15 @@
 #   - 동일성분 중복은 drug_ingredient_map 의 주성분(is_main=1)만 비교
 #     (첨가제까지 비교하면 미결정셀룰로오스 등으로 전 약품이 오탐)
 
+import re
 import threading
+from collections import defaultdict
 from dataclasses import dataclass
 
-from sqlalchemy import text
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.models.drug_dose_limit import DrugDoseLimit
 from app.models.drug_info import DrugInfo
 from app.models.drug_ingredient_map import DrugIngredientMap
 from app.models.dur_concurrent_product import DurConcurrentProduct
@@ -47,6 +50,15 @@ _ATC_CLASS_PREFIX_LEN = 5
 # 약명→item_seq 폴백 매칭 채택 임계 (오매칭이 미검출보다 위험).
 _MATCH_CONFIDENCE_MIN = 90
 
+# 노인주의 (HIRA §7-1 다빈도 노인주의 약물 — 벤조디아제핀계·삼환계 항우울제 등).
+# 노트북은 영문성분명 매칭이었으나 DB에 영문명이 없어, 한글 주성분명 LIKE 로
+# drug_ingredient_map 에서 성분코드를 해석한다(동일성분 검사와 같은 코드체계라 일관).
+_ELDERLY_AGE_THRESHOLD = 65
+_ELDERLY_NAME_KEYWORDS = (
+    "아미트리프틸린", "디아제팜", "클로나제팜", "노르트립틸린", "플루니트라제팜",
+    "플루라제팜", "이미프라민", "클로르디아제폭시드", "클로바잠", "클로미프라민",
+)
+
 DISCLAIMER = (
     "본 안전점검은 식약처 DUR 등 공개 데이터에 기반한 참고 정보이며, 의학적 진단·처방을 "
     "대체하지 않습니다. 실제 복약은 반드시 의사·약사와 상담하시기 바랍니다."
@@ -69,6 +81,8 @@ class _Masters:
     by_drug_id: dict[int, _DrugFacts]
     item_seq_to_drug_id: dict[int, int]
     recalled_drug_ids: frozenset[int]
+    ingredient_to_max_dose: dict[str, dict]   # 성분코드 → {max_dose: float, unit: str, name: str}
+    elderly_codes: frozenset[str]             # 노인주의 성분코드
 
 
 _MASTERS: _Masters | None = None
@@ -104,10 +118,36 @@ def _build_masters(db: Session) -> _Masters:
         if is_recalled:
             recalled.add(drug_id)
 
+    # 성분코드 → 1일 최대투여량 (성분별 여러 제형 중 최댓값, 노트북 정책 동일)
+    ingredient_to_max_dose: dict[str, dict] = {}
+    for code, name_ko, unit, max_dose in db.query(
+        DrugDoseLimit.ingredient_code,
+        DrugDoseLimit.ingredient_name_ko,
+        DrugDoseLimit.dose_unit,
+        DrugDoseLimit.max_daily_dose,
+    ).all():
+        if not code or max_dose is None:
+            continue
+        md = float(max_dose)
+        cur = ingredient_to_max_dose.get(code)
+        if cur is None or md > cur["max_dose"]:
+            ingredient_to_max_dose[code] = {"max_dose": md, "unit": unit or "", "name": name_ko or ""}
+
+    # 노인주의 성분코드 — 한글 주성분명 LIKE 로 해석 (map 코드체계)
+    elderly_codes: set[str] = set()
+    like_clauses = [DrugIngredientMap.ingredient_name.like(f"%{kw}%") for kw in _ELDERLY_NAME_KEYWORDS]
+    for (code,) in (
+        db.query(DrugIngredientMap.ingredient_code).filter(or_(*like_clauses)).distinct().all()
+    ):
+        if code:
+            elderly_codes.add(code)
+
     return _Masters(
         by_drug_id=by_drug_id,
         item_seq_to_drug_id=item_seq_to_drug_id,
         recalled_drug_ids=frozenset(recalled),
+        ingredient_to_max_dose=ingredient_to_max_dose,
+        elderly_codes=frozenset(elderly_codes),
     )
 
 
@@ -132,8 +172,30 @@ def reset_masters_cache() -> None:
 
 @dataclass
 class _ResolvedDrug:
-    name: str                  # 표시용 (처방에 적힌 약명)
+    name: str                       # 표시용 (처방에 적힌 약명)
     facts: _DrugFacts
+    daily_amount: float | None = None   # 1일 총 복용량 (dosage×frequency)
+    dose_unit: str | None = None        # 복용 단위 (정/캡슐 등)
+
+
+# dosage("1정"·"1") + frequency("1일 3회 (식후)"·"3") → (1일 총량, 단위).
+# 파싱 실패/빈값이면 (None, None) → 용량검증에서 자동 skip.
+def _parse_daily_amount(dosage, frequency) -> tuple[float | None, str | None]:
+    if not dosage:
+        return None, None
+    m = re.match(r"\s*(\d+(?:\.\d+)?)\s*(\D*)", str(dosage))
+    if not m:
+        return None, None
+    per_dose = float(m.group(1))
+    unit = (m.group(2) or "").strip() or None
+    times = None
+    if frequency:
+        fm = re.search(r"(\d+)\s*회", str(frequency))
+        if fm:
+            times = int(fm.group(1))
+        elif re.fullmatch(r"\s*\d+\s*", str(frequency)):
+            times = int(str(frequency).strip())
+    return per_dose * (times if times is not None else 1), unit
 
 
 def _resolve_prescriptions(
@@ -161,7 +223,8 @@ def _resolve_prescriptions(
         if facts is None:
             skipped.append(f"{p.drug_name}: 약품정보 없음 (안전점검 제외)")
             continue
-        resolved.append(_ResolvedDrug(name=p.drug_name, facts=facts))
+        daily_amount, dose_unit = _parse_daily_amount(p.dosage, p.frequency)
+        resolved.append(_ResolvedDrug(name=p.drug_name, facts=facts, daily_amount=daily_amount, dose_unit=dose_unit))
     return resolved, skipped
 
 
@@ -261,6 +324,76 @@ def _check_recall(drugs: list[_ResolvedDrug], masters: _Masters) -> list[dict]:
     return alerts
 
 
+def _check_elderly_caution(drugs: list[_ResolvedDrug], masters: _Masters, patient: dict | None) -> list[dict]:
+    """노인주의 — 환자 65세 이상 & 노인주의 성분 포함 시 INFO(참고). alert fatigue 회피로 비차단."""
+    if not patient or patient.get("age") is None or patient["age"] < _ELDERLY_AGE_THRESHOLD:
+        return []
+    age = patient["age"]
+    alerts = []
+    for d in drugs:
+        if d.facts.main_ingredients & masters.elderly_codes:
+            alerts.append({
+                "level": LEVEL_INFO,
+                "type": "elderly_caution",
+                "drugs": [d.name],
+                "message": f"노인주의(참고): {d.name}은 고령자({age}세) 주의 성분을 포함해요. 복용 전 의사·약사와 상의하세요.",
+                "detail": None,
+            })
+    return alerts
+
+
+def _check_dose_limit(drugs: list[_ResolvedDrug], masters: _Masters) -> tuple[list[dict], int]:
+    """1일 최대투여량 초과 — 성분별 총 복용량 vs drug_dose_limit. WARN.
+
+    처방 단위가 mg/정 등으로 섞여 기준과 단위가 다르면 graceful-skip(skip 수 반환).
+    한계 미등록 성분은 조용히 skip(커버리지 한계라 너무 흔함).
+    """
+    totals: dict[str, dict] = defaultdict(lambda: {"total": 0.0, "unit": "", "drugs": [], "mixed": False})
+    for d in drugs:
+        if d.daily_amount is None:
+            continue
+        unit = d.dose_unit or ""
+        for code in d.facts.main_ingredients:
+            b = totals[code]
+            if b["mixed"]:
+                continue
+            if not b["drugs"]:
+                b["unit"] = unit
+                b["total"] += d.daily_amount
+                b["drugs"].append(d.name)
+            elif b["unit"] == unit:
+                b["total"] += d.daily_amount
+                b["drugs"].append(d.name)
+            else:
+                b["mixed"] = True   # 단위 불일치 — 합산 불가
+
+    alerts = []
+    unit_skips = 0
+    for code, b in totals.items():
+        if b["mixed"]:
+            unit_skips += 1
+            continue
+        limit = masters.ingredient_to_max_dose.get(code)
+        if limit is None:
+            continue
+        if (limit["unit"] or "") != b["unit"]:
+            unit_skips += 1
+            continue
+        if b["total"] > limit["max_dose"]:
+            name = limit["name"] or code
+            alerts.append({
+                "level": LEVEL_WARN,
+                "type": "dose_exceeded",
+                "drugs": b["drugs"],
+                "message": (
+                    f"1일 최대 복용량 초과 가능: {name} 성분 총 {b['total']:g}{b['unit']} "
+                    f"(권장 한계 {limit['max_dose']:g}{limit['unit']}). 복용량을 확인하세요."
+                ),
+                "detail": None,
+            })
+    return alerts, unit_skips
+
+
 # ── 통합 ────────────────────────────────────────────────────────────
 
 
@@ -278,9 +411,10 @@ def safety_check_prescriptions(
     dup_eff = _check_class_duplication(drugs)
     contraindications = _check_contraindication(drugs, db)
     recall = _check_recall(drugs, masters)
-    # Phase 2 자리 (노인주의·용량초과) — 현재는 빈 리스트
-    elderly: list[dict] = []
-    dose_exc: list[dict] = []
+    elderly = _check_elderly_caution(drugs, masters, patient)
+    dose_exc, dose_unit_skips = _check_dose_limit(drugs, masters)
+    if dose_unit_skips:
+        skipped.append(f"용량 검증: {dose_unit_skips}개 성분은 단위 불일치/기준 미등록으로 제외")
 
     all_alerts = [*dup_ingr, *dup_eff, *elderly, *dose_exc, *recall, *contraindications]
     summary = {

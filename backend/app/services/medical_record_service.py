@@ -11,6 +11,7 @@ from app.models.department import Department
 from app.models.medical_record import MedicalRecord
 from app.models.prescription import Prescription
 from app.models.guide import Guide  # medication_guide, lifestyle_guide를 관리하는 모델
+from app.models.user import UserProfile  # 노인주의 검증용 생년월일
 from app.schemas.medical_record import (
     MedicalRecordCreateRequest, MedicalRecordCreateResponse,
     MedicalRecordUpdateRequest, MedicalRecordUpdateResponse,
@@ -234,8 +235,16 @@ def get_record_safety_check(
     prescriptions = db.query(Prescription).filter(
         Prescription.medical_record_id == record.id
     ).all()
-    # patient: Phase 2 에서 user_profile.birthday → age 로 노인주의 활성화. 현재 None.
-    result = dur_service.safety_check_prescriptions(prescriptions, patient=None, db=db)
+
+    # 노인주의 검증용 나이 (user_profile.birthday). 프로필 없으면 노인주의 skip.
+    patient = None
+    profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+    if profile and profile.birthday:
+        today = date.today()
+        b = profile.birthday
+        patient = {"age": today.year - b.year - ((today.month, today.day) < (b.month, b.day))}
+
+    result = dur_service.safety_check_prescriptions(prescriptions, patient=patient, db=db)
     return dur_service.to_response(record_id, result)
 
 
