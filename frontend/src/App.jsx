@@ -20,6 +20,7 @@ import GuideHubPage from './pages/guide/GuideHubPage'
 import MedicationGuidePage from './pages/guide/MedicationGuidePage'
 import MedicationGuidePreview from './pages/guide/MedicationGuidePreview'
 import MedicationGuideListPage from './pages/guide/MedicationGuideListPage'
+import MedicationGuideGenerating from './pages/guide/MedicationGuideGenerating'
 import SleepGuideListPage from './pages/guide/SleepGuideListPage'
 import SleepGuideInputPage from './pages/guide/SleepGuideInputPage'
 import SleepGuidePage from './pages/guide/SleepGuidePage'
@@ -83,6 +84,7 @@ function App() {
         <Route path="/guide" element={<PrivateRoute auth={auth}><GuideHubPage /></PrivateRoute>} />
         <Route path="/medication-guides" element={<PrivateRoute auth={auth}><MedicationGuideListPage /></PrivateRoute>} />
         <Route path="/medication-guides/preview" element={<MedicationGuidePreview />} />
+        <Route path="/medication-guides/generate" element={<PrivateRoute auth={auth}><MedicationGuideGenerating /></PrivateRoute>} />
         <Route path="/medication-guides/:guideId" element={<PrivateRoute auth={auth}><MedicationGuidePage /></PrivateRoute>} />
         <Route path="/sleep-guides" element={<PrivateRoute auth={auth}><SleepGuideListPage /></PrivateRoute>} />
         <Route path="/sleep-guides/new" element={<PrivateRoute auth={auth}><SleepGuideInputPage /></PrivateRoute>} />
