@@ -70,28 +70,10 @@ export async function previewMedicationGuide({
   return res.json()
 }
 
-// previewMedicationGuide 의 stream 변종 — /preview-stream NDJSON 응답을 줄 단위 파싱.
-// 응답 라인: meta(1) → token(N) → done(1). 각 라인은 단일 JSON + '\n'.
-// onMeta 는 토큰 도착 전 한 번 (safety_block 등 즉시 표시 가능),
-// onToken 은 청크마다, onDone 은 종료 시. fetch 자체 실패만 throw.
-export async function previewMedicationGuideStream(
-  {
-    item_seq,
-    drug_name = '',
-    user_query = null,
-    patient = null,
-    safety = null,
-    top_k = 3,
-  },
-  { onMeta, onToken, onDone } = {},
-) {
-  const res = await fetch(`${base()}/medication_guides/preview-stream`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ item_seq, drug_name, user_query, patient, safety, top_k }),
-  })
+// NDJSON 스트림 공통 파서 — meta(1) → token(N) → done(1) 줄 단위.
+// onMeta(evt) / onToken(text) / onDone(evt). fetch 자체 실패만 throw.
+async function consumeNdjsonStream(res, { onMeta, onToken, onDone } = {}) {
   if (!res.ok) throw new Error(await res.text())
-
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buf = ''
@@ -108,9 +90,42 @@ export async function previewMedicationGuideStream(
       try { evt = JSON.parse(line) } catch { continue }
       if (evt.type === 'meta') onMeta?.(evt)
       else if (evt.type === 'token') onToken?.(evt.text)
-      else if (evt.type === 'done') onDone?.()
+      else if (evt.type === 'done') onDone?.(evt)
     }
   }
+}
+
+
+// previewMedicationGuide 의 stream 변종 — /preview-stream (데모, item_seq 직접 입력).
+export async function previewMedicationGuideStream(
+  {
+    item_seq,
+    drug_name = '',
+    user_query = null,
+    patient = null,
+    safety = null,
+    top_k = 3,
+  },
+  handlers = {},
+) {
+  const res = await fetch(`${base()}/medication_guides/preview-stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ item_seq, drug_name, user_query, patient, safety, top_k }),
+  })
+  return consumeNdjsonStream(res, handlers)
+}
+
+
+// /generate-stream — 처방(medication_id) 기반 스트리밍 생성+저장 (인증 필요).
+// done 이벤트에 guide_id 가 실려 옴 → onDone(evt) 로 전달.
+export async function generateMedicationGuideStream(medicationId, handlers = {}, refresh = false) {
+  const res = await fetch(`${base()}/medication_guides/generate-stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ medication_id: medicationId, refresh }),
+  })
+  return consumeNdjsonStream(res, handlers)
 }
 
 

@@ -9,6 +9,26 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMedicalRecord, deleteMedicalRecord } from '../../api/medicalRecord'
+import { fetchDrugSuggest } from '../../api/medicationGuides.js'
+import MedicationGuideButton from '../../components/MedicationGuideButton.jsx'
+import SafetyCheckSection from '../../components/SafetyCheckSection.jsx'
+
+// 처방 약명 → drug-suggest 검색 prefix. KB 약명이 "밀리그램/밀리그람"으로 섞여 있어
+// substring 검색이 단위어에서 어긋나므로, 단위어 앞까지만 잘라 질의한다.
+const drugQueryPrefix = (name) =>
+  String(name ?? '').split(/밀리그램|밀리그람|마이크로그램|마이크로그람|밀리리터|그램|그람/)[0].trim()
+
+// 약명 정규화 — 단위 표기차(밀리그램↔밀리그람)·괄호 성분명·공백 흡수. 후보 중 정확 매칭 선택용.
+const normDrugName = (name) =>
+  String(name ?? '')
+    .replace(/\([^)]*\)/g, '')
+    .replace(/\[[^\]]*\]/g, '')
+    .replace(/밀리그램|밀리그람/g, 'mg')
+    .replace(/마이크로그램|마이크로그람/g, 'ug')
+    .replace(/밀리리터/g, 'ml')
+    .replace(/그램|그람/g, 'g')
+    .replace(/\s+/g, '')
+    .toLowerCase()
 
 // ── 진료과 매핑 ───────────────────────────────────────────────
 const DEPT_MAP = {
@@ -36,13 +56,13 @@ function Card({ children, className = '' }) {
 }
 
 // ── 처방약 아이템 ─────────────────────────────────────────────
-function PrescriptionItem({ drug }) {
+function PrescriptionItem({ drug, onAsk, asking }) {
   const dosageText = [
     drug.dosage && `${drug.dosage}정`,
     drug.frequency && `1일 ${drug.frequency}회`,
     drug.duration_days && `${drug.duration_days}일분`,
   ].filter(Boolean).join(' · ')
-  
+
   // 기존 dosage 필드도 fallback으로 지원 (하위 호환)
   const sub = dosageText || [drug.dosage, drug.frequency, drug.duration_days != null ? `${drug.duration_days}일분` : '']
     .filter(Boolean).join(' · ')
@@ -54,9 +74,25 @@ function PrescriptionItem({ drug }) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
         </svg>
       </div>
-      <div>
+      <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-neutral-900">{drug.drug_name}</p>
         {sub && <p className="text-xs text-neutral-400 mt-0.5">{sub}</p>}
+      </div>
+      <div className="flex flex-col gap-1.5 shrink-0 self-center">
+        <MedicationGuideButton
+          medicationId={drug.id}
+          medicationName={drug.drug_name}
+          variant="compact"
+          label="AI 가이드"
+        />
+        <button
+          type="button"
+          onClick={onAsk}
+          disabled={asking}
+          className="h-8 px-3 rounded-md text-[12px] font-[700] border border-blue-200 text-blue-600 bg-white hover:bg-blue-50 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+        >
+          {asking ? '여는 중…' : '질문하기'}
+        </button>
       </div>
     </div>
   )
@@ -175,6 +211,26 @@ export default function MedicalRecordDetail() {
   const [showActions, setShowActions] = useState(false)
   const [showDelete, setShowDelete]   = useState(false)
   const [deleting, setDeleting]       = useState(false)
+  const [askingId, setAskingId]       = useState(null)
+
+  // ── "이 약 물어보기" — drug-suggest로 item_seq 해결 후 preset 질문 화면으로 ──
+  async function handleAskDrug(drug) {
+    setAskingId(drug.id)
+    try {
+      const prefix = drugQueryPrefix(drug.drug_name) || drug.drug_name
+      const { drugs = [] } = await fetchDrugSuggest({ q: prefix, limit: 30 })
+      const target = normDrugName(drug.drug_name)
+      const best = drugs.find((d) => normDrugName(d.drug_name) === target) ?? drugs[0]
+      const params = new URLSearchParams()
+      if (best?.item_seq) params.set('item_seq', best.item_seq)
+      params.set('drug_name', best?.drug_name ?? drug.drug_name)
+      navigate(`/medication-guides/preview?${params.toString()}`)
+    } catch {
+      navigate(`/medication-guides/preview?drug_name=${encodeURIComponent(drug.drug_name)}`)
+    } finally {
+      setAskingId(null)
+    }
+  }
 
   // ── 상세 조회 ─────────────────────────────────────────────
   useEffect(() => {
@@ -280,10 +336,20 @@ export default function MedicalRecordDetail() {
             <p className="text-sm font-bold text-neutral-900 mb-1">처방약</p>
             <div>
               {record.prescriptions.map(drug => (
-                <PrescriptionItem key={drug.id} drug={drug} />
+                <PrescriptionItem
+                  key={drug.id}
+                  drug={drug}
+                  onAsk={() => handleAskDrug(drug)}
+                  asking={askingId === drug.id}
+                />
               ))}
             </div>
           </Card>
+        )}
+
+        {/* ── 복약 안전 점검 (DUR) ────────────────────────── */}
+        {record.prescriptions?.length > 0 && (
+          <SafetyCheckSection key={recordId} recordId={recordId} />
         )}
 
         {/* ── AI 복약 안내 ────────────────────────────────── */}

@@ -1,7 +1,6 @@
-import { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons'
-import { generateMedicationGuide } from '../api/medicationGuides.js'
+import { useNavigate } from 'react-router-dom'
 
 
 const VARIANT_CLASSES = {
@@ -10,30 +9,22 @@ const VARIANT_CLASSES = {
 }
 
 
+// 클릭 시 "생성 중" 스트리밍 화면으로 이동 — 토큰 라이브 표시 후 저장본으로 자동 이동.
 function MedicationGuideButton({
   medicationId,
   medicationName,
   variant = 'primary',
   label,
-  onSuccess,
-  onError,
   className = '',
 }) {
-  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
 
   if (!medicationId) return null
 
-  const handleClick = async () => {
-    setLoading(true)
-    try {
-      const res = await generateMedicationGuide(medicationId, false)
-      if (onSuccess) onSuccess(res, { medicationId, medicationName })
-    } catch (err) {
-      if (onError) onError(err)
-      else window.alert(err?.message ?? 'AI 가이드 생성에 실패했어요.')
-    } finally {
-      setLoading(false)
-    }
+  const handleClick = () => {
+    const params = new URLSearchParams({ medication_id: String(medicationId) })
+    if (medicationName) params.set('drug_name', medicationName)
+    navigate(`/medication-guides/generate?${params.toString()}`)
   }
 
   const variantClass = VARIANT_CLASSES[variant] || VARIANT_CLASSES.primary
@@ -47,7 +38,6 @@ function MedicationGuideButton({
     <button
       type="button"
       onClick={handleClick}
-      disabled={loading}
       aria-label={`${medicationName ?? '약품'} AI 복약 가이드 생성`}
       className={`${baseClass} ${variantClass} ${className}`}
     >
@@ -55,7 +45,7 @@ function MedicationGuideButton({
         icon={faWandMagicSparkles}
         className={variant === 'compact' ? 'text-[11px]' : 'text-[13px]'}
       />
-      {loading ? '생성 중…' : finalLabel}
+      {finalLabel}
     </button>
   )
 }

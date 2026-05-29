@@ -20,6 +20,7 @@ from app.schemas.medical_record import (
     MedicalRecordDetailResponse,
     MedicalRecordDeleteResponse,
 )
+from app.schemas.safety import SafetyCheckResponse
 from app.services import medical_record_service
 
 router = APIRouter()
@@ -62,6 +63,15 @@ def get_medical_record_detail(
     current_user: User = Depends(get_current_user),
 ):
     return medical_record_service.get_medical_record_detail(record_id, current_user.id, db)
+
+# GET /api/v1/medical-records/{id}/safety-check - 처방 묶음 복약 안전점검 (DUR)
+@router.get("/{record_id}/safety-check", response_model=SafetyCheckResponse)
+def get_record_safety_check(
+    record_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return medical_record_service.get_record_safety_check(record_id, current_user.id, db)
 
 # PUT /api/v1/medical-records/{id} - 진료기록 수정
 @router.put("/{record_id}", response_model=MedicalRecordUpdateResponse)
