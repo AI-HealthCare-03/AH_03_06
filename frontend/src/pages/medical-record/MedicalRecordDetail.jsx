@@ -11,6 +11,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { getMedicalRecord, deleteMedicalRecord } from '../../api/medicalRecord'
 import { fetchDrugSuggest } from '../../api/medicationGuides.js'
 import MedicationGuideButton from '../../components/MedicationGuideButton.jsx'
+import SafetyCheckSection from '../../components/SafetyCheckSection.jsx'
 
 // 처방 약명 → drug-suggest 검색 prefix. KB 약명이 "밀리그램/밀리그람"으로 섞여 있어
 // substring 검색이 단위어에서 어긋나므로, 단위어 앞까지만 잘라 질의한다.
@@ -344,6 +345,11 @@ export default function MedicalRecordDetail() {
               ))}
             </div>
           </Card>
+        )}
+
+        {/* ── 복약 안전 점검 (DUR) ────────────────────────── */}
+        {record.prescriptions?.length > 0 && (
+          <SafetyCheckSection key={recordId} recordId={recordId} />
         )}
 
         {/* ── AI 복약 안내 ────────────────────────────────── */}

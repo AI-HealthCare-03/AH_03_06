@@ -19,6 +19,8 @@ from app.schemas.medical_record import (
     MedicalRecordDeleteResponse,
     PrescriptionResponse, GuideResponse,
 )
+from app.schemas.safety import SafetyCheckResponse
+from app.services import dur_service
 
 
 # ── 내부 헬퍼 ─────────────────────────────────────────────
@@ -220,6 +222,21 @@ def get_medical_record_detail(
         created_at=record.created_at,
         updated_at=record.updated_at,
     )
+
+
+def get_record_safety_check(
+    record_id: int,
+    user_id: int,
+    db: Session,
+) -> SafetyCheckResponse:
+    """진료기록 처방 묶음의 복약 안전점검 (병용금기·동일성분/효능군 중복·회수약)."""
+    record = _get_record_or_404(record_id, user_id, db)
+    prescriptions = db.query(Prescription).filter(
+        Prescription.medical_record_id == record.id
+    ).all()
+    # patient: Phase 2 에서 user_profile.birthday → age 로 노인주의 활성화. 현재 None.
+    result = dur_service.safety_check_prescriptions(prescriptions, patient=None, db=db)
+    return dur_service.to_response(record_id, result)
 
 
 # ── 진료기록 수정 ─────────────────────────────────────────
