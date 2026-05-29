@@ -148,7 +148,6 @@ function DietGuidePage() {
                 )}
               </div>
 
-              {/* 영양소 기준 카드 */}
               <section className="bg-white border border-borderHairline rounded-[10px] shadow-soft overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-borderHairline">
                   <div className="flex items-center gap-2">
@@ -160,15 +159,15 @@ function DietGuidePage() {
                   </span>
                 </div>
 
-                <div className="px-5 py-4 border-b border-borderHairline">
-                  <h3 className="text-[11px] font-[700] text-mute mb-2 tracking-wider uppercase">영양소 기준</h3>
-                  <NutrientBar label="칼로리"   value={guide.nutrient_standard?.recommended_calories} unit="kcal" />
-                  <NutrientBar label="탄수화물" value={guide.nutrient_standard?.recommended_carbs}    unit="g" />
-                  <NutrientBar label="단백질"   value={guide.nutrient_standard?.recommended_protein}  unit="g" />
-                  <NutrientBar label="지방"     value={guide.nutrient_standard?.recommended_fat}      unit="g" />
-                </div>
-
                 <div className="divide-y divide-borderHairline">
+                  <div className="px-5 py-4">
+                    <h3 className="text-[11px] font-[700] text-mute mb-2 tracking-wider uppercase">영양소 기준</h3>
+                    <NutrientBar label="칼로리"   value={guide.nutrient_standard?.recommended_calories} unit="kcal" />
+                    <NutrientBar label="탄수화물" value={guide.nutrient_standard?.recommended_carbs}    unit="g" />
+                    <NutrientBar label="단백질"   value={guide.nutrient_standard?.recommended_protein}  unit="g" />
+                    <NutrientBar label="지방"     value={guide.nutrient_standard?.recommended_fat}      unit="g" />
+                  </div>
+
                   <MealSection title="아침" content={guide.breakfast} />
                   <MealSection title="점심" content={guide.lunch} />
                   <MealSection title="저녁" content={guide.dinner} />
@@ -188,26 +187,6 @@ function DietGuidePage() {
                       <p className="text-[13px] text-textBody leading-relaxed">
                         {guide.restricted_foods.replace(/^[-•]\s*/gm, '').trim()}
                       </p>
-                    </div>
-                  )}
-
-                  {guide.nutrient_achievement && (
-                    <div className="px-5 py-4">
-                      <h3 className="text-[11px] font-[700] text-mute mb-3 tracking-wider uppercase">영양소 달성률</h3>
-                      <div className="grid grid-cols-4 gap-2">
-                        {[
-                          { label: '칼로리', value: guide.nutrient_achievement.calories },
-                          { label: '탄수화물', value: guide.nutrient_achievement.carbs },
-                          { label: '단백질', value: guide.nutrient_achievement.protein },
-                          { label: '지방', value: guide.nutrient_achievement.fat },
-                        ].map(({ label, value }) => (
-                          <div key={label} className="flex flex-col items-center bg-bgSubtle rounded-[8px] py-2 px-1">
-                            <span className="text-[16px] font-[700] text-primary">{value ?? '-'}</span>
-                            <span className="text-[10px] text-mute mt-0.5">%</span>
-                            <span className="text-[10px] text-subtext mt-1">{label}</span>
-                          </div>
-                        ))}
-                      </div>
                     </div>
                   )}
                 </div>
