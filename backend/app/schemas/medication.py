@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 
 class PrescriptionCreateRequest(BaseModel):
-    medical_record_id: int
+    medical_record_id: Optional[int] = None
     drug_id:           Optional[int] = None
     drug_name:         str
     dosage:            Optional[str] = None
@@ -17,7 +17,7 @@ class PrescriptionCreateRequest(BaseModel):
 
 class PrescriptionResponse(BaseModel):
     id:                int
-    medical_record_id: int
+    medical_record_id: Optional[int] = None
     drug_id:           Optional[int] = None
     drug_name:         str
     dosage:            Optional[str] = None
