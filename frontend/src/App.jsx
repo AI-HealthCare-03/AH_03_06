@@ -20,20 +20,23 @@ import GuideHubPage from './pages/guide/GuideHubPage'
 import MedicationGuidePage from './pages/guide/MedicationGuidePage'
 import MedicationGuidePreview from './pages/guide/MedicationGuidePreview'
 import MedicationGuideListPage from './pages/guide/MedicationGuideListPage'
+import MedicationGuideGenerating from './pages/guide/MedicationGuideGenerating'
 import SleepGuideListPage from './pages/guide/SleepGuideListPage'
 import SleepGuideInputPage from './pages/guide/SleepGuideInputPage'
 import SleepGuidePage from './pages/guide/SleepGuidePage'
+import DietGuideListPage from './pages/guide/DietGuideListPage.jsx'
+import DietGuidePage from './pages/guide/DietGuidePage.jsx'
 import MyPage from './pages/user/MyPage'
 import ProfileEdit from './pages/user/ProfileEdit'
 import MedicalRecordDetail from './pages/medical-record/MedicalRecordDetail.jsx'
 import MedicalRecordList from './pages/medical-record/MedicalRecordList.jsx'
 import MedicalRecordForm from './pages/medical-record/MedicalRecordForm.jsx'
-import PrescriptionOCR from './pages/medical-record/PrescriptionOCR'
-
-import HealthCheckList from "./pages/health-checkup/HealthCheckList.jsx";
+import PrescriptionOCRUpload from './pages/medical-record/PrescriptionOCRUpload'
+import PrescriptionOCRProcessing from './pages/medical-record/PrescriptionOCRProcessing'
+import PrescriptionOCRResult from './pages/medical-record/PrescriptionOCRResult'
+import HealthCheckList from "./pages/health-checkup/HealthCheckList.jsx"
 import HealthCheckInput from "./pages/health-checkup/HealthCheckInput.jsx"
 import HealthCheckResults from "./pages/health-checkup/HealthCheckResults.jsx"
-
 import MedicationPage from './pages/medication/MedicationPage.jsx'
 
 
@@ -45,10 +48,6 @@ import MedicationHistoryPage from './pages/medication/MedicationHistoryPage.jsx'
 
 import MedicationRecordPage from './pages/medication/MedicationRecordPage.jsx'
 import MedicationFormPage from './pages/medication/MedicationFormPage.jsx'
-
-import MedicationRecordPage from './pages/medication/MedicationRecordPage.jsx'
-
-
 
 let _setAuth = null
 export function logout() {
@@ -72,8 +71,6 @@ function App() {
   const [auth, setAuth] = useState(!!getAccessToken())
   _setAuth = setAuth
 
-
-
   return (
     <BrowserRouter>
       <Routes>
@@ -90,46 +87,34 @@ function App() {
         <Route path="/register/sleep" element={<PublicRoute auth={auth}><RegisterSleep /></PublicRoute>} />
         <Route path="/register/health" element={<PublicRoute auth={auth}><RegisterHealth /></PublicRoute>} />
         <Route path="/auth/callback" element={<AuthCallback />} />
-
         <Route path="/home" element={<PrivateRoute auth={auth}><Home /></PrivateRoute>} />
         <Route path="/all" element={<PrivateRoute auth={auth}><All /></PrivateRoute>} />
         <Route path="/guide" element={<PrivateRoute auth={auth}><GuideHubPage /></PrivateRoute>} />
         <Route path="/medication-guides" element={<PrivateRoute auth={auth}><MedicationGuideListPage /></PrivateRoute>} />
         <Route path="/medication-guides/preview" element={<MedicationGuidePreview />} />
+        <Route path="/medication-guides/generate" element={<PrivateRoute auth={auth}><MedicationGuideGenerating /></PrivateRoute>} />
         <Route path="/medication-guides/:guideId" element={<PrivateRoute auth={auth}><MedicationGuidePage /></PrivateRoute>} />
         <Route path="/sleep-guides" element={<PrivateRoute auth={auth}><SleepGuideListPage /></PrivateRoute>} />
         <Route path="/sleep-guides/new" element={<PrivateRoute auth={auth}><SleepGuideInputPage /></PrivateRoute>} />
         <Route path="/sleep-guides/:guideId" element={<PrivateRoute auth={auth}><SleepGuidePage /></PrivateRoute>} />
+        <Route path="/diet-guides" element={<PrivateRoute auth={auth}><DietGuideListPage /></PrivateRoute>} />
+        <Route path="/diet-guides/:id" element={<PrivateRoute auth={auth}><DietGuidePage /></PrivateRoute>} />
         <Route path="/user" element={<PrivateRoute auth={auth}><MyPage /></PrivateRoute>} />
         <Route path="/user/profile/edit" element={<PrivateRoute auth={auth}><ProfileEdit /></PrivateRoute>} />
-
         <Route path="/health-checkup" element={<PrivateRoute auth={auth}><HealthCheckList /></PrivateRoute>} />
         <Route path="/health-checkup/input" element={<PrivateRoute auth={auth}><HealthCheckInput /></PrivateRoute>} />
         <Route path="/health-checkup/input/:year" element={<PrivateRoute auth={auth}><HealthCheckInput /></PrivateRoute>} />
         <Route path="/health-checkup/results/:year" element={<PrivateRoute auth={auth}><HealthCheckResults /></PrivateRoute>} />
-
-        <Route path="/home" element={<Home />} />
-        <Route path="/user" element={<MyPage />} />
-        <Route path="/user/profile/edit" element={<ProfileEdit />} />
-
         <Route path="/medical-records" element={<MedicalRecordList />} />
         <Route path="/medical-records/new" element={<MedicalRecordForm />} />
         <Route path="/medical-records/:id" element={<MedicalRecordDetail />} />
         <Route path="/medical-records/:id/edit" element={<MedicalRecordForm />} />
-        <Route path="/all" element={<All />} />
-        <Route path="/medical-records/ocr" element={<PrescriptionOCR />} />
-
+        <Route path="/medical-records/ocr" element={<PrescriptionOCRUpload />} />
+        <Route path="/medical-records/ocr/processing" element={<PrescriptionOCRProcessing />} />
+        <Route path="/medical-records/ocr/result" element={<PrescriptionOCRResult />} />
         <Route path="/medication" element={<PrivateRoute auth={auth}><MedicationPage /></PrivateRoute>} />
-        <Route path='/medication/record' element={<PrivateRoute auth={auth}><MedicationRecordPage /></PrivateRoute>} />
-        <Route path="/medication/form" element={<PrivateRoute auth={auth}><MedicationFormPage /></PrivateRoute>}/>
-        <Route path="/medication/dashboard" element={<PrivateRoute auth={auth}><MedicationDashboardPage /></PrivateRoute>} />
-        <Route path="/medication/history" element={<PrivateRoute auth={auth}><MedicationHistoryPage /></PrivateRoute>}/>
-
-        <Route path="/medication" element={<PrivateRoute auth={auth}><MedicationPage /></PrivateRoute>} />
-        <Route path='/medication/record' element={<PrivateRoute auth={auth}><MedicationRecordPage /></PrivateRoute>} />
-        <Route path="/medication/form" element={<PrivateRoute auth={auth}><MedicationFormPage /></PrivateRoute>}/>
-
-        <Route path='/medication/record' element={<PrivateRoute auth={auth}><MedicationRecordPage /></PrivateRoute>} />
+        <Route path="/medication/record" element={<PrivateRoute auth={auth}><MedicationRecordPage /></PrivateRoute>} />
+        <Route path="/medication/form" element={<PrivateRoute auth={auth}><MedicationFormPage /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   )

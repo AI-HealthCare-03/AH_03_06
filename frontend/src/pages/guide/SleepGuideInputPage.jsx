@@ -93,6 +93,64 @@ function ChoiceRow({ options, value, onSelect }) {
 }
 
 
+const GENERATING_STEPS = [
+  '수면 패턴을 분석하고 있어요',
+  '임상 가이드라인을 검토하고 있어요',
+  '맞춤 수면 코칭을 작성하고 있어요',
+]
+
+// 수면 가이드 "생성 중" 화면 — 출력이 구조화(JSON)라 토큰 스트리밍이 불가하므로,
+// 대기 동안 단계 진행 애니메이션으로 진행 인상을 준다(실제 진행 이벤트 아님, 타이머 기반).
+function SleepGeneratingScreen() {
+  const [stepIdx, setStepIdx] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => {
+      setStepIdx((i) => Math.min(i + 1, GENERATING_STEPS.length - 1))
+    }, 2200)
+    return () => clearInterval(t)
+  }, [])
+
+  return (
+    <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
+      <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8">
+        <Header variant="back" title="수면 가이드 생성" />
+        <main className="flex-1 flex flex-col items-center justify-center px-8 gap-8">
+          <div className="w-14 h-14 rounded-full bg-primarySoft flex items-center justify-center">
+            <FontAwesomeIcon icon={faMoon} className="text-primary text-[20px] animate-pulse" />
+          </div>
+          <div className="w-full max-w-[260px] space-y-3">
+            {GENERATING_STEPS.map((label, i) => {
+              const state = i < stepIdx ? 'done' : i === stepIdx ? 'active' : 'pending'
+              return (
+                <div key={i} className="flex items-center gap-3">
+                  <span
+                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 ${
+                      state === 'done'
+                        ? 'bg-primary text-white'
+                        : state === 'active'
+                          ? 'border-2 border-primary text-primary'
+                          : 'border border-borderHairline text-mute'
+                    }`}
+                  >
+                    {state === 'done' ? '✓' : i + 1}
+                  </span>
+                  <span className={`text-[13px] ${state === 'pending' ? 'text-mute' : 'text-textBody font-[500]'}`}>
+                    {label}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+          <p className="text-[12px] text-mute text-center leading-relaxed">
+            맞춤 가이드를 만들고 있어요<br />보통 10~20초 정도 걸려요
+          </p>
+        </main>
+      </div>
+    </div>
+  )
+}
+
+
 function SleepGuideInputPage() {
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
@@ -194,6 +252,9 @@ function SleepGuideInputPage() {
   const goPrev = () => {
     if (step > 1) setStep(step - 1)
   }
+
+  // 생성 대기 동안 전용 "생성 중" 화면 (S1). 성공 시 navigate, 실패 시 submitting=false 로 폼 복귀.
+  if (submitting) return <SleepGeneratingScreen />
 
   return (
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">

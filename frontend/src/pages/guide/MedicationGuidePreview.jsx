@@ -4,8 +4,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import ReactMarkdown from 'react-markdown'
 import Header from '../../components/Header.jsx'
+import FoldableMarkdown from '../../components/FoldableMarkdown.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faWandMagicSparkles,
@@ -29,41 +29,6 @@ const QUERY_PRESETS = [
   { label: '복용법', value: '복용법을 알려주세요' },
   { label: '보관법', value: '보관법을 알려주세요' },
 ]
-
-// 마크다운 → 시안 토큰 매핑 (Tailwind typography 플러그인 없이 ReactMarkdown components 만 사용)
-const markdownComponents = {
-  h1: ({ children }) => (
-    <h2 className="text-[15px] font-[700] text-textHeading mt-4 mb-2">{children}</h2>
-  ),
-  h2: ({ children }) => (
-    <h2 className="text-[14px] font-[700] text-textHeading mt-4 mb-2">{children}</h2>
-  ),
-  h3: ({ children }) => (
-    <h3 className="text-[13px] font-[700] text-textHeading mt-3 mb-1">{children}</h3>
-  ),
-  p: ({ children }) => (
-    <p className="text-[14px] text-textBody leading-[1.85] my-3">{children}</p>
-  ),
-  blockquote: ({ children }) => (
-    <blockquote className="border-l-4 border-primary bg-primarySoft py-3 px-4 mt-6 mb-3 text-[14px] text-textBody leading-relaxed not-italic">
-      {children}
-    </blockquote>
-  ),
-  ul: ({ children }) => <ul className="list-none space-y-1.5 my-2">{children}</ul>,
-  ol: ({ children }) => <ol className="list-decimal pl-5 space-y-1 my-2 text-[14px] text-textBody">{children}</ol>,
-  li: ({ children }) => (
-    <li className="flex items-start gap-2 text-[14px] text-textBody leading-relaxed">
-      <span className="mt-2 w-1 h-1 rounded-full bg-mute flex-shrink-0"></span>
-      <span>{children}</span>
-    </li>
-  ),
-  strong: ({ children }) => <strong className="text-textHeading font-[700]">{children}</strong>,
-  em: ({ children }) => <em className="italic">{children}</em>,
-  code: ({ children }) => (
-    <code className="bg-borderLight px-1 py-0.5 rounded text-[12px] font-mono">{children}</code>
-  ),
-  hr: () => <hr className="border-borderHairline my-3" />,
-}
 
 function MedicationGuidePreview() {
   const [searchParams] = useSearchParams()
@@ -123,7 +88,8 @@ function MedicationGuidePreview() {
     () => drugList.find((d) => d.drug_name === drugName.trim()),
     [drugList, drugName],
   )
-  const resolvedItemSeq = matchedDrug?.item_seq ?? ''
+  // 처방 카드 등에서 item_seq 를 직접 넘긴 경우(약명 정확 일치 불필요) 그 값을 우선 사용.
+  const resolvedItemSeq = matchedDrug?.item_seq || (searchParams.get('item_seq') ?? '')
 
   const handleSubmit = async () => {
     if (!drugName.trim()) return
@@ -344,9 +310,7 @@ function MedicationGuidePreview() {
                       </h3>
                       <div>
                         {guide.main_content ? (
-                          <ReactMarkdown components={markdownComponents}>
-                            {guide.main_content}
-                          </ReactMarkdown>
+                          <FoldableMarkdown content={guide.main_content} foldEnabled={!loading} />
                         ) : (
                           <p className="text-[13px] text-mute italic">
                             AI가 답변을 작성 중이에요…
