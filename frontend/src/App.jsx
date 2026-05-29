@@ -19,6 +19,10 @@ import All from './pages/all/All'
 import GuideHubPage from './pages/guide/GuideHubPage'
 import MedicationGuidePage from './pages/guide/MedicationGuidePage'
 import MedicationGuidePreview from './pages/guide/MedicationGuidePreview'
+import MedicationGuideListPage from './pages/guide/MedicationGuideListPage'
+import SleepGuideListPage from './pages/guide/SleepGuideListPage'
+import SleepGuideInputPage from './pages/guide/SleepGuideInputPage'
+import SleepGuidePage from './pages/guide/SleepGuidePage'
 import MyPage from './pages/user/MyPage'
 import ProfileEdit from './pages/user/ProfileEdit'
 import MedicalRecordDetail from './pages/medical-record/MedicalRecordDetail.jsx'
@@ -33,10 +37,17 @@ import HealthCheckResults from "./pages/health-checkup/HealthCheckResults.jsx"
 import MedicationPage from './pages/medication/MedicationPage.jsx'
 
 
+
 import MedicationRecordPage from './pages/medication/MedicationRecordPage.jsx'
 import MedicationFormPage from './pages/medication/MedicationFormPage.jsx'
 import MedicationDashboardPage from './pages/medication/MedicationDashboardPage.jsx';
 import MedicationHistoryPage from './pages/medication/MedicationHistoryPage.jsx';
+
+import MedicationRecordPage from './pages/medication/MedicationRecordPage.jsx'
+import MedicationFormPage from './pages/medication/MedicationFormPage.jsx'
+
+import MedicationRecordPage from './pages/medication/MedicationRecordPage.jsx'
+
 
 
 let _setAuth = null
@@ -83,8 +94,12 @@ function App() {
         <Route path="/home" element={<PrivateRoute auth={auth}><Home /></PrivateRoute>} />
         <Route path="/all" element={<PrivateRoute auth={auth}><All /></PrivateRoute>} />
         <Route path="/guide" element={<PrivateRoute auth={auth}><GuideHubPage /></PrivateRoute>} />
+        <Route path="/medication-guides" element={<PrivateRoute auth={auth}><MedicationGuideListPage /></PrivateRoute>} />
         <Route path="/medication-guides/preview" element={<MedicationGuidePreview />} />
         <Route path="/medication-guides/:guideId" element={<PrivateRoute auth={auth}><MedicationGuidePage /></PrivateRoute>} />
+        <Route path="/sleep-guides" element={<PrivateRoute auth={auth}><SleepGuideListPage /></PrivateRoute>} />
+        <Route path="/sleep-guides/new" element={<PrivateRoute auth={auth}><SleepGuideInputPage /></PrivateRoute>} />
+        <Route path="/sleep-guides/:guideId" element={<PrivateRoute auth={auth}><SleepGuidePage /></PrivateRoute>} />
         <Route path="/user" element={<PrivateRoute auth={auth}><MyPage /></PrivateRoute>} />
         <Route path="/user/profile/edit" element={<PrivateRoute auth={auth}><ProfileEdit /></PrivateRoute>} />
 
@@ -109,6 +124,12 @@ function App() {
         <Route path="/medication/form" element={<PrivateRoute auth={auth}><MedicationFormPage /></PrivateRoute>}/>
         <Route path="/medication/dashboard" element={<PrivateRoute auth={auth}><MedicationDashboardPage /></PrivateRoute>} />
         <Route path="/medication/history" element={<PrivateRoute auth={auth}><MedicationHistoryPage /></PrivateRoute>}/>
+
+        <Route path="/medication" element={<PrivateRoute auth={auth}><MedicationPage /></PrivateRoute>} />
+        <Route path='/medication/record' element={<PrivateRoute auth={auth}><MedicationRecordPage /></PrivateRoute>} />
+        <Route path="/medication/form" element={<PrivateRoute auth={auth}><MedicationFormPage /></PrivateRoute>}/>
+
+        <Route path='/medication/record' element={<PrivateRoute auth={auth}><MedicationRecordPage /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   )

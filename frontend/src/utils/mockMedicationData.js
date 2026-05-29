@@ -8,7 +8,6 @@
 // ────────────────────────────────────────────────────────────
 
 export const MOCK_MEDICATIONS = [
-  // ① 처방약 - 아모잘탄정 5mg (고혈압)
   {
     id: 'med-001',
     name: '아모잘탄정 5mg',
@@ -30,8 +29,6 @@ export const MOCK_MEDICATIONS = [
     startDate: '2026-04-15',
     status: '진행 중',
   },
-
-  // ② 처방약 - 메트포르민 500mg (당뇨병)
   {
     id: 'med-002',
     name: '메트포르민 500mg',
@@ -53,8 +50,6 @@ export const MOCK_MEDICATIONS = [
     startDate: '2026-04-15',
     status: '진행 중',
   },
-
-  // ③ 일반의약품 - 종합비타민 (영양보충)
   {
     id: 'med-003',
     name: '종합비타민',
@@ -76,8 +71,6 @@ export const MOCK_MEDICATIONS = [
     startDate: '2026-05-01',
     status: '진행 중',
   },
-
-  // ④ 일반의약품 - 타이레놀정 500mg (해열진통, 필요시)
   {
     id: 'med-004',
     name: '타이레놀정 500mg',
@@ -99,12 +92,6 @@ export const MOCK_MEDICATIONS = [
     startDate: '2026-05-10',
     status: '진행 중',
   },
-
-  // ────────────────────────────────────────────────────────
-  // [복약 종료] 탭 샘플 데이터 (2건)
-  // ────────────────────────────────────────────────────────
-
-  // ⑤ 종료된 처방약
   {
     id: 'med-005',
     name: '아지트로마이신 250mg',
@@ -127,8 +114,6 @@ export const MOCK_MEDICATIONS = [
     endDate: '2026-03-07',
     status: '종료',
   },
-
-  // ⑥ 종료된 일반의약품
   {
     id: 'med-006',
     name: '판콜에이내복액',
@@ -172,7 +157,6 @@ export const MOCK_TODAY_MEDICATION = {
   completedCount: 3,
   completionRate: 75,
   groups: [
-    // 아침 (완료)
     {
       mealTime: '아침',
       clockTime: '오전 8:00',
@@ -201,8 +185,6 @@ export const MOCK_TODAY_MEDICATION = {
         },
       ],
     },
-
-    // 점심 (완료)
     {
       mealTime: '점심',
       clockTime: '오후 12:00',
@@ -221,8 +203,6 @@ export const MOCK_TODAY_MEDICATION = {
         },
       ],
     },
-
-    // 저녁 (예정)
     {
       mealTime: '저녁',
       clockTime: '오후 7:00',
@@ -244,6 +224,10 @@ export const MOCK_TODAY_MEDICATION = {
   ],
 };
 
+// ────────────────────────────────────────────────────────────
+// 복약 기록 (달력) Mock 데이터
+// ────────────────────────────────────────────────────────────
+
 export const MOCK_CALENDAR = {
   year: 2026,
   month: 5,
@@ -256,6 +240,12 @@ export const MOCK_ANALYSIS = {
   periodLabel: '최근 30일',
   achievementRate: 85,
 };
+
+// 복약 상태 타입
+// "done"      - 복용 완료
+// "pending"   - 복용하기 (현재 시간대, 액션 필요)
+// "scheduled" - 예정 (아직 시간 안 됨)
+// "missed"    - 누락
 
 export const MOCK_MEDICATIONS_BY_DATE = {
   '2026-05-28': {
@@ -270,8 +260,8 @@ export const MOCK_MEDICATIONS_BY_DATE = {
         time: '오전 8:00',
         icon: 'sun',
         medications: [
-          { id: 'med-001', name: '아모잘탄정 5mg',   dosage: '1정', category: '고혈압약', timing: '식후 30분', type: 'prescription', status: 'done'    },
-          { id: 'med-002', name: '메트포르민 500mg', dosage: '1정', category: '당뇨병약', timing: '식후 30분', type: 'prescription', status: 'done'    },
+          { id: 'med-001', name: '아모잘탄정 5mg',   dosage: '1정', category: '고혈압약', timing: '식후 30분',  type: 'prescription', status: 'done'     },
+          { id: 'med-002', name: '메트포르민 500mg', dosage: '1정', category: '당뇨병약', timing: '식후 30분',  type: 'prescription', status: 'done'     },
         ],
       },
       {
@@ -280,7 +270,7 @@ export const MOCK_MEDICATIONS_BY_DATE = {
         time: '오후 12:00',
         icon: 'clock',
         medications: [
-          { id: 'med-003', name: '종합비타민',        dosage: '1정', category: '영양제',  timing: '식후 30분', type: 'supplement',   status: 'pending'  },
+          { id: 'med-003', name: '종합비타민',       dosage: '1정', category: '영양제',   timing: '식후 30분',  type: 'supplement',   status: 'pending'  },
         ],
       },
       {
@@ -289,7 +279,43 @@ export const MOCK_MEDICATIONS_BY_DATE = {
         time: '오후 7:00',
         icon: 'moon',
         medications: [
-          { id: 'med-004', name: '타이레놀 500mg',   dosage: '1정', category: '진통제',  timing: '식관계없음', type: 'supplement',  status: 'scheduled' },
+          { id: 'med-004', name: '타이레놀 500mg',   dosage: '1정', category: '진통제',   timing: '식관계없음', type: 'supplement',   status: 'scheduled' },
+        ],
+      },
+    ],
+  },
+  '2026-05-12': {
+    date: '2026-05-12',
+    dateLabel: '5월 12일 화요일',
+    totalCount: 4,
+    doneCount: 3,
+    timeSlots: [
+      {
+        id: 'morning',
+        label: '아침',
+        time: '오전 8:00',
+        icon: 'sun',
+        medications: [
+          { id: 'med-001', name: '아모잘탄정 5mg',   dosage: '1정', category: '고혈압약', timing: '식후 30분',  type: 'prescription', status: 'done'     },
+          { id: 'med-002', name: '메트포르민 500mg', dosage: '1정', category: '당뇨병약', timing: '식후 30분',  type: 'prescription', status: 'done'     },
+        ],
+      },
+      {
+        id: 'lunch',
+        label: '점심',
+        time: '오후 12:00',
+        icon: 'clock',
+        medications: [
+          { id: 'med-003', name: '종합비타민',       dosage: '1정', category: '영양제',   timing: '식후 30분',  type: 'supplement',   status: 'pending'  },
+        ],
+      },
+      {
+        id: 'evening',
+        label: '저녁',
+        time: '오후 7:00',
+        icon: 'moon',
+        medications: [
+          { id: 'med-004', name: '타이레놀 500mg',   dosage: '1정', category: '진통제',   timing: '식관계없음', type: 'supplement',   status: 'scheduled' },
         ],
       },
     ],
