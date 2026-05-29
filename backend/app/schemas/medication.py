@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 
 class PrescriptionCreateRequest(BaseModel):
-    medical_record_id: Optional[int] = None
+    medical_record_id: int
     drug_id:           Optional[int] = None
     drug_name:         str
     dosage:            Optional[str] = None
@@ -17,7 +17,7 @@ class PrescriptionCreateRequest(BaseModel):
 
 class PrescriptionResponse(BaseModel):
     id:                int
-    medical_record_id: Optional[int] = None
+    medical_record_id: int
     drug_id:           Optional[int] = None
     drug_name:         str
     dosage:            Optional[str] = None
@@ -80,19 +80,22 @@ class DateMedicationResponse(BaseModel):
 
 class MedicationScheduleRequest(BaseModel):
     intake_time:       str
+    drug_name:         Optional[str] = None
     dosage_message:    Optional[str] = None
     notification_type: Optional[str] = "PUSH"
     days:              Optional[List[str]] = []
+    is_custom:         Optional[bool] = False
 
 
 class MedicationScheduleResponse(BaseModel):
     id:                int
-    medication_id:     int
+    medication_id:     Optional[int] = None
     intake_time:       str
     dosage_message:    Optional[str] = None
     is_after_meal:     Optional[bool] = None
     notification_type: str
     is_active:         bool
+    is_custom:         bool
     days:              List[str]
 
     class Config:

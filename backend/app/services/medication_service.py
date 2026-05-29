@@ -61,19 +61,35 @@ def _schedule_to_response(schedule: MedicationSchedule) -> MedicationScheduleRes
         is_after_meal=None,
         notification_type=schedule.notification_type,
         is_active=schedule.is_active,
+        is_custom=schedule.is_custom,
         days=days,
     )
 
 
+def _create_default_schedule(prescription: Prescription, db: Session):
+    """처방전 기반 기본 복약 스케줄 생성 (is_custom=False)."""
+    schedule = MedicationSchedule(
+        prescribed_medicine_id=prescription.id,
+        drug_name=prescription.drug_name,
+        intake_time="08:00",
+        notification_type="PUSH",
+        is_active=True,
+        is_custom=False,
+    )
+    db.add(schedule)
+    db.flush()
+    for day in ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]:
+        db.add(ScheduleDay(schedule_id=schedule.schedule_id, day_of_week=day))
+
+
 def create_prescription(user_id: int, request: PrescriptionCreateRequest, db: Session) -> PrescriptionResponse:
-    if request.medical_record_id:
-        medical_record = db.query(MedicalRecord).filter(
-            MedicalRecord.id == request.medical_record_id,
-            MedicalRecord.user_id == user_id,
-            MedicalRecord.is_deleted == 0
-        ).first()
-        if not medical_record:
-            raise HTTPException(status_code=404, detail="medical_record_not_found")
+    medical_record = db.query(MedicalRecord).filter(
+        MedicalRecord.id == request.medical_record_id,
+        MedicalRecord.user_id == user_id,
+        MedicalRecord.is_deleted == 0
+    ).first()
+    if not medical_record:
+        raise HTTPException(status_code=404, detail="medical_record_not_found")
     if request.start_date and request.end_date:
         if request.end_date < request.start_date:
             raise HTTPException(status_code=400, detail="invalid_prescription_period")
@@ -89,6 +105,8 @@ def create_prescription(user_id: int, request: PrescriptionCreateRequest, db: Se
         is_active=request.is_active if request.is_active is not None else True,
     )
     db.add(prescription)
+    db.flush()
+    _create_default_schedule(prescription, db)
     db.commit()
     db.refresh(prescription)
     return PrescriptionResponse.model_validate(prescription)
@@ -119,6 +137,11 @@ def get_prescriptions(user_id: int, db: Session) -> PrescriptionListResponse:
         .order_by(Prescription.created_at.desc())
         .all()
     )
+    # 스케줄 없는 처방전은 기본 스케줄 자동 생성
+    for p in prescriptions:
+        if not p.medication_schedules:
+            _create_default_schedule(p, db)
+    db.commit()
     return PrescriptionListResponse(
         prescriptions=[PrescriptionListItem.model_validate(p) for p in prescriptions]
     )
@@ -133,17 +156,16 @@ def get_medications_by_date(user_id: int, target_date: date, db: Session) -> Dat
 
     schedules = (
         db.query(MedicationSchedule)
-        .join(Prescription, MedicationSchedule.prescribed_medicine_id == Prescription.id)
-        .join(MedicalRecord)
+        .outerjoin(Prescription, MedicationSchedule.prescribed_medicine_id == Prescription.id)
+        .outerjoin(MedicalRecord, Prescription.medical_record_id == MedicalRecord.id)
         .join(MedicationSchedule.schedule_days)
         .filter(
-            MedicalRecord.user_id == user_id,
-            MedicalRecord.is_deleted == 0,
-            Prescription.is_active == True,
             MedicationSchedule.is_active == True,
             ScheduleDay.day_of_week == day_of_week,
-            Prescription.start_date <= target_date,
-            Prescription.end_date >= target_date,
+        )
+        .filter(
+            (MedicalRecord.user_id == user_id) |
+            (MedicationSchedule.prescribed_medicine_id == None)
         )
         .all()
     )
@@ -163,8 +185,8 @@ def get_medications_by_date(user_id: int, target_date: date, db: Session) -> Dat
         log = log_map.get(s.schedule_id)
         result.append(TodayMedicationScheduleItem(
             schedule_id=s.schedule_id,
-            drug_name=s.prescription.drug_name,
-            dosage=s.prescription.dosage,
+            drug_name=s.drug_name,
+            dosage=s.prescription.dosage if s.prescription else None,
             intake_time=s.intake_time,
             dosage_message=s.dosage_message,
             is_taken=log.status == 'TAKEN' if log else False,
@@ -175,25 +197,36 @@ def get_medications_by_date(user_id: int, target_date: date, db: Session) -> Dat
     return DateMedicationResponse(date=target_date, schedules=result)
 
 
-def create_schedule(user_id: int, medication_id: int, request: MedicationScheduleRequest, db: Session) -> MedicationScheduleResponse:
+def create_schedule(user_id: int, medication_id: Optional[int], request: MedicationScheduleRequest, db: Session) -> MedicationScheduleResponse:
     _validate_intake_time(request.intake_time)
     if request.notification_type:
         _validate_notification_type(request.notification_type)
     if request.days:
         _validate_days(request.days)
-    prescription = db.query(Prescription).join(MedicalRecord).filter(
-        Prescription.id == medication_id,
-        MedicalRecord.user_id == user_id,
-        MedicalRecord.is_deleted == 0
-    ).first()
-    if not prescription:
-        raise HTTPException(status_code=404, detail="medication_not_found")
+
+    drug_name = request.drug_name if hasattr(request, 'drug_name') and request.drug_name else None
+
+    if medication_id:
+        prescription = db.query(Prescription).join(MedicalRecord).filter(
+            Prescription.id == medication_id,
+            MedicalRecord.user_id == user_id,
+            MedicalRecord.is_deleted == 0
+        ).first()
+        if not prescription:
+            raise HTTPException(status_code=404, detail="medication_not_found")
+        drug_name = prescription.drug_name
+
+    if not drug_name:
+        raise HTTPException(status_code=400, detail="drug_name_required")
+
     schedule = MedicationSchedule(
         prescribed_medicine_id=medication_id,
+        drug_name=drug_name,
         intake_time=request.intake_time,
         dosage_message=request.dosage_message,
         notification_type=request.notification_type or "PUSH",
         is_active=True,
+        is_custom=request.is_custom or False,
     )
     db.add(schedule)
     db.flush()
@@ -221,27 +254,23 @@ def get_schedules(user_id: int, medication_id: int, active: Optional[bool], db: 
     return MedicationScheduleListResponse(schedules=[_schedule_to_response(s) for s in schedules])
 
 
-def update_schedule(user_id: int, medication_id: int, request: MedicationScheduleRequest, db: Session) -> MedicationScheduleResponse:
+def update_schedule(user_id: int, schedule_id: int, request: MedicationScheduleRequest, db: Session) -> MedicationScheduleResponse:
     _validate_intake_time(request.intake_time)
     if request.notification_type:
         _validate_notification_type(request.notification_type)
     if request.days:
         _validate_days(request.days)
-    prescription = db.query(Prescription).join(MedicalRecord).filter(
-        Prescription.id == medication_id,
-        MedicalRecord.user_id == user_id,
-        MedicalRecord.is_deleted == 0
-    ).first()
-    if not prescription:
-        raise HTTPException(status_code=404, detail="medication_not_found")
     schedule = db.query(MedicationSchedule).filter(
-        MedicationSchedule.prescribed_medicine_id == medication_id
+        MedicationSchedule.schedule_id == schedule_id
     ).first()
     if not schedule:
-        raise HTTPException(status_code=404, detail="medication_not_found")
+        raise HTTPException(status_code=404, detail="schedule_not_found")
     schedule.intake_time = request.intake_time
     schedule.dosage_message = request.dosage_message
     schedule.notification_type = request.notification_type or "PUSH"
+    schedule.is_custom = True
+    if hasattr(request, 'drug_name') and request.drug_name:
+        schedule.drug_name = request.drug_name
     db.query(ScheduleDay).filter(ScheduleDay.schedule_id == schedule.schedule_id).delete()
     for day in (request.days or []):
         db.add(ScheduleDay(schedule_id=schedule.schedule_id, day_of_week=day))
@@ -270,10 +299,11 @@ def update_alarm(user_id: int, alarm_id: int, request: MedicationAlarmUpdateRequ
         raise HTTPException(status_code=404, detail="alarm_not_found")
     if request.alarm_time:
         schedule.intake_time = request.alarm_time
+        schedule.is_custom = True
     if request.is_active is not None:
         schedule.is_active = request.is_active
     if request.medication_name:
-        schedule.prescription.drug_name = request.medication_name
+        schedule.drug_name = request.medication_name
     if request.alarm_days:
         days = list(set(request.alarm_days))
         db.query(ScheduleDay).filter(ScheduleDay.schedule_id == schedule.schedule_id).delete()
@@ -284,7 +314,7 @@ def update_alarm(user_id: int, alarm_id: int, request: MedicationAlarmUpdateRequ
     days = [sd.day_of_week for sd in schedule.schedule_days]
     return MedicationAlarmUpdateResponse(
         id=schedule.schedule_id,
-        medication_name=schedule.prescription.drug_name,
+        medication_name=schedule.drug_name,
         alarm_time=str(schedule.intake_time)[:5],
         alarm_days=days,
         is_active=schedule.is_active,
@@ -305,12 +335,13 @@ def get_dashboard(user_id: int, period: str, reference_date: Optional[date], db:
         next_month = (ref.replace(day=28) + timedelta(days=4)).replace(day=1)
         end_date = next_month - timedelta(days=1)
     end_date = min(end_date, today)
-    schedules = db.query(MedicationSchedule).join(
+    schedules = db.query(MedicationSchedule).outerjoin(
         Prescription, MedicationSchedule.prescribed_medicine_id == Prescription.id
-    ).join(MedicalRecord).filter(
-        MedicalRecord.user_id == user_id,
-        MedicalRecord.is_deleted == 0,
+    ).outerjoin(MedicalRecord, Prescription.medical_record_id == MedicalRecord.id).filter(
         MedicationSchedule.is_active == True
+    ).filter(
+        (MedicalRecord.user_id == user_id) |
+        (MedicationSchedule.prescribed_medicine_id == None)
     ).all()
     logs = db.query(MedicationLog).filter(
         MedicationLog.user_id == user_id,
@@ -326,9 +357,9 @@ def get_dashboard(user_id: int, period: str, reference_date: Optional[date], db:
         current += timedelta(days=1)
     for schedule in schedules:
         days_set = {sd.day_of_week for sd in schedule.schedule_days}
-        med_id = schedule.prescribed_medicine_id
+        med_id = schedule.schedule_id
         if med_id not in medication_map:
-            medication_map[med_id] = {"name": schedule.prescription.drug_name, "total": 0, "taken": 0}
+            medication_map[med_id] = {"name": schedule.drug_name, "total": 0, "taken": 0}
         current = start_date
         while current <= end_date:
             day_str = current.strftime("%a").upper()[:3]
