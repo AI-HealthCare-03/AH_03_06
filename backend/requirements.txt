@@ -42,3 +42,6 @@ langchain-openai==0.2.14
 langchain-text-splitters==0.3.8
 pymupdf==1.25.5
 tiktoken==0.9.0
+pypdf==5.1.0
+rapidfuzz==3.14.5
+jamo==0.4.1
