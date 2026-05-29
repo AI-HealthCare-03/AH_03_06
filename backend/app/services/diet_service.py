@@ -207,20 +207,18 @@ class DietService:
 
     def get_diet_guide_list(self, db: Session, user_id: int):
         guides = DietGuideRepository.get_list_by_user_id(db, user_id)
-        nutrient_standards = {
-            ns.id: ns for ns in [
-                NutrientStandardRepository.get_by_user_id(db, user_id)
-            ] if ns
-        }
-        return [
-            {
-                'id':             g.id,
-                'meal_plan_type': nutrient_standards.get(g.nutrient_standard_id, NutrientStandard()).meal_plan_type if g.nutrient_standard_id in nutrient_standards else '',
-                'is_verified':    g.is_verified,
-                'created_at':     g.created_at,
-            }
-            for g in guides
-        ]
+        result = []
+        for g in guides:
+            nutrient_standard = db.query(NutrientStandard).filter(
+                NutrientStandard.id == g.nutrient_standard_id
+            ).first()
+            result.append({
+                'id': g.id,
+                'meal_plan_type': nutrient_standard.meal_plan_type if nutrient_standard else None,
+                'is_verified': g.is_verified,
+                'created_at': g.created_at,
+            })
+        return result
 
     def generate_diet_guide(self, db: Session, user_id: int, checkup: dict):
         bmi   = checkup.get('bmi') or round(
