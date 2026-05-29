@@ -15,6 +15,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import {
   previewMedicationGuide,
+  previewMedicationGuideStream,
   fetchDrugSuggest,
 } from '../../api/medicationGuides.js'
 
@@ -130,12 +131,22 @@ function MedicationGuidePreview() {
     setError('')
     setGuide(null)
     try {
-      const data = await previewMedicationGuide({
-        item_seq: resolvedItemSeq,
-        drug_name: drugName.trim(),
-        user_query: userQuery.trim() || null,
-      })
-      setGuide(data)
+      await previewMedicationGuideStream(
+        {
+          item_seq: resolvedItemSeq,
+          drug_name: drugName.trim(),
+          user_query: userQuery.trim() || null,
+        },
+        {
+          // meta 첫 도착 — safety_block 등 즉시 표시, main_content 빈 카드로 마운트
+          onMeta: (m) => setGuide({ ...m, main_content: '' }),
+          // 청크마다 누적
+          onToken: (t) =>
+            setGuide((prev) =>
+              prev ? { ...prev, main_content: (prev.main_content ?? '') + t } : prev,
+            ),
+        },
+      )
     } catch (err) {
       setError(err?.message ?? '가이드 생성에 실패했어요.')
     } finally {
@@ -183,7 +194,7 @@ function MedicationGuidePreview() {
               <div className="mt-1 space-y-0.5">
                 <p className="text-[11px] text-mute">
                   {drugListTotal > 0
-                    ? `검색 가능 ${drugListTotal}종 (e약은요 표본 · 입력 시 자동완성)`
+                    ? `검색 가능 ${drugListTotal}종 (복약 가이드 제공 약품 · 입력 시 자동완성)`
                     : '검색 가능 목록을 불러오는 중…'}
                 </p>
                 {matchedDrug && (
@@ -242,8 +253,8 @@ function MedicationGuidePreview() {
             </button>
           </section>
 
-          {/* 로딩 — 5~10초 걸리는 LLM 응답을 대기하는 안내 */}
-          {loading && (
+          {/* 로딩 — meta 도착 전까지만. 메타 도착 후엔 빈 가이드 카드가 점진 채워짐. */}
+          {loading && !guide && (
             <p className="text-[13px] text-mute text-center py-10">
               AI가 복약 안내를 생성하고 있어요…
             </p>
@@ -254,8 +265,9 @@ function MedicationGuidePreview() {
             <p className="text-[13px] text-error text-center py-10">{error}</p>
           )}
 
-          {/* 가이드 결과 */}
-          {!loading && !error && guide && (
+          {/* 가이드 결과 — stream 중에도 guide 가 set 되면 즉시 렌더 (loading 무관).
+              loading 동안 main_content 가 비어있는 구간은 카드 내부에서 "작성 중" 분기로 처리. */}
+          {!error && guide && (
             <>
               {/* drug_name 본문 상단 제목 (고정 Header 아님 — 디자인 규칙) */}
               {guide.drug_name && (
@@ -323,15 +335,23 @@ function MedicationGuidePreview() {
 
                   <div className="divide-y divide-borderHairline">
 
-                    {/* 복약 안내 본문 — 마크다운 렌더 (발췌 blockquote, 📚/💡/ⓘ 섹션 헤더 포함) */}
+                    {/* 복약 안내 본문 — 마크다운 렌더 (발췌 blockquote, 📚/💡/ⓘ 섹션 헤더 포함).
+                        stream 중 main_content 가 비어있는 구간 (meta 도착 ~ 첫 토큰) 동안엔
+                        "작성 중" 안내로 빈 카드 인상 방지. */}
                     <div className="px-5 py-4">
                       <h3 className="text-[11px] font-[700] text-mute mb-2 tracking-wider uppercase">
                         복약 안내
                       </h3>
                       <div>
-                        <ReactMarkdown components={markdownComponents}>
-                          {guide.main_content}
-                        </ReactMarkdown>
+                        {guide.main_content ? (
+                          <ReactMarkdown components={markdownComponents}>
+                            {guide.main_content}
+                          </ReactMarkdown>
+                        ) : (
+                          <p className="text-[13px] text-mute italic">
+                            AI가 답변을 작성 중이에요…
+                          </p>
+                        )}
                       </div>
                     </div>
 
