@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies.auth import get_current_user
-from app.services.diet import DietService
+from app.services.diet_service import DietService
 from app.schemas.diet import (
     DietGuideResponse,
     DietGuideListResponse,

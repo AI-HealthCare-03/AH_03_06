@@ -5,7 +5,7 @@
 // - 메모 필드 (200자 제한)
 
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import {
   createMedicalRecord,
   getMedicalRecord,
@@ -117,18 +117,29 @@ function PrescriptionCard({ index, data, onChange, onRemove }) {
 // ── 메인 컴포넌트 ─────────────────────────────────────────────
 export default function MedicalRecordForm() {
   const navigate = useNavigate()
-  const { id: recordId } = useParams() // 있으면 수정 모드
+  const { id: recordId } = useParams()
+  const { state } = useLocation()
   const isEdit = !!recordId
+  const prefill = state?.prefill
 
-  // ── 폼 상태 ───────────────────────────────────────────────
   const [form, setForm] = useState({
-    visit_date:     '',
-    hospital_name:  '',
+    visit_date:     prefill?.visit_date     ?? '',
+    hospital_name:  prefill?.hospital_name  ?? '',
     department_id:  '',
-    diagnosis_name: '',
+    diagnosis_name: prefill?.diagnosis_name ?? '',
     memo:           '',
   })
-  const [prescriptions, setPrescriptions] = useState([])
+
+  const [prescriptions, setPrescriptions] = useState(
+    prefill?.drugs?.map(d => ({
+      id:            null,
+      drug_name:     d.drug_name     ?? '',
+      dosage:        d.dosage        ?? '',
+      frequency:     d.frequency     ?? '',
+      duration_days: d.duration_days ?? '',
+    })) ?? []
+  )
+
   const [loading, setLoading]     = useState(isEdit) // 수정 모드면 초기 로딩
   const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors]       = useState({})
