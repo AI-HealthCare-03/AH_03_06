@@ -10,6 +10,7 @@ class MedicationSchedule(Base):
     __tablename__ = "medication_schedules"
 
     schedule_id            = Column(BigInteger, primary_key=True, autoincrement=True)
+    user_id                = Column(BigInteger, ForeignKey("user.id"), nullable=False)
     prescribed_medicine_id = Column(BigInteger, ForeignKey("prescription.id"), nullable=True)
     drug_name              = Column(String(255), nullable=False)
     intake_time            = Column(Time, nullable=False)
@@ -20,6 +21,7 @@ class MedicationSchedule(Base):
     created_at             = Column(DateTime, nullable=False, default=func.now())
 
     # 관계 정의
+    user            = relationship("User", back_populates="medication_schedules")
     prescription    = relationship("Prescription", back_populates="medication_schedules")
     schedule_days   = relationship("ScheduleDay", back_populates="medication_schedule", cascade="all, delete-orphan")
     medication_logs = relationship("MedicationLog", back_populates="medication_schedule", cascade="all, delete-orphan")

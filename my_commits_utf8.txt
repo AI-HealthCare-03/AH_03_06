@@ -1,0 +1,133 @@
+1b0b06a feat: 복약 스케줄 처방전 없이 등록 가능 및 drug_name, is_custom 필드 추가
+654739e Merge branch 'feat/backend' of https://github.com/AI-HealthCare-03/AH_03_06 into feat/backend
+aabec59 feat: 챗봇 API 구현 및 복약 등록 진료기록 선택값 변경
+6dab315 fix: Prescription medical_record_id 선택값으로 변경
+b42d446 WIP on feat/frontend: b4bc457 feat: AI 챗봇 구현 (식단 가이드 연동)
+7406e4c index on feat/frontend: b4bc457 feat: AI 챗봇 구현 (식단 가이드 연동)
+daf1789 Merge pull request #41 from AI-HealthCare-03/feat/frontend
+b4bc457 feat: AI 챗봇 구현 (식단 가이드 연동)
+5dd13e6 Merge pull request #40 from AI-HealthCare-03/feat/backend
+b01198b feat: 챗봇 API 구현 (세션 생성, 메시지 전송, 대화 히스토리 조회)
+4532689 Merge branch 'dev' into feat/backend
+51315dc Merge pull request #39 from AI-HealthCare-03/feat/medication_UI_201-205
+5a44351 Merge branch 'dev' into feat/medication_UI_201-205
+9aa116b Merge pull request #38 from AI-HealthCare-03/feat/backend
+ed083f5 chore: ignore chroma db files
+4c6fe6e chore: ignore chroma db files
+7845a99 Merge pull request #37 from AI-HealthCare-03/feat/ml-medication-guide-connect
+a6ebd27 feat: 약 목록, 오늘의 복약, 날짜별 복약 API 추가
+5637205 Merge pull request #36 from AI-HealthCare-03/feat/frontend
+91704af feat: 식단 가이드 상세 페이지 영양소 달성률 제거
+cc63532 fix: feat/backend에서 diet_service.py 반영
+c652d09 Merge branch 'feat/backend' of https://github.com/AI-HealthCare-03/AH_03_06 into feat/backend
+b61558d fix: 식단 가이드 목록 meal_plan_type 반환 수정
+b256a9c feat: 식단 가이드 목록 및 상세 페이지 구현
+2d5eaf7 merge: dev 병합
+ee6a0db Merge pull request #35 from AI-HealthCare-03/feat/backend
+a004b70 Merge branch 'dev' into feat/backend
+94d1125 feat: 식이요법 식단 가이드 API 구현 및 의존성 추가
+93f9f70 Merge pull request #34 from AI-HealthCare-03/feat/backend
+512d84f feat: 식이요법 식단 가이드 API 구현
+8d32991 feat: RAG 파이프라인 개선 및 LLM 식단 가이드 노트북 추가
+695852d Merge pull request #33 from AI-HealthCare-03/feat/medication_UI_201-205
+87a1077 Merge branch 'dev' into feat/medication_UI_201-205
+3f5ead9 Merge pull request #32 from AI-HealthCare-03/feat/medication_UI_203_204
+7d692c3 Merge pull request #31 from AI-HealthCare-03/feat/ml-sleep-guide-backend
+a106625 feat: RAG 파이프라인 청크 사이즈 및 검색 키워드 개선
+b2bc065 feat: RAG 파이프라인 노트북 추가
+9761631 feat: 체중 신장 기반 그룹별 영양소 기준 산출 노트북 추가
+739709c feat: 식이요법 분류 및 영양소 기준 산출 모델 수정
+44944c8 Merge pull request #30 from AI-HealthCare-03/feat/ml
+f9a74a7 feat: 식이요법 전처리 및 분류 모델 노트북 추가
+249d8e5 Revert "feat: 식이요법 분류 모델 노트북 추가"
+f687d28 feat: 식이요법 분류 모델 노트북 추가
+4c3f339 Merge branch 'dev' of https://github.com/AI-HealthCare-03/AH_03_06 into dev
+ab9ae1c merge: feat/ml dev 병합
+cf9302a feat: 식이요법 그룹 분류 모델 노트북 추가
+e3fb76b Merge pull request #29 from AI-HealthCare-03/feat/backend
+3006fbd feat: FCM 푸시 알림 및 복약 알림 스케줄러 구현
+ee5418e Merge pull request #28 from AI-HealthCare-03/feat/backend
+93d6b27 feat: 복약 관련 모델/스키마/서비스/엔드포인트 구현
+cee8c32 Merge pull request #27 from AI-HealthCare-03/feat/medication_UI_203_204
+3665846 Merge pull request #26 from AI-HealthCare-03/feat/ml-medication-rag-backend
+9ed4f74 Merge pull request #25 from AI-HealthCare-03/feat/medical_record_UI
+371d396 feat: OCR 처방전 자동입력 화면 구현
+59ef4e1 Merge pull request #22 from AI-HealthCare-03/feat/frontend
+43b6433 fix: App.jsx 충돌 문제 해결
+f159393 chore: 작업 임시 저장
+eb5486e chore: 작업 임시 저장
+b089489 Merge pull request #20 from AI-HealthCare-03/feat/guide-page
+c895075 Merge pull request #21 from AI-HealthCare-03/feat/medical_record_clean
+b7068d3 Merge branch 'dev' into feat/medical_record_clean
+4dbea9a Merge pull request #19 from AI-HealthCare-03/feat/backend
+0a347e4 feat: OCR 응답 필드 가공 로직 추가 및 스키마 개선
+fc3c993 Merge pull request #18 from AI-HealthCare-03/feat/backend
+09b4457 Merge branch 'dev' into feat/backend
+3aae8a7 feat: OCR 처방전 필드 추출 서비스 연동 및 로직 고도화
+28b603b Merge pull request #17 from AI-HealthCare-03/feat/backend
+5bd63d9 Merge pull request #16 from AI-HealthCare-03/feat/medication-data-load
+83fa5b2 Merge branch 'dev' into feat/medication-data-load
+7de16fe Merge pull request #15 from AI-HealthCare-03/pr/medical-record-frontend
+a6173fe Merge pull request #14 from AI-HealthCare-03/pr/medical-record-backend
+673f7fd feat: OCR 처방전 필드 추출 함수 보강 및 배치 평가 코드 정비
+03e7f49 feat: OCR 처방전 필드 추출 함수 보강 및 배치 평가 코드 정비
+e0fa62c feat: OCR 처방전 필드 추출 함수 보강 및 배치 평가 코드 정비
+fe9e797 feat: OCR 처방전 필드 추출 로직 구현 및 평가 함수 개선
+0a7815c Merge branch 'dev' of https://github.com/AI-HealthCare-03/AH_03_06 into dev
+5b28add feat: 건강검진 연도별 조회 엔드포인트 추가
+57c2313 feat: 건강검진 수정/삭제 기능 구현
+036264a Merge pull request #13 from AI-HealthCare-03/feat/ml-medication-rag-llm-03-04
+0a351f6 Merge branch 'feat/frontend' into dev
+2d0216a feat: 건강검진 목록/결과 페이지 구현
+892e4c2 feat: 건강검진 목록/상세 조회 기능 구현
+b8d2d22 fix: CORS 설정 localhost:5173 추가
+b751ee1 Merge branch 'dev' of https://github.com/AI-HealthCare-03/AH_03_06 into dev
+ab53a9a feat: User 모델에 medication_guides relationship 추가
+d04c9e3 Merge pull request #8 from AI-HealthCare-03/feat/ml-medication-rag-llm-03-04=
+c5c7f2d Merge branch 'dev' into feat/backend
+c63ea92 fix: 비밀번호 재설정 링크 URL 하드코딩 제거 및 FRONTEND_URL 환경변수 적용
+486bc35 fix: 토큰 만료 시 자동 로그아웃 처리 및 비밀번호 재설정 URL 수정
+48d50c7 feat: 비밀번호 찾기 및 재설정 페이지 구현, FormLayout/BottomAction 컴포넌트 리팩토링
+789b5df Merge pull request #12 from AI-HealthCare-03/feat/frontend
+136c135 feat: 공통 Header 컴포넌트 추가 및 All, MyPage 페이지 구현
+0e13fdc Merge pull request #11 from AI-HealthCare-03/feat/frontend
+fc025fe feat: FA 아이콘 교체 및 로그인 플로우 수정
+217f559 Merge pull request #10 from AI-HealthCare-03/feat/frontend
+cf44d68 feat: 라우터 가드 및 SSO 로그인 플로우 개선
+321ed28 Merge pull request #9 from AI-HealthCare-03/feat/frontend
+b08c886 feat: 회원가입 플로우 7단계 확장 및 RegisterLayout UI 통일
+5c08ae4 merge: conflict resolved
+ee1ed78 feat: 프로필 수정 페이지 구현 및 흡연/음주 API 연동
+8ceee72 docs: README.md 업데이트
+a9ec2d9 fix: 비밀번호 초기화 기능 복원 완료
+26d422f fix: 비밀번호 초기화 기능 복원 완료
+e2e89c7 fix: 비밀번호 초기화 기능 복원 완료
+e84ec26 merge: backend conflict resolved
+51b1e4f feat: Home 닉네임 API 연동 및 MyPage 구현
+7efd20c feat: update
+fd71733 feat: User API 반영
+321c396 merge: App.jsx conflict resolved
+2c6e8dd Merge branch 'dev' into feat/frontend
+9d442f9 feat: backend dev 최신 반영
+7a7f3d9 feat: frontend 최신 코드 반영
+5669b23 feat: MyPage 및 라우터 업데이트
+47aa1ce merge: resolve .gitignore conflict
+5dc6acf feat: User API 구현 (프로필 조회/수정, 건강목표, 소셜 연동, 회원탈퇴)
+952d2f7 feat: User API 구현 (프로필 조회/수정, 건강목표, 소셜 연동, 회원탈퇴)
+970b593 feat: 로그인 API 연동 및 Google SSO 콜백 처리
+2ae462d feat: 프론트엔드 초기 세팅 및 랜딩, 로그인, 회원가입 페이지 구현
+3043b5e feat: 비밀번호 재설정 이메일 발송 구현
+5e85f48 feat: 건강검진 엔드포인트 구현 (CRUD, 분류결과, 변화추이)
+b745ca4 Merge branch 'dev' of https://github.com/AI-HealthCare-03/AH_03_06 into dev
+8b9274e feat: Google 소셜 로그인 구현
+5fd48e5 Merge pull request #7 from AI-HealthCare-03/feat/ml-medication-dur-safety
+173eb98 Merge pull request #6 from AI-HealthCare-03/feat/ml-medication-drug-matching
+316b496 Merge branch 'dev' into feat/ml-medication-drug-matching
+eb488ad Merge pull request #4 from AI-HealthCare-03/feat/ml-medication-eda
+f4f53b5 feat: auth 엔드포인트 구현 (회원가입, 로그인, 로그아웃, 토큰재발급, 이메일찾기, 비밀번호재설정)
+7bea480 feat: OCR 데이터 증강 및 Clova OCR 필드 추출 구현
+efc562d feat: HWP 처방전 자동 생성 파이프라인 구축 및 .gitignore 업데이트
+945b65f feat: HWP 처방전 자동 생성 파이프라인 구축 및 .gitignore 업데이트
+6d2ecf4 feat: 프로젝트 세팅 완료
+ce86999 feat: ML 폴더 구조 생성
+d676d72 feat: 프로젝트 초기 세팅
