@@ -44,6 +44,7 @@ class User(Base):
 
     medical_records = relationship("MedicalRecord", back_populates="user")  # 260519 추가
     medication_logs = relationship("MedicationLog", back_populates="user")
+    medication_schedules = relationship("MedicationSchedule", back_populates="user")
 
     fcm_tokens = relationship("FcmToken", back_populates="user")
 class UserProfile(Base):

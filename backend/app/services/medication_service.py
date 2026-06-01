@@ -66,9 +66,9 @@ def _schedule_to_response(schedule: MedicationSchedule) -> MedicationScheduleRes
     )
 
 
-def _create_default_schedule(prescription: Prescription, db: Session):
-    """처방전 기반 기본 복약 스케줄 생성 (is_custom=False)."""
+def _create_default_schedule(prescription: Prescription, user_id: int, db: Session):
     schedule = MedicationSchedule(
+        user_id=user_id,
         prescribed_medicine_id=prescription.id,
         drug_name=prescription.drug_name,
         intake_time="08:00",
@@ -106,7 +106,7 @@ def create_prescription(user_id: int, request: PrescriptionCreateRequest, db: Se
     )
     db.add(prescription)
     db.flush()
-    _create_default_schedule(prescription, db)
+    _create_default_schedule(prescription, user_id, db)
     db.commit()
     db.refresh(prescription)
     return PrescriptionResponse.model_validate(prescription)
@@ -137,10 +137,9 @@ def get_prescriptions(user_id: int, db: Session) -> PrescriptionListResponse:
         .order_by(Prescription.created_at.desc())
         .all()
     )
-    # 스케줄 없는 처방전은 기본 스케줄 자동 생성
     for p in prescriptions:
         if not p.medication_schedules:
-            _create_default_schedule(p, db)
+            _create_default_schedule(p, user_id, db)
     db.commit()
     return PrescriptionListResponse(
         prescriptions=[PrescriptionListItem.model_validate(p) for p in prescriptions]
@@ -165,7 +164,7 @@ def get_medications_by_date(user_id: int, target_date: date, db: Session) -> Dat
         )
         .filter(
             (MedicalRecord.user_id == user_id) |
-            (MedicationSchedule.prescribed_medicine_id == None)
+            (MedicationSchedule.user_id == user_id)
         )
         .all()
     )
@@ -220,6 +219,7 @@ def create_schedule(user_id: int, medication_id: Optional[int], request: Medicat
         raise HTTPException(status_code=400, detail="drug_name_required")
 
     schedule = MedicationSchedule(
+        user_id=user_id,
         prescribed_medicine_id=medication_id,
         drug_name=drug_name,
         intake_time=request.intake_time,
@@ -261,7 +261,8 @@ def update_schedule(user_id: int, schedule_id: int, request: MedicationScheduleR
     if request.days:
         _validate_days(request.days)
     schedule = db.query(MedicationSchedule).filter(
-        MedicationSchedule.schedule_id == schedule_id
+        MedicationSchedule.schedule_id == schedule_id,
+        MedicationSchedule.user_id == user_id,
     ).first()
     if not schedule:
         raise HTTPException(status_code=404, detail="schedule_not_found")
@@ -288,12 +289,9 @@ def update_alarm(user_id: int, alarm_id: int, request: MedicationAlarmUpdateRequ
         if len(request.alarm_days) == 0:
             raise HTTPException(status_code=400, detail="empty_alarm_days")
         _validate_days(request.alarm_days)
-    schedule = db.query(MedicationSchedule).join(
-        Prescription, MedicationSchedule.prescribed_medicine_id == Prescription.id
-    ).join(MedicalRecord).filter(
+    schedule = db.query(MedicationSchedule).filter(
         MedicationSchedule.schedule_id == alarm_id,
-        MedicalRecord.user_id == user_id,
-        MedicalRecord.is_deleted == 0
+        MedicationSchedule.user_id == user_id,
     ).first()
     if not schedule:
         raise HTTPException(status_code=404, detail="alarm_not_found")
@@ -341,7 +339,7 @@ def get_dashboard(user_id: int, period: str, reference_date: Optional[date], db:
         MedicationSchedule.is_active == True
     ).filter(
         (MedicalRecord.user_id == user_id) |
-        (MedicationSchedule.prescribed_medicine_id == None)
+        (MedicationSchedule.user_id == user_id)
     ).all()
     logs = db.query(MedicationLog).filter(
         MedicationLog.user_id == user_id,
@@ -401,6 +399,7 @@ def get_dashboard(user_id: int, period: str, reference_date: Optional[date], db:
         daily=daily,
         medications=medications,
     )
+
 
 def get_medication_history(user_id: int, start_date: date, end_date: date, drug_name: Optional[str], page: int, size: int, db: Session):
     query = (
