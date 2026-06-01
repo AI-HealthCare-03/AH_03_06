@@ -1,8 +1,7 @@
 # app/services/dur_service.py
 # 복약 안전점검(DUR) — 진료기록 처방 묶음에 대한 안전성 검증.
 #
-# ml/notebooks/medication/03_dur_safety_check.ipynb 의 safety_check_all 5겹 로직을
-# 백엔드로 포팅. 노트북은 pandas pickle 기반이었으나 여기서는 적재된 DB 테이블을 쓴다.
+# 처방 약 묶음의 5겹 안전성 검증(safety_check_all). 마스터는 적재된 DB 테이블에서 빌드.
 #
 # Phase 1 (현재): 동일성분 중복 · 효능군 중복(ATC) · 병용금기(품목 페어) · 회수약.
 # Phase 2 (예정): 노인주의(나이+성분코드) · 1일 최대투여량 초과.
@@ -51,7 +50,7 @@ _ATC_CLASS_PREFIX_LEN = 5
 _MATCH_CONFIDENCE_MIN = 90
 
 # 노인주의 (HIRA §7-1 다빈도 노인주의 약물 — 벤조디아제핀계·삼환계 항우울제 등).
-# 노트북은 영문성분명 매칭이었으나 DB에 영문명이 없어, 한글 주성분명 LIKE 로
+# 영문성분명이 DB에 없어 한글 주성분명 LIKE 로
 # drug_ingredient_map 에서 성분코드를 해석한다(동일성분 검사와 같은 코드체계라 일관).
 _ELDERLY_AGE_THRESHOLD = 65
 _ELDERLY_NAME_KEYWORDS = (
@@ -65,7 +64,7 @@ DISCLAIMER = (
 )
 
 
-# ── 마스터 (프로세스 1회 빌드 후 캐시) ──────────────────────────────
+# 마스터 (프로세스 1회 빌드 후 캐시)
 
 
 @dataclass(frozen=True)
@@ -118,7 +117,7 @@ def _build_masters(db: Session) -> _Masters:
         if is_recalled:
             recalled.add(drug_id)
 
-    # 성분코드 → 1일 최대투여량 (성분별 여러 제형 중 최댓값, 노트북 정책 동일)
+    # 성분코드 → 1일 최대투여량
     ingredient_to_max_dose: dict[str, dict] = {}
     for code, name_ko, unit, max_dose in db.query(
         DrugDoseLimit.ingredient_code,
@@ -167,7 +166,7 @@ def reset_masters_cache() -> None:
         _MASTERS = None
 
 
-# ── 처방 → 검증 입력 변환 ───────────────────────────────────────────
+# 처방 → 검증 입력 변환
 
 
 @dataclass
@@ -228,7 +227,7 @@ def _resolve_prescriptions(
     return resolved, skipped
 
 
-# ── 검증 (Phase 1) ──────────────────────────────────────────────────
+# 검증 (Phase 1)
 
 
 def _check_concurrent_ingredient(drugs: list[_ResolvedDrug]) -> list[dict]:
@@ -394,13 +393,13 @@ def _check_dose_limit(drugs: list[_ResolvedDrug], masters: _Masters) -> tuple[li
     return alerts, unit_skips
 
 
-# ── 통합 ────────────────────────────────────────────────────────────
+# 통합
 
 
 def safety_check_prescriptions(
     prescriptions: list[Prescription], patient: dict | None, db: Session
 ) -> dict:
-    """노트북 safety_check_all 호환 카테고리 dict 반환.
+    """safety_check_all 호환 카테고리 dict 반환.
 
     patient: {'age': int} 또는 None (Phase 2 노인주의용; Phase 1 미사용).
     """

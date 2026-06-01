@@ -4,6 +4,9 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchScheduleHistory } from '../../api/medication';
+import MedicationHistoryExportButton from '../../components/MedicationHistoryExportButton.jsx';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faClockRotateLeft } from '@fortawesome/free-solid-svg-icons';
 
 // ── 상수 ─────────────────────────────────────────────────────
 const QUICK_RANGES = [
@@ -196,12 +199,12 @@ export default function MedicationHistoryPage() {
 
   // ── 조회 ──
   const handleSearch = useCallback(async () => {
-    if (!startDate || !endDate) { alert('기간을 선택해 주세요.'); return; }
-    if (startDate > endDate)    { alert('시작일이 종료일보다 늦을 수 없어요.'); return; }
+    setError('');
+    if (!startDate || !endDate) { setError('기간을 선택해 주세요.'); return; }
+    if (startDate > endDate)    { setError('시작일이 종료일보다 늦을 수 없어요.'); return; }
 
     try {
       setLoading(true);
-      setError('');
       const res = await fetchScheduleHistory(startDate, endDate);
       const data = res.data ?? res;
       setRecords(data.records ?? []);
@@ -232,9 +235,14 @@ export default function MedicationHistoryPage() {
 
         {/* ── 기간 선택 카드 ── */}
         <div className="bg-white rounded-2xl px-4 py-4 shadow-sm">
-          <h2 className="text-[13px] font-semibold text-[#71717A] uppercase tracking-wide mb-3">
-            조회 기간
-          </h2>
+          {/* 헤더 — 다운로드 카드와 동일 톤(아이콘+제목+부제) */}
+          <div className="flex items-start gap-2 mb-3">
+            <FontAwesomeIcon icon={faClockRotateLeft} className="text-[#71717A] text-[14px] mt-0.5" />
+            <div>
+              <h2 className="text-[15px] font-semibold text-[#09090B] leading-tight">조회 기간</h2>
+              <p className="text-[11px] text-[#A1A1AA] mt-1 leading-tight">기간을 선택해 복약 기록을 확인하세요</p>
+            </div>
+          </div>
 
           {/* 빠른 선택 */}
           <div className="flex gap-2 flex-wrap mb-4">
@@ -264,7 +272,7 @@ export default function MedicationHistoryPage() {
               value={startDate}
               max={endDate}
               onChange={e => { setStartDate(e.target.value); setRecords(null); }}
-              className="flex-1 border border-[#E4E4E7] rounded-xl px-3 py-2.5 text-sm text-[#09090B] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+              className="flex-1 min-w-0 border border-[#E4E4E7] rounded-xl px-3 py-2.5 text-sm text-[#09090B] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
             />
             <span className="text-[#A1A1AA] text-sm flex-shrink-0">~</span>
             <input
@@ -273,7 +281,7 @@ export default function MedicationHistoryPage() {
               min={startDate}
               max={today()}
               onChange={e => { setEndDate(e.target.value); setRecords(null); }}
-              className="flex-1 border border-[#E4E4E7] rounded-xl px-3 py-2.5 text-sm text-[#09090B] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+              className="flex-1 min-w-0 border border-[#E4E4E7] rounded-xl px-3 py-2.5 text-sm text-[#09090B] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
             />
           </div>
 
@@ -291,6 +299,9 @@ export default function MedicationHistoryPage() {
         {error && (
           <p className="text-center text-sm text-[#DC2626] py-2">{error}</p>
         )}
+
+        {/* 복약 이력 CSV 내보내기 */}
+        <MedicationHistoryExportButton />
 
         {/* ── 결과 ── */}
         {records !== null && !loading && (
