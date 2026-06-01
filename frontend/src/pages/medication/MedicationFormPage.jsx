@@ -157,19 +157,15 @@ export default function MedicationFormPage() {
 
       if (mode === 'create') {
         // 1️⃣ 약 등록
-        const res = await addMedication({
-          name:          form.name.trim(),
-          dosage_amount: form.dosageAmount,
-          dosage_unit:   form.dosageUnit,
-          purpose:       form.purpose || null,
-          start_date:    form.startDate,
-          end_date:      form.ongoing ? null : form.endDate || null,
+        await createSchedule(null, {
+          name:         form.name.trim(),
+          mealTimes:    form.mealTimes,
+          timing:       form.timing,
+          cycleType:    form.cycleType,
+          weekDays:     form.cycleType === 'weekdays' ? form.weekDays : [],
+          alarmEnabled: form.alarmEnabled,
+          alarmTime:    form.alarmEnabled ? form.alarmTime : null,
         });
-        const newId = res.data?.id ?? res.id;
-        console.log('[등록] prescriptionId:', newId, 'schedulePayload:', schedulePayload);
-
-        // 2️⃣ 일정 등록
-        await createSchedule(newId, schedulePayload);
 
       } else {
         // 1️⃣ 일정 수정
