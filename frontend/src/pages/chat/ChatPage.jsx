@@ -161,7 +161,7 @@ function ChatPage() {
     }])
 
     try {
-      const data = await sendChatMessage(sessionId, message)
+      const data = await sendChatMessage(sessionId, message, selectedCategory?.label ?? null)
       setMessages(data.history ?? [])
     } catch {
       setMessages((prev) => [...prev, {

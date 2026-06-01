@@ -17,11 +17,11 @@ export async function createChatSession(contextType, contextId = null) {
   return res.json()
 }
 
-export async function sendChatMessage(sessionId, message) {
+export async function sendChatMessage(sessionId, message, category = null) {
   const res = await fetch(`${base()}/chat/sessions/${sessionId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, category }),
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
