@@ -22,7 +22,8 @@ import re
 import threading
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import date, timedelta
+from types import SimpleNamespace
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -32,6 +33,7 @@ from app.models.drug_info import DrugInfo
 from app.models.drug_ingredient_map import DrugIngredientMap
 from app.models.dur_concurrent_product import DurConcurrentProduct
 from app.models.medical_record import MedicalRecord
+from app.models.medication_schedule import MedicationSchedule
 from app.models.prescription import Prescription
 from app.schemas.safety import SafetyAlert, SafetyCheckResponse
 from app.services.drug_matching_service import get_index, match_drug
@@ -453,8 +455,9 @@ def safety_check_prescriptions(
 
 
 # 교차 진료기록 점검 (기간 겹침 기반)
-# within-record 점검 위에, 같은 환자의 다른 진료기록 처방 중 복용 기간이 겹치는 것을
-# 함께 비교해 병원 간 동일성분 중복·병용금기·용량초과를 검출한다. 기존 within 알림은 보존.
+# within-record 점검 위에, 같은 환자의 다른 진료기록 처방 + 직접 등록(custom) 활성 복약
+# 스케줄 중 복용 기간이 겹치는 것을 함께 비교해 동일성분 중복·병용금기·용량초과를 검출한다.
+# 기존 within 알림은 보존.
 
 # 종료일·복용일수 미상 처방의 복용 창 가정치(일). 길면 동시복용 아닌 약까지 겹쳐 과경고,
 # 짧으면 실제 중복을 놓칠 수 있음. 만성질환은 30·60·90일이 흔해 추후 조정 여지.
@@ -506,12 +509,38 @@ def gather_overlapping_prescriptions(db: Session, record, within_windows) -> lis
     return out
 
 
+def gather_overlapping_schedules(db: Session, record, within_windows) -> list:
+    """같은 환자의 직접 등록(custom) 활성 복약 스케줄 중, within 창과 겹치는 것 (읽기 전용).
+
+    처방 연결 스케줄(prescribed_medicine_id 있음)은 처방 교차점검이 이미 다루므로 제외(중복 방지).
+    스케줄은 start/end 가 없어 '활성 = created_at ~ 오늘' 진행 중으로 보고 겹침 판정.
+    """
+    today = date.today()
+    rows = (
+        db.query(MedicationSchedule)
+        .filter(
+            MedicationSchedule.user_id == record.user_id,
+            MedicationSchedule.is_active.is_(True),
+            MedicationSchedule.prescribed_medicine_id.is_(None),
+        )
+        .all()
+    )
+    out = []
+    for s in rows:
+        start = s.created_at.date() if s.created_at else None
+        if start is None:
+            continue
+        if any(windows_overlap(start, today, cs, ce) for (cs, ce) in within_windows):
+            out.append(s)
+    return out
+
+
 def _source_label(rec) -> str:
-    """교차 처방의 출처 맥락 — '○○병원(5/27 진료)'."""
+    """교차 처방의 출처 맥락 — '○○병원(5/27 진료) 처방'."""
     hospital = rec.hospital_name or "다른 진료기록"
     if rec.visit_date:
-        return f"{hospital}({rec.visit_date.month}/{rec.visit_date.day} 진료)"
-    return hospital
+        return f"{hospital}({rec.visit_date.month}/{rec.visit_date.day} 진료) 처방"
+    return f"{hospital} 처방"
 
 
 def _cross_concurrent_ingredient(within_drugs, cross_resolved) -> list[dict]:
@@ -519,10 +548,10 @@ def _cross_concurrent_ingredient(within_drugs, cross_resolved) -> list[dict]:
     alerts = []
     seen: set = set()
     for w in within_drugs:
-        for d, label, rec in cross_resolved:
+        for d, label, src in cross_resolved:
             if not (w.facts.main_ingredients & d.facts.main_ingredients):
                 continue
-            key = (w.facts.drug_id, d.facts.drug_id, rec.id)
+            key = (w.facts.drug_id, d.facts.drug_id, src)
             if key in seen:
                 continue
             seen.add(key)
@@ -530,7 +559,7 @@ def _cross_concurrent_ingredient(within_drugs, cross_resolved) -> list[dict]:
                 "level": LEVEL_BLOCK,
                 "type": "concurrent_ingredient",
                 "drugs": [w.name, d.name],
-                "message": f"동일 성분 중복: {w.name}와 {label} 처방 {d.name}의 주성분이 겹칩니다. 중복 복용에 주의하세요.",
+                "message": f"동일 성분 중복: {w.name}와 {label} {d.name}의 주성분이 겹칩니다. 중복 복용에 주의하세요.",
                 "detail": None,
             })
     return alerts
@@ -540,7 +569,7 @@ def _cross_contraindication(within_drugs, cross_resolved, db: Session) -> list[d
     """교차 병용금기 — within 품목과 다른 기록 품목 사이에 dur_concurrent_product 페어가 있으면 BLOCK."""
     within_seqs = {w.facts.item_seq: w.name for w in within_drugs if w.facts.item_seq is not None}
     cross_seqs: dict = {}
-    for d, label, rec in cross_resolved:
+    for d, label, src in cross_resolved:
         if d.facts.item_seq is not None:
             cross_seqs[d.facts.item_seq] = (d.name, label)
     if not within_seqs or not cross_seqs:
@@ -578,7 +607,7 @@ def _cross_contraindication(within_drugs, cross_resolved, db: Session) -> list[d
             "level": LEVEL_BLOCK,
             "type": "contraindication",
             "drugs": [wn, cn],
-            "message": f"병용금기: {wn}와 {label} 처방 {cn}는 함께 복용하면 안 됩니다." + (f" ({reason})" if reason else ""),
+            "message": f"병용금기: {wn}와 {label} {cn}는 함께 복용하면 안 됩니다." + (f" ({reason})" if reason else ""),
             "detail": (r.grade or None),
         })
     return alerts
@@ -598,7 +627,7 @@ def _cross_dose_exceeded(within_drugs, cross_resolved, masters: _Masters) -> lis
     combined_totals = _sum_daily_by_ingredient([*within_drugs, *cross_drugs])
 
     code_to_labels: dict[str, set] = defaultdict(set)
-    for d, label, rec in cross_resolved:
+    for d, label, src in cross_resolved:
         for code in d.facts.main_ingredients:
             code_to_labels[code].add(label)
 
@@ -645,26 +674,35 @@ def _recompute_summary(result: dict) -> dict:
 
 
 def safety_check_record(db: Session, record, within_prescriptions: list[Prescription], patient: dict | None) -> dict:
-    """진료기록 단위 안전점검 — within-record 점검 + 기간 겹치는 다른 기록 처방과의 교차 점검.
+    """진료기록 단위 안전점검 — within-record 점검 + 기간 겹치는 다른 처방·직접 등록 복약과의 교차 점검.
 
     within 알림은 기존 safety_check_prescriptions 결과 그대로 보존하고,
-    교차 동일성분 중복·병용금기·용량초과만 추가로 얹는다. within_prescriptions 는 호출부가 모은 것을 재사용.
+    교차 동일성분 중복·병용금기·용량초과만 추가로 얹는다 (다른 진료기록 처방 + 직접 등록 활성 스케줄).
+    within_prescriptions 는 호출부가 모은 것을 재사용.
     """
     result = safety_check_prescriptions(within_prescriptions, patient=patient, db=db)
 
     within_windows = [active_window(p, record) for p in within_prescriptions]
     cross = gather_overlapping_prescriptions(db, record, within_windows)
-    if not cross:
+    sched = gather_overlapping_schedules(db, record, within_windows)
+    if not cross and not sched:
         return result
 
     masters = _get_masters(db)
     within_drugs, _ = _resolve_prescriptions(within_prescriptions, masters, db)
     cross_resolved = []
+    # 다른 진료기록의 처방
     for p, rec in cross:
         rd, _ = _resolve_prescriptions([p], masters, db)
         label = _source_label(rec)
         for d in rd:
-            cross_resolved.append((d, label, rec))
+            cross_resolved.append((d, label, f"rec-{rec.id}"))
+    # 직접 등록(custom) 활성 복약 스케줄 — drug_id 없이 약명 매칭, 용량 데이터 없어 dose 는 자동 skip
+    for s in sched:
+        wrapper = SimpleNamespace(drug_id=None, drug_name=s.drug_name, dosage=None, frequency=None)
+        rd, _ = _resolve_prescriptions([wrapper], masters, db)
+        for d in rd:
+            cross_resolved.append((d, "직접 등록 복약", f"sched-{s.schedule_id}"))
 
     cross_dup = _cross_concurrent_ingredient(within_drugs, cross_resolved)
     cross_contra = _cross_contraindication(within_drugs, cross_resolved, db)

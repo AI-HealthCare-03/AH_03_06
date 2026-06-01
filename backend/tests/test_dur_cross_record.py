@@ -103,7 +103,7 @@ def test_sum_daily_mixed_unit_marks_mixed():
 # _cross_concurrent_ingredient
 def test_cross_dup_same_ingredient_blocks_with_context():
     within = [_drug("타이레놀(내과)", 36802, ["M040353"])]
-    cross = [(_drug("타이레놀(정형)", 36802, ["M040353"]), "바른뼈정형외과(5/29 진료)", _Rec(id=26))]
+    cross = [(_drug("타이레놀(정형)", 36802, ["M040353"]), "바른뼈정형외과(5/29 진료)", "rec-26")]
     alerts = _cross_concurrent_ingredient(within, cross)
     assert len(alerts) == 1
     assert alerts[0]["level"] == LEVEL_BLOCK
@@ -112,14 +112,24 @@ def test_cross_dup_same_ingredient_blocks_with_context():
 
 def test_cross_dup_different_ingredient_no_alert():
     within = [_drug("A", 1, ["X"])]
-    cross = [(_drug("B", 2, ["Y"]), "라벨", _Rec(id=2))]
+    cross = [(_drug("B", 2, ["Y"]), "라벨", "rec-2")]
     assert _cross_concurrent_ingredient(within, cross) == []
 
 
 def test_cross_dup_dedup_by_drug_and_record():
     within = [_drug("A", 1, ["X"]), _drug("A2", 1, ["X"])]   # 같은 drug_id 두 처방
-    cross = [(_drug("C", 9, ["X"]), "라벨", _Rec(id=2))]
+    cross = [(_drug("C", 9, ["X"]), "라벨", "rec-2")]
     assert len(_cross_concurrent_ingredient(within, cross)) == 1
+
+
+def test_cross_dup_with_schedule_source_blocks_with_label():
+    # 직접 등록(custom) 스케줄도 출처 라벨만 다를 뿐 동일하게 중복 검출
+    within = [_drug("타이레놀(처방)", 36802, ["M040353"])]
+    cross = [(_drug("타이레놀(직접등록)", 36802, ["M040353"]), "직접 등록 복약", "sched-2")]
+    alerts = _cross_concurrent_ingredient(within, cross)
+    assert len(alerts) == 1
+    assert alerts[0]["level"] == LEVEL_BLOCK
+    assert "직접 등록 복약" in alerts[0]["message"]
 
 
 # _cross_dose_exceeded
@@ -129,7 +139,7 @@ _LIMIT = {"M040353": {"정": {"max_dose": 50.0, "unit": "정", "name": "아세�
 def test_cross_dose_fires_when_combined_over_limit():
     masters = _masters_with_unit_limits(_LIMIT)
     within = [_drug("내과", 36802, ["M040353"], 30, "정")]
-    cross = [(_drug("정형", 36802, ["M040353"], 30, "정"), "바른뼈정형외과(5/29 진료)", _Rec(id=26))]
+    cross = [(_drug("정형", 36802, ["M040353"], 30, "정"), "바른뼈정형외과(5/29 진료)", "rec-26")]
     alerts = _cross_dose_exceeded(within, cross, masters)
     assert len(alerts) == 1
     assert alerts[0]["level"] == LEVEL_WARN
@@ -140,21 +150,21 @@ def test_cross_dose_fires_when_combined_over_limit():
 def test_cross_dose_silent_when_under_limit():
     masters = _masters_with_unit_limits(_LIMIT)
     within = [_drug("내과", 36802, ["M040353"], 20, "정")]
-    cross = [(_drug("정형", 36802, ["M040353"], 20, "정"), "라벨", _Rec(id=26))]
+    cross = [(_drug("정형", 36802, ["M040353"], 20, "정"), "라벨", "rec-26")]
     assert _cross_dose_exceeded(within, cross, masters) == []
 
 
 def test_cross_dose_excluded_when_within_alone_already_over():
     masters = _masters_with_unit_limits(_LIMIT)
     within = [_drug("내과", 36802, ["M040353"], 60, "정")]   # within 단독 60 > 50
-    cross = [(_drug("정형", 36802, ["M040353"], 30, "정"), "라벨", _Rec(id=26))]
+    cross = [(_drug("정형", 36802, ["M040353"], 30, "정"), "라벨", "rec-26")]
     assert _cross_dose_exceeded(within, cross, masters) == []
 
 
 # _source_label
 def test_source_label_with_hospital_and_date():
-    assert _source_label(_Rec(visit_date=date(2026, 5, 27), hospital_name="튼튼내과의원")) == "튼튼내과의원(5/27 진료)"
+    assert _source_label(_Rec(visit_date=date(2026, 5, 27), hospital_name="튼튼내과의원")) == "튼튼내과의원(5/27 진료) 처방"
 
 
 def test_source_label_fallback_when_missing():
-    assert _source_label(_Rec(visit_date=None, hospital_name=None)) == "다른 진료기록"
+    assert _source_label(_Rec(visit_date=None, hospital_name=None)) == "다른 진료기록 처방"
