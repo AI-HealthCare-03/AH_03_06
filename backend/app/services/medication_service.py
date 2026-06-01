@@ -401,3 +401,35 @@ def get_dashboard(user_id: int, period: str, reference_date: Optional[date], db:
         daily=daily,
         medications=medications,
     )
+
+def get_medication_history(user_id: int, start_date: date, end_date: date, drug_name: Optional[str], page: int, size: int, db: Session):
+    query = (
+        db.query(MedicationLog)
+        .outerjoin(MedicationSchedule, MedicationLog.schedule_id == MedicationSchedule.schedule_id)
+        .filter(
+            MedicationLog.user_id == user_id,
+            MedicationLog.intake_date >= start_date,
+            MedicationLog.intake_date <= end_date,
+        )
+    )
+    if drug_name:
+        query = query.filter(MedicationSchedule.drug_name.like(f"%{drug_name}%"))
+
+    total = query.count()
+    logs = query.order_by(MedicationLog.intake_date.desc()).offset((page - 1) * size).limit(size).all()
+
+    from app.schemas.medication import MedicationHistoryResponse, MedicationHistoryItem
+    items = [
+        MedicationHistoryItem(
+            id=log.log_id,
+            prescription_id=log.schedule.prescribed_medicine_id if log.schedule else None,
+            drug_name=log.schedule.drug_name if log.schedule else '',
+            dosage=log.schedule.prescription.dosage if log.schedule and log.schedule.prescription else None,
+            frequency=log.schedule.prescription.frequency if log.schedule and log.schedule.prescription else None,
+            start_date=log.schedule.prescription.start_date if log.schedule and log.schedule.prescription else None,
+            end_date=log.schedule.prescription.end_date if log.schedule and log.schedule.prescription else None,
+            created_at=log.created_at,
+        )
+        for log in logs
+    ]
+    return MedicationHistoryResponse(total=total, page=page, size=size, items=items)
