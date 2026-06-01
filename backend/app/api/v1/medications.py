@@ -73,18 +73,18 @@ def get_medications_by_date(
     return medication_service.get_medications_by_date(current_user.id, date, db)
 
 
-# POST /api/v1/medications/{medicationId}/schedules - 복약 일정 등록
-@router.post("/{medication_id}/schedules", response_model=MedicationScheduleResponse, status_code=201)
+# POST /api/v1/medications/schedules - 복약 일정 등록 (처방전 있어도 없어도 됨)
+@router.post("/schedules", response_model=MedicationScheduleResponse, status_code=201)
 def create_schedule(
-    medication_id: int,
     request: MedicationScheduleRequest,
+    medication_id: Optional[int] = Query(default=None),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
     return medication_service.create_schedule(current_user.id, medication_id, request, db)
 
 
-# GET /api/v1/medications/{medicationId}/schedules - 복약 일정 조회
+# GET /api/v1/medications/{medication_id}/schedules - 복약 일정 조회
 @router.get("/{medication_id}/schedules", response_model=MedicationScheduleListResponse)
 def get_schedules(
     medication_id: int,
@@ -95,15 +95,15 @@ def get_schedules(
     return medication_service.get_schedules(current_user.id, medication_id, active, db)
 
 
-# PUT /api/v1/medications/{medicationId}/schedules - 복약 일정 수정
-@router.put("/{medication_id}/schedules", response_model=MedicationScheduleResponse, status_code=201)
+# PUT /api/v1/medications/schedules/{schedule_id} - 복약 일정 수정
+@router.put("/schedules/{schedule_id}", response_model=MedicationScheduleResponse, status_code=201)
 def update_schedule(
-    medication_id: int,
+    schedule_id: int,
     request: MedicationScheduleRequest,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    return medication_service.update_schedule(current_user.id, medication_id, request, db)
+    return medication_service.update_schedule(current_user.id, schedule_id, request, db)
 
 
 # PATCH /api/v1/medications/alarms/{alarm_id} - 복약 알림 수정

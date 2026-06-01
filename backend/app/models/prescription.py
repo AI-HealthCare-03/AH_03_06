@@ -1,5 +1,3 @@
-# app/models/prescription.py
-
 from sqlalchemy import Column, BigInteger, String, Integer, Boolean, Date, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -25,6 +23,6 @@ class Prescription(Base):
     updated_at        = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
     # 관계 정의
-    medical_record      = relationship("MedicalRecord", back_populates="prescriptions")
-    drug_info           = relationship("DrugInfo", back_populates="prescriptions")
+    medical_record       = relationship("MedicalRecord", back_populates="prescriptions")
+    drug_info            = relationship("DrugInfo", back_populates="prescriptions")
     medication_schedules = relationship("MedicationSchedule", back_populates="prescription", cascade="all, delete-orphan")
