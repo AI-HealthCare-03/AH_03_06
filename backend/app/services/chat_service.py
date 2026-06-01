@@ -9,6 +9,8 @@ from app.models.prescription import Prescription
 from app.models.diet import DietGuide, NutrientStandard
 from app.models.medical_record import MedicalRecord
 from app.prompts.diet_prompts import get_diet_prompt
+from app.prompts.health_prompts import get_health_prompt
+from app.prompts.prescription_prompts import get_prescription_prompt
 
 llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.3)
 
@@ -21,21 +23,6 @@ MEAL_PLAN_KO = {
     'Low-Calorie Low-Sodium Diet': '저칼로리·저염 식단',
     'Low-Carb Low-Calorie Diet':   '저탄수화물·저칼로리 식단',
     'Therapeutic Diet':            '치료 식단',
-}
-
-SYSTEM_PROMPTS = {
-    'HEALTH_CHECKUP': """당신은 개인 맞춤형 건강검진 상담 AI입니다.
-반드시 아래 [사용자의 건강검진 데이터]만을 근거로 답변하세요.
-답변할 때 반드시 사용자의 실제 수치를 언급하세요.
-예를 들어 "고객님의 수축기혈압은 OOOmmHg로..." 처럼 구체적으로 답변하세요.
-모든 답변은 한국어로 작성하세요.
-의학적 진단이나 처방은 하지 않으며 반드시 의사 상담을 권고하세요.""",
-
-    'PRESCRIPTION': """당신은 개인 맞춤형 처방약 상담 AI입니다.
-반드시 아래 [사용자의 처방약 데이터]만을 근거로 답변하세요.
-답변할 때 반드시 사용자가 복용 중인 약 이름을 언급하세요.
-모든 답변은 한국어로 작성하세요.
-의학적 진단이나 처방 변경은 하지 않으며 반드시 의사·약사 상담을 권고하세요.""",
 }
 
 
@@ -132,8 +119,12 @@ def send_message(session_id: int, user_id: int, message: str, category: Optional
 
     if session.context_type == 'DIET_GUIDE':
         system_prompt = get_diet_prompt(category or '', context_data)
+    elif session.context_type == 'HEALTH_CHECKUP':
+        system_prompt = get_health_prompt(category or '', context_data)
+    elif session.context_type == 'PRESCRIPTION':
+        system_prompt = get_prescription_prompt(category or '', context_data)
     else:
-        system_prompt = SYSTEM_PROMPTS[session.context_type] + '\n\n' + context_data
+        system_prompt = context_data
 
     history = db.query(ChatMessage).filter(
         ChatMessage.session_id == session_id

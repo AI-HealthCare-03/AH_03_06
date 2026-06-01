@@ -5,7 +5,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-# ──────────────── 생성 요청 ────────────────
+# 생성 요청
 
 class CaffeineEntry(BaseModel):
     caffeine_drink_type_id: int
@@ -48,7 +48,7 @@ class SleepGenerateResponse(BaseModel):
     guide_id: int        # 생성된 가이드 ID (바로 GET 조회 가능)
 
 
-# ──────────────── 단건 조회 응답 ────────────────
+# 단건 조회 응답
 
 class SleepGuideSchema(BaseModel):
     guide_id: int
@@ -83,7 +83,7 @@ class SleepGuideSchema(BaseModel):
     references: list[str] = []                # RAG 참고 임상지침 title (정션)
 
 
-# ──────────────── 목록 조회 응답 ────────────────
+# 목록 조회 응답
 
 class SleepGuideListItem(BaseModel):
     guide_id: int
@@ -99,7 +99,7 @@ class SleepGuideListResponse(BaseModel):
     total: int
 
 
-# ──────────────── 삭제 응답 ────────────────
+# 삭제 응답
 
 class DeleteSleepGuideResponse(BaseModel):
     detail: str          # "sleep_guide_deleted"

@@ -86,7 +86,7 @@ def expected_improvement(variable: str, delta: float = 1.0) -> float:
     return BETA[variable] * delta
 
 
-# ──────────────────────────── 음주 단위 환산 (한국 친숙 단위) ────────────────────────────
+# 음주 단위 환산 (한국 친숙 단위)
 # 회귀 β 는 oz/일 기준이라, 한국 사용자 입력(잔/캔/병/ml)을 oz 로 환산해서 적용.
 
 ML_PER_OZ: float = 29.5735        # 1 fl oz = 29.5735 ml (US 표준)

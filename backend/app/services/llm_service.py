@@ -1,5 +1,5 @@
 # app/services/llm_service.py
-# 복약 가이드 LLM 생성 경로 (04 노트북 RAG·LLM 이식)
+# 복약 가이드 LLM 생성 경로
 # - RAG context → format_rag_context → OpenAI Chat Completions → 마크다운 응답
 # - 빈 검색 게이트: is_retrieval_empty → FALLBACK_TEXT (LLM 미호출, 비용·환각 차단)
 # - 회수약: DB drug_info.is_recalled lookup → safety_block 자동 채움
@@ -48,7 +48,7 @@ FALLBACK_TEXT = (
 DISCLAIMER = "본 가이드는 일반적인 건강 정보 제공이며, 의학적 진단·처방·치료를 대체하지 않습니다."
 
 
-# 노트북 cell 24 SYSTEM_PROMPT(생성용) 이식 + 시연 폴리싱.
+# 생성용 SYSTEM_PROMPT.
 # 안전성 알림·면책은 별도 응답 필드로 표시되므로 본문 미포함 (스캐폴딩 누출·중복 차단).
 GUIDE_SYSTEM_PROMPT = """당신은 식품의약품안전처 의약품개요정보(e약은요), 의약품 제품허가 상세정보(식약처 nedrug), 학회 임상진료지침을 참고하여 사용자에게 복약 안내 가이드를 제공하는 한국어 AI 어시스턴트이다.
 
@@ -387,13 +387,11 @@ def generate_guide_for_drug(
     }
 
 
-# ============================================================
 # stream 변종 — /preview-stream 핸들러의 인프라.
 # generate_markdown_stream: chat.completions stream=True. 토큰 청크 yield.
 # generate_guide_for_drug_stream: meta → token (반복) → done 의 dict 이벤트 시퀀스 yield.
 #                                 게이트 발동 시 단발 (FALLBACK_TEXT 한 번에 yield, LLM 미호출).
 # sync/async 변종 모두 보존. is_retrieval_empty 와 _lookup_recall_warning 호출 위치·결과 동일.
-# ============================================================
 async def generate_markdown_stream(ctx: dict[str, Any]):
     """generate_markdown_async 의 stream 변종 — 토큰 청크를 비동기 yield."""
     client = _get_async_openai_client()
@@ -481,11 +479,9 @@ async def generate_guide_for_drug_stream(
     )
 
 
-# ============================================================
 # async 변종 — /preview 핸들러 async 전환 슬라이스의 인프라
 # sync 함수는 모두 보존. is_retrieval_empty 게이트와 _lookup_recall_warning 은
 # sync 그대로 호출(판단 로직 보존). 호출 방식만 await 로 바뀜.
-# ============================================================
 _async_openai_client: AsyncOpenAI | None = None
 
 
