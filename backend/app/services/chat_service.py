@@ -118,7 +118,7 @@ def send_message(session_id: int, user_id: int, message: str, category: Optional
     context_data = _get_context_data(session.context_type, session.context_id, user_id, db)
 
     if session.context_type == 'DIET_GUIDE':
-        system_prompt = get_diet_prompt(category or '', context_data)
+        system_prompt = get_diet_prompt(category or '', message, context_data)
     elif session.context_type == 'HEALTH_CHECKUP':
         system_prompt = get_health_prompt(category or '', context_data)
     elif session.context_type == 'PRESCRIPTION':
