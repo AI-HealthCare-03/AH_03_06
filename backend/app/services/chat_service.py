@@ -78,10 +78,11 @@ LDL: {checkup.ldl}
     elif context_type == 'DIET_GUIDE':
         query = db.query(DietGuide).filter(DietGuide.user_id == user_id)
         if context_id:
-            query = query.filter(DietGuide.id == context_id)
+            guide = query.filter(DietGuide.id == context_id).first()
+            if not guide:
+                guide = query.order_by(DietGuide.guide_date.desc()).first()
         else:
-            query = query.order_by(DietGuide.created_at.desc())
-        guide = query.first()
+            guide = query.order_by(DietGuide.guide_date.desc()).first()
         if not guide:
             raise HTTPException(status_code=404, detail='diet_guide_not_found')
         nutrient = db.query(NutrientStandard).filter(
@@ -101,6 +102,43 @@ LDL: {checkup.ldl}
 제한 식품: {guide.restricted_foods}"""
 
     return ''
+
+
+def _build_and_invoke(session_id: int, session: ChatSession, user_id: int,
+                       message: str, category: Optional[str], db: Session) -> str:
+    context_data = _get_context_data(session.context_type, session.context_id, user_id, db)
+
+    if session.context_type == 'DIET_GUIDE':
+        system_prompt = get_diet_prompt(category or '', message, context_data)
+    elif session.context_type == 'HEALTH_CHECKUP':
+        system_prompt = get_health_prompt(category or '', context_data)
+    elif session.context_type == 'PRESCRIPTION':
+        system_prompt = get_prescription_prompt(category or '', context_data)
+    else:
+        system_prompt = context_data
+
+    history = db.query(ChatMessage).filter(
+        ChatMessage.session_id == session_id
+    ).order_by(ChatMessage.created_at.asc()).all()
+
+    recent_history = history[-20:] if len(history) > 20 else history
+
+    messages = [{"role": "system", "content": system_prompt}]
+    for h in recent_history:
+        messages.append({"role": h.role, "content": h.content})
+    messages.append({"role": "user", "content": message})
+
+    if _needs_web_search(message):
+        tools = [{"type": "web_search_preview"}]
+        response = client.responses.create(
+            model='gpt-4o-mini',
+            tools=tools,
+            input=messages,
+        )
+        return response.output_text
+    else:
+        response = llm.invoke(messages)
+        return response.content
 
 
 def create_session(user_id: int, context_type: str, context_id: Optional[int], db: Session) -> ChatSession:
@@ -123,44 +161,122 @@ def send_message(session_id: int, user_id: int, message: str, category: Optional
     if not session:
         raise HTTPException(status_code=404, detail='chat_session_not_found')
 
-    context_data = _get_context_data(session.context_type, session.context_id, user_id, db)
+    answer = _build_and_invoke(session_id, session, user_id, message, category, db)
 
-    if session.context_type == 'DIET_GUIDE':
-        system_prompt = get_diet_prompt(category or '', message, context_data)
-    elif session.context_type == 'HEALTH_CHECKUP':
-        system_prompt = get_health_prompt(category or '', context_data)
-    elif session.context_type == 'PRESCRIPTION':
-        system_prompt = get_prescription_prompt(category or '', context_data)
-    else:
-        system_prompt = context_data
+    db.add(ChatMessage(session_id=session_id, role='user', content=message))
+    db.add(ChatMessage(session_id=session_id, role='assistant', content=answer))
+    db.commit()
 
-    print(f"[DEBUG] category: {category}, message: {message}")
-    print(f"[DEBUG] prompt 앞 200자: {system_prompt[:200]}")
-
-    history = db.query(ChatMessage).filter(
+    all_history = db.query(ChatMessage).filter(
         ChatMessage.session_id == session_id
     ).order_by(ChatMessage.created_at.asc()).all()
 
-    recent_history = history[-20:] if len(history) > 20 else history
+    return {
+        'message': answer,
+        'history': all_history,
+    }
 
-    messages = [{"role": "system", "content": system_prompt}]
-    for h in recent_history:
-        messages.append({"role": h.role, "content": h.content})
-    messages.append({"role": "user", "content": message})
 
-    if _needs_web_search(message):
-        tools = [{"type": "web_search_preview"}]
-        response = client.responses.create(
-            model='gpt-4o-mini',
-            tools=tools,
-            input=messages,
-        )
-        answer = response.output_text
-    else:
-        response = llm.invoke(messages)
-        answer = response.content
+def delete_message(session_id: int, message_id: int, user_id: int, db: Session) -> dict:
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id,
+        ChatSession.user_id == user_id,
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail='chat_session_not_found')
+
+    message = db.query(ChatMessage).filter(
+        ChatMessage.id == message_id,
+        ChatMessage.session_id == session_id,
+    ).first()
+    if not message:
+        raise HTTPException(status_code=404, detail='message_not_found')
+
+    db.delete(message)
+    db.commit()
+
+    all_history = db.query(ChatMessage).filter(
+        ChatMessage.session_id == session_id
+    ).order_by(ChatMessage.created_at.asc()).all()
+
+    return {
+        'session_id': session_id,
+        'messages': all_history,
+    }
+
+
+def edit_message(session_id: int, message_id: int, user_id: int,
+                  message: str, category: Optional[str], db: Session) -> dict:
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id,
+        ChatSession.user_id == user_id,
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail='chat_session_not_found')
+
+    target = db.query(ChatMessage).filter(
+        ChatMessage.id == message_id,
+        ChatMessage.session_id == session_id,
+        ChatMessage.role == 'user',
+    ).first()
+    if not target:
+        raise HTTPException(status_code=404, detail='message_not_found')
+
+    # 해당 메시지 이후 대화 모두 삭제
+    db.query(ChatMessage).filter(
+        ChatMessage.session_id == session_id,
+        ChatMessage.id >= message_id,
+    ).delete()
+    db.commit()
+
+    answer = _build_and_invoke(session_id, session, user_id, message, category, db)
 
     db.add(ChatMessage(session_id=session_id, role='user', content=message))
+    db.add(ChatMessage(session_id=session_id, role='assistant', content=answer))
+    db.commit()
+
+    all_history = db.query(ChatMessage).filter(
+        ChatMessage.session_id == session_id
+    ).order_by(ChatMessage.created_at.asc()).all()
+
+    return {
+        'message': answer,
+        'history': all_history,
+    }
+
+
+def regenerate_message(session_id: int, message_id: int, user_id: int,
+                        category: Optional[str], db: Session) -> dict:
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id,
+        ChatSession.user_id == user_id,
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail='chat_session_not_found')
+
+    target = db.query(ChatMessage).filter(
+        ChatMessage.id == message_id,
+        ChatMessage.session_id == session_id,
+        ChatMessage.role == 'assistant',
+    ).first()
+    if not target:
+        raise HTTPException(status_code=404, detail='message_not_found')
+
+    # 해당 assistant 메시지 바로 앞 user 메시지 조회
+    user_message = db.query(ChatMessage).filter(
+        ChatMessage.session_id == session_id,
+        ChatMessage.id < message_id,
+        ChatMessage.role == 'user',
+    ).order_by(ChatMessage.id.desc()).first()
+    if not user_message:
+        raise HTTPException(status_code=404, detail='user_message_not_found')
+
+    # 기존 assistant 메시지 삭제
+    db.delete(target)
+    db.commit()
+
+    answer = _build_and_invoke(session_id, session, user_id, user_message.content, category, db)
+
     db.add(ChatMessage(session_id=session_id, role='assistant', content=answer))
     db.commit()
 

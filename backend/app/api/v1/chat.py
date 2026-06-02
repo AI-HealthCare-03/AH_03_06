@@ -8,6 +8,7 @@ from app.schemas.chat import (
     ChatSessionCreateRequest,
     ChatSessionResponse,
     ChatMessageRequest,
+    ChatMessageEditRequest,
     ChatMessageResponse,
     ChatHistoryResponse,
 )
@@ -40,6 +41,56 @@ def send_message(
         session_id=session_id,
         user_id=current_user.id,
         message=request.message,
+        category=request.category,
+        db=db,
+    )
+
+
+@router.delete('/sessions/{session_id}/messages/{message_id}', response_model=ChatHistoryResponse)
+def delete_message(
+    session_id: int,
+    message_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return chat_service.delete_message(
+        session_id=session_id,
+        message_id=message_id,
+        user_id=current_user.id,
+        db=db,
+    )
+
+
+@router.put('/sessions/{session_id}/messages/{message_id}', response_model=ChatMessageResponse)
+def edit_message(
+    session_id: int,
+    message_id: int,
+    request: ChatMessageEditRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return chat_service.edit_message(
+        session_id=session_id,
+        message_id=message_id,
+        user_id=current_user.id,
+        message=request.message,
+        category=request.category,
+        db=db,
+    )
+
+
+@router.post('/sessions/{session_id}/messages/{message_id}/regenerate', response_model=ChatMessageResponse)
+def regenerate_message(
+    session_id: int,
+    message_id: int,
+    request: ChatMessageRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return chat_service.regenerate_message(
+        session_id=session_id,
+        message_id=message_id,
+        user_id=current_user.id,
         category=request.category,
         db=db,
     )
