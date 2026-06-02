@@ -2,6 +2,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from langchain_openai import ChatOpenAI
+from openai import OpenAI
 
 from app.models.chat import ChatSession, ChatMessage
 from app.models.health_checkup import HealthCheckup
@@ -13,6 +14,7 @@ from app.prompts.health_prompts import get_health_prompt
 from app.prompts.prescription_prompts import get_prescription_prompt
 
 llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.3)
+client = OpenAI()
 
 MEAL_PLAN_KO = {
     'Balanced Diet':               '균형 식단',
@@ -24,6 +26,12 @@ MEAL_PLAN_KO = {
     'Low-Carb Low-Calorie Diet':   '저탄수화물·저칼로리 식단',
     'Therapeutic Diet':            '치료 식단',
 }
+
+CONVENIENCE_STORE_KEYWORDS = ['편의점', 'gs25', 'cu', '세븐일레븐', '이마트24', 'GS25', 'CU', '세븐']
+
+
+def _needs_web_search(message: str) -> bool:
+    return any(keyword in message.lower() for keyword in [k.lower() for k in CONVENIENCE_STORE_KEYWORDS])
 
 
 def _get_context_data(context_type: str, context_id: Optional[int], user_id: int, db: Session) -> str:
@@ -118,13 +126,16 @@ def send_message(session_id: int, user_id: int, message: str, category: Optional
     context_data = _get_context_data(session.context_type, session.context_id, user_id, db)
 
     if session.context_type == 'DIET_GUIDE':
-        system_prompt = get_diet_prompt(category or '', context_data)
+        system_prompt = get_diet_prompt(category or '', message, context_data)
     elif session.context_type == 'HEALTH_CHECKUP':
         system_prompt = get_health_prompt(category or '', context_data)
     elif session.context_type == 'PRESCRIPTION':
         system_prompt = get_prescription_prompt(category or '', context_data)
     else:
         system_prompt = context_data
+
+    print(f"[DEBUG] category: {category}, message: {message}")
+    print(f"[DEBUG] prompt 앞 200자: {system_prompt[:200]}")
 
     history = db.query(ChatMessage).filter(
         ChatMessage.session_id == session_id
@@ -137,8 +148,17 @@ def send_message(session_id: int, user_id: int, message: str, category: Optional
         messages.append({"role": h.role, "content": h.content})
     messages.append({"role": "user", "content": message})
 
-    response = llm.invoke(messages)
-    answer = response.content
+    if _needs_web_search(message):
+        tools = [{"type": "web_search_preview"}]
+        response = client.responses.create(
+            model='gpt-4o-mini',
+            tools=tools,
+            input=messages,
+        )
+        answer = response.output_text
+    else:
+        response = llm.invoke(messages)
+        answer = response.content
 
     db.add(ChatMessage(session_id=session_id, role='user', content=message))
     db.add(ChatMessage(session_id=session_id, role='assistant', content=answer))
