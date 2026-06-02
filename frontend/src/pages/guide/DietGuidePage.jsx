@@ -2,16 +2,15 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { createChatSession } from '../../api/chat.js'
 import Header from '../../components/Header.jsx'
+import GuideGeneratingSteps from '../../components/GuideGeneratingSteps.jsx'
+import { DIET_GENERATING } from '../../components/guideGeneratingPresets.js'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
-  faWandMagicSparkles,
-  faCircleInfo,
-  faChevronDown,
-  faRotateRight,
-  faComments,
+  faWandMagicSparkles, faCircleInfo, faChevronDown,
+  faRotateRight, faComments,
 } from '@fortawesome/free-solid-svg-icons'
-import { getDietGuide, generateDietGuide } from '../../api/dietGuides.js'
-
+import { getDietGuideByDate, regenerateDietGuide } from '../../api/dietGuides.js'
+import { listHealthCheckups } from '../../api/healthCheckup.js'
 
 const MEAL_PLAN_KO = {
   'Balanced Diet':               '균형 식단',
@@ -24,16 +23,6 @@ const MEAL_PLAN_KO = {
   'Therapeutic Diet':            '치료 식단',
 }
 
-
-function formatCreatedAt(iso) {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-
 function NutrientBar({ label, value, unit }) {
   return (
     <div className="flex items-center justify-between py-1.5">
@@ -43,16 +32,13 @@ function NutrientBar({ label, value, unit }) {
   )
 }
 
-
 function MealSection({ title, content }) {
   const [expanded, setExpanded] = useState(false)
   if (!content) return null
-
-  const lines = content.replace(/^[-•]\s*/gm, '').trim().split('\n').filter(Boolean)
+  const lines   = content.replace(/^[-•]\s*/gm, '').trim().split('\n').filter(Boolean)
   const preview = lines.slice(0, 2)
   const rest    = lines.slice(2)
   const hasFold = rest.length > 0
-
   return (
     <div className="px-5 py-4">
       <h3 className="text-[11px] font-[700] text-mute mb-2 tracking-wider uppercase">{title}</h3>
@@ -73,14 +59,11 @@ function MealSection({ title, content }) {
           <div className="mt-2 flex justify-center">
             <button
               type="button"
-              onClick={() => setExpanded((v) => !v)}
+              onClick={() => setExpanded(v => !v)}
               className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] text-mute hover:text-textBody transition-colors"
             >
               <span>{expanded ? '접기' : '더보기'}</span>
-              <FontAwesomeIcon
-                icon={faChevronDown}
-                className={`text-[10px] transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
-              />
+              <FontAwesomeIcon icon={faChevronDown} className={`text-[10px] transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
             </button>
           </div>
         )}
@@ -89,43 +72,57 @@ function MealSection({ title, content }) {
   )
 }
 
-
 function DietGuidePage() {
-  const { id } = useParams()
-  const navigate = useNavigate()
-  const [guide, setGuide] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const { date }   = useParams()
+  const navigate   = useNavigate()
+  const [guide,        setGuide]        = useState(null)
+  const [loading,      setLoading]      = useState(true)
+  const [error,        setError]        = useState('')
   const [regenerating, setRegenerating] = useState(false)
 
   useEffect(() => {
-    if (!id) return
+    if (!date) return
     let cancelled = false
     setLoading(true)
     setError('')
-    getDietGuide(id)
-      .then((data) => { if (!cancelled) setGuide(data) })
-      .catch((err) => { if (!cancelled) setError(err?.message ?? '가이드를 불러오지 못했어요.') })
-      .finally(() => { if (!cancelled) setLoading(false) })
+    getDietGuideByDate(date)
+      .then(data => { if (!cancelled) setGuide(data) })
+      .catch(err  => { if (!cancelled) setError(err?.message ?? '가이드를 불러오지 못했어요.') })
+      .finally(()  => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [id])
+  }, [date])
 
   const handleRegenerate = async () => {
-    if (!guide) return
-    setRegenerating(true)
     try {
-      await generateDietGuide(guide.checkup_id)
-      navigate('/diet-guides')
+      const data     = await listHealthCheckups()
+      const checkups = Array.isArray(data?.checkups) ? data.checkups : []
+      if (checkups.length === 0) {
+        window.alert('등록된 건강검진 기록이 없어요.')
+        return
+      }
+      setRegenerating(true)
+      await regenerateDietGuide(checkups[0].id, date)
+      // 폴링으로 새 가이드 대기
+      const poll = setInterval(async () => {
+        try {
+          const newGuide = await getDietGuideByDate(date)
+          if (newGuide) {
+            setGuide(newGuide)
+            setRegenerating(false)
+            clearInterval(poll)
+          }
+        } catch {}
+      }, 3000)
     } catch (err) {
-      window.alert(err?.message ?? '가이드 생성 요청에 실패했어요.')
-    } finally {
       setRegenerating(false)
+      window.alert(err?.message ?? '가이드 재생성 요청에 실패했어요.')
     }
   }
 
   const handleChat = async () => {
+    if (!guide) return
     try {
-      const data = await createChatSession('DIET_GUIDE', Number(id))
+      const data = await createChatSession('DIET_GUIDE', guide.id)
       navigate(`/chat/${data.id}?context_type=DIET_GUIDE`)
     } catch {
       window.alert('채팅 세션 생성에 실패했어요.')
@@ -148,14 +145,21 @@ function DietGuidePage() {
             <p className="text-[13px] text-error text-center py-10">{error}</p>
           )}
 
-          {!loading && !error && guide && (
+          {/* 재생성 중 */}
+          {regenerating && (
+            <div className="flex flex-col items-center justify-center py-16">
+              <GuideGeneratingSteps {...DIET_GENERATING} />
+            </div>
+          )}
+
+          {!loading && !error && guide && !regenerating && (
             <>
               <div className="pt-1">
                 <h1 className="text-[20px] font-[700] text-textHeading leading-tight">
                   {MEAL_PLAN_KO[guide.meal_plan_type] ?? guide.meal_plan_type}
                 </h1>
-                {guide.created_at && (
-                  <p className="text-[11px] text-mute mt-1">{formatCreatedAt(guide.created_at)}</p>
+                {guide.guide_date && (
+                  <p className="text-[11px] text-mute mt-1">{guide.guide_date}</p>
                 )}
               </div>
 
@@ -165,9 +169,7 @@ function DietGuidePage() {
                     <FontAwesomeIcon icon={faWandMagicSparkles} className="text-primary text-[14px]" />
                     <h2 className="text-[14px] font-[700] text-textHeading">오늘의 AI 식단 가이드</h2>
                   </div>
-                  <span className="px-2 py-0.5 bg-primarySoft text-primary text-[10px] font-[700] rounded tracking-wider">
-                    AI
-                  </span>
+                  <span className="px-2 py-0.5 bg-primarySoft text-primary text-[10px] font-[700] rounded tracking-wider">AI</span>
                 </div>
 
                 <div className="divide-y divide-borderHairline">
@@ -178,26 +180,19 @@ function DietGuidePage() {
                     <NutrientBar label="단백질"   value={guide.nutrient_standard?.recommended_protein}  unit="g" />
                     <NutrientBar label="지방"     value={guide.nutrient_standard?.recommended_fat}      unit="g" />
                   </div>
-
                   <MealSection title="아침" content={guide.breakfast} />
                   <MealSection title="점심" content={guide.lunch} />
                   <MealSection title="저녁" content={guide.dinner} />
-
                   {guide.recommended_foods && (
                     <div className="px-5 py-4">
                       <h3 className="text-[11px] font-[700] text-mute mb-2 tracking-wider uppercase">권장 식품</h3>
-                      <p className="text-[13px] text-textBody leading-relaxed">
-                        {guide.recommended_foods.replace(/^[-•]\s*/gm, '').trim()}
-                      </p>
+                      <p className="text-[13px] text-textBody leading-relaxed">{guide.recommended_foods.replace(/^[-•]\s*/gm, '').trim()}</p>
                     </div>
                   )}
-
                   {guide.restricted_foods && (
                     <div className="px-5 py-4">
                       <h3 className="text-[11px] font-[700] text-mute mb-2 tracking-wider uppercase">제한 식품</h3>
-                      <p className="text-[13px] text-textBody leading-relaxed">
-                        {guide.restricted_foods.replace(/^[-•]\s*/gm, '').trim()}
-                      </p>
+                      <p className="text-[13px] text-textBody leading-relaxed">{guide.restricted_foods.replace(/^[-•]\s*/gm, '').trim()}</p>
                     </div>
                   )}
                 </div>
@@ -208,8 +203,8 @@ function DietGuidePage() {
                 disabled={regenerating}
                 className="w-full h-12 bg-primary hover:bg-primaryDark text-white text-[14px] font-[700] rounded-[12px] transition-colors disabled:bg-mute disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                <FontAwesomeIcon icon={faRotateRight} className={regenerating ? 'animate-spin' : ''} />
-                <span>{regenerating ? '생성 요청 중…' : '가이드 다시 받기'}</span>
+                <FontAwesomeIcon icon={faRotateRight} />
+                <span>가이드 다시 받기</span>
               </button>
 
               <button
@@ -226,7 +221,6 @@ function DietGuidePage() {
               </p>
             </>
           )}
-
         </main>
       </div>
     </div>
