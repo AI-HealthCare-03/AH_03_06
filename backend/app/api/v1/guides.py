@@ -38,6 +38,18 @@ def get_diet_guide(
     return result
 
 
+@router.delete('/diet/{guide_date}', status_code=204)
+def delete_diet_guide(
+    guide_date: date,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    result = diet_service.get_diet_guide(db, guide_date, current_user.id)
+    if not result:
+        raise HTTPException(status_code=404, detail='diet_guide_not_found')
+    diet_service.delete_diet_guide(db, guide_date, current_user.id)
+
+
 @router.post('/diet/generate', status_code=202, response_model=DietGuideGenerateResponse)
 def generate_diet_guide(
     request: DietGuideGenerateRequest,
