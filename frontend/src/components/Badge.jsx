@@ -1,8 +1,7 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
-// 상태 뱃지 공유 컴포넌트 (가이드 v0.3 §5.11)
+// 상태 뱃지 공유 컴포넌트
 // tone: 의미 색 / variant: fill(기본·채움) · outline(예외·강조 단독 항목)
-// 그동안 페이지마다 inline으로 흩어져 있던 정상/주의/위험 뱃지를 한 곳으로 모음
 const TONES = {
   normal: {
     fill: 'bg-successSoft text-success',

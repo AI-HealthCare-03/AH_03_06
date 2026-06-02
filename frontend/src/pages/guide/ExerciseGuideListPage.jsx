@@ -1,6 +1,6 @@
 // 운동 가이드 목록 — 운동 백엔드 미구현 단계라 현재는 항상 빈 상태.
-// 식단/수면 목록과 동일한 EmptyState + FAB 패턴(일관성). FAB는 결과 화면 샘플 미리보기로
-// 연결(시연용). 백엔드 연결 시 실제 목록·생성 흐름으로 교체.
+// 식단/수면 목록과 동일한 EmptyState + FAB 패턴. FAB는 결과 화면 샘플 미리보기로
+// 연결. 백엔드 연결 시 실제 목록·생성 흐름으로 교체.
 
 import { useNavigate } from 'react-router-dom'
 import Header from '../../components/Header.jsx'

@@ -1,6 +1,6 @@
-// 버튼 공유 컴포넌트 (가이드 v0.3 §5.3)
+// 버튼 공유 컴포넌트
 // primary=진한 파란 채움 · secondary=흰+파란 보더 · danger=빨강 텍스트 · ghost=텍스트 링크
-// 비활성은 variant 무관하게 회색 채움(--subtle)으로 통일 (A-4)
+// 비활성은 variant 무관하게 회색 채움으로 통일
 const VARIANTS = {
   primary: 'bg-primary hover:bg-primaryDark text-white',
   secondary: 'bg-white border border-primary text-primary',

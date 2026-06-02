@@ -1,4 +1,4 @@
-// 칩 공유 컴포넌트 (가이드 v0.3 §5.4)
+// 칩 공유 컴포넌트
 // action  = 액션 트리거(각진·진한 파란 채움·흰 텍스트): 누르면 즉시 동작
 // option  = 폼 옵션(알약·옅은 파랑·진한 파랑 텍스트): 폼 안 선택 상태 표시
 function Chip({ variant = 'option', selected = false, onClick, children, className = '' }) {
@@ -6,7 +6,7 @@ function Chip({ variant = 'option', selected = false, onClick, children, classNa
 
   let toneClass
   if (variant === 'action') {
-    // 선택 시 진한 파란 채움, 미선택은 중립 회색(가이드 §B-4 액션 트리거 칩)
+    // 선택 시 진한 파란 채움, 미선택은 중립 회색
     toneClass = `rounded-md px-3 py-1.5 ${
       selected ? 'bg-primary text-white' : 'bg-borderLight text-subtext hover:bg-borderHairline'
     }`

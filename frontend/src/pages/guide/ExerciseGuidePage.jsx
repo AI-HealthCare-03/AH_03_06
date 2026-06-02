@@ -1,6 +1,6 @@
 // 운동 가이드 결과(상세) 화면 — 구조화 출력 가이드의 결과 카드.
 // 운동 백엔드 API 미구현 단계라 현재는 샘플 데이터로 렌더(추후 API 연결 시 props/fetch로 교체).
-// 시스템 토큰(S-701) 사용. success/successSoft 토큰은 아직 미정의라 해당 부분만 raw hex.
+// 디자인 토큰 사용 (success 계열은 raw hex — 추후 토큰으로 교체)
 
 import { useState } from 'react'
 import Header from '../../components/Header.jsx'

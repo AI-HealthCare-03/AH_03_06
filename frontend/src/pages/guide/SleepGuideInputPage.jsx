@@ -20,7 +20,7 @@ const BRIEF_QUESTIONS = [
 const BRIEF_OPTIONS = ['없음', '주 1회 미만', '주 1~2회', '주 3회 이상']
 const BRIEF_OPTIONS_Q4 = ['매우 좋음', '좋음', '나쁨', '매우 나쁨']  // 4번 문항 전용
 
-// 수면 방해 원인 8개 (시안 라벨)
+// 수면 방해 원인 8개
 const DISTURBANCE_CAUSES = [
   '스트레스·걱정', '소음·환경', '스마트폰·화면', '통증·신체 불편',
   '카페인 섭취', '온도·습도', '불규칙한 일정', '기타',
@@ -214,7 +214,7 @@ function SleepGuideInputPage() {
     if (step > 1) setStep(step - 1)
   }
 
-  // 생성 대기 동안 전용 "생성 중" 화면 (S1). 성공 시 navigate, 실패 시 submitting=false 로 폼 복귀.
+  // 생성 대기 동안 전용 "생성 중" 화면. 성공 시 navigate, 실패 시 submitting=false 로 폼 복귀.
   if (submitting) return <SleepGeneratingScreen />
 
   return (

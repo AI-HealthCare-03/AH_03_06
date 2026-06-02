@@ -1,10 +1,6 @@
 // pages/medical-record/MedicalRecordList.jsx
-// FR-402: 진료기록 목록 조회
-//   - FR-402-1: 최신순/오래된순 정렬
-//   - FR-402-2: 진료일, 진단명, 진료 기관명, 진료과 표시
-//   - FR-402-3: 빈 목록 처리
-//   - FR-402-4: 기간별, 진료과별 필터
-//   - FR-402-5: 진단명/진료 기관명 키워드 검색
+// 진료기록 목록 조회 — 정렬(최신/오래된순), 진료일·진단명·기관·진료과 표시,
+// 빈 목록 처리, 기간·진료과 필터, 진단명·기관명 키워드 검색
 
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -13,7 +9,7 @@ import Header from '../../components/Header'
 import EmptyState from '../../components/EmptyState'
 import { faFileLines } from '@fortawesome/free-solid-svg-icons'
 
-// ── 진료과 목록 (실제 서비스에서는 API로 조회) ───────────────
+// 진료과 목록 (실제 서비스에서는 API로 조회)
 const DEPARTMENTS = [
   { id: 1,  name: '내과' },
   { id: 2,  name: '외과' },
@@ -29,13 +25,13 @@ const DEPARTMENTS = [
   { id: 12, name: '비뇨기과' },
 ]
 
-// ── 날짜 포맷 헬퍼 ────────────────────────────────────────────
+// 날짜 포맷 헬퍼
 function formatDate(dateStr) {
   // "2026-05-02" → "2026.05.02"
   return dateStr?.replace(/-/g, '.') ?? ''
 }
 
-// ── 카드 컴포넌트 ─────────────────────────────────────────────
+// 카드 컴포넌트
 function RecordCard({ record, departmentName, onClick }) {
   const hasPrescription = false // 목록 API에 처방약 미포함 → 상세 조회 후 표시 가능
 
@@ -76,7 +72,7 @@ function RecordCard({ record, departmentName, onClick }) {
   )
 }
 
-// ── 필터 드로어 ───────────────────────────────────────────────
+// 필터 드로어
 function FilterDrawer({ filters, onChange, onClose }) {
   const [local, setLocal] = useState(filters)
 
@@ -158,7 +154,7 @@ function FilterDrawer({ filters, onChange, onClose }) {
   )
 }
 
-// ── 메인 컴포넌트 ─────────────────────────────────────────────
+// 메인 컴포넌트
 export default function MedicalRecordList() {
   const navigate = useNavigate()
 
@@ -184,7 +180,7 @@ export default function MedicalRecordList() {
 
   const activeFilterCount = [filters.department_id, filters.start_date, filters.end_date].filter(Boolean).length
 
-  // ── 목록 조회 ─────────────────────────────────────────────
+  // 목록 조회
   const fetchRecords = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -207,7 +203,7 @@ export default function MedicalRecordList() {
 
   useEffect(() => { fetchRecords() }, [fetchRecords])
 
-  // ── 검색 제출 ─────────────────────────────────────────────
+  // 검색 제출
   function handleSearch(e) {
     e.preventDefault()
     setKeyword(searchInput.trim())
@@ -338,7 +334,6 @@ export default function MedicalRecordList() {
 
             {/* 스크롤 영역 */}
             <div className="flex-1 overflow-y-auto px-5 pb-4">
-              {/* 기존 진료과, 기간 필터 내용 그대로 */}
               <FilterDrawer
                 filters={filters}
                 onChange={setFilters}
