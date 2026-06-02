@@ -5,10 +5,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  addMedication,
+  addDirectMedication,
   deleteMedication,
   getMedicationById,
-  createSchedule,
   updateSchedule,
   getSchedules,
   updateAlarm,          // ✅ 신규
@@ -22,6 +21,8 @@ const UNITS        = ['정', 'mg', 'ml', '캡슐', '포', '개'];
 const PURPOSES     = ['혈압', '당뇨', '고지혈증', '통증', '소화', '수면', '기타'];
 const QUICK_DAYS   = [7, 14, 30, 90];
 const WEEK_DAYS    = ['월', '화', '수', '목', '금', '토', '일'];
+const DAY_TO_EN    = { 월: 'MON', 화: 'TUE', 수: 'WED', 목: 'THU', 금: 'FRI', 토: 'SAT', 일: 'SUN' };
+const ALL_DAYS_EN  = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -155,17 +156,21 @@ export default function MedicationFormPage() {
     try {
       setLoading(true);
 
-      if (mode === 'create') {
-        // 1️⃣ 약 등록
-        await createSchedule(null, {
-          name:         form.name.trim(),
-          mealTimes:    form.mealTimes,
-          timing:       form.timing,
-          cycleType:    form.cycleType,
-          weekDays:     form.cycleType === 'weekdays' ? form.weekDays : [],
-          alarmEnabled: form.alarmEnabled,
-          alarmTime:    form.alarmEnabled ? form.alarmTime : null,
-        });
+        if (mode === 'create') {
+          // 직접등록: 진료기록 없이 복약 일정 하나로 등록 (대표 복용시각 1개)
+          const intakeTime = form.clockTimes[0] || (form.alarmEnabled ? form.alarmTime : '08:00');
+          const days = form.cycleType === 'weekdays'
+            ? form.weekDays.map(d => DAY_TO_EN[d])
+            : ALL_DAYS_EN;
+
+          await addDirectMedication({
+            intake_time:       intakeTime,
+            drug_name:         form.name.trim(),
+            dosage_message:    `${form.dosageAmount}${form.dosageUnit}`,
+            notification_type: 'PUSH',
+            days,
+            is_custom:         true,
+          });
       } else {
         // 1️⃣ 일정 수정
         console.log('[수정] schedulePayload:', schedulePayload);

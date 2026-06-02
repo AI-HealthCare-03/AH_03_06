@@ -16,6 +16,8 @@ from app.schemas.medication import (
     PrescriptionDeleteResponse,
     PrescriptionListResponse,
     PrescriptionListItem,
+    MedicationCardItem,
+    MedicationListResponse,
     MedicationScheduleRequest,
     MedicationScheduleResponse,
     MedicationScheduleListResponse,
@@ -145,6 +147,52 @@ def get_prescriptions(user_id: int, db: Session) -> PrescriptionListResponse:
         prescriptions=[PrescriptionListItem.model_validate(p) for p in prescriptions]
     )
 
+def get_medication_list(user_id: int, db: Session) -> MedicationListResponse:
+    """복약관리 목록 - 처방약 + 직접등록(custom)을 한 목록으로 반환"""
+    cards = []
+
+    # 처방전 기반 (진료기록에 연결된 약)
+    prescriptions = (
+        db.query(Prescription)
+        .join(MedicalRecord)
+        .filter(
+            MedicalRecord.user_id == user_id,
+            MedicalRecord.is_deleted == 0,
+            Prescription.is_active == True,
+        )
+        .order_by(Prescription.created_at.desc())
+        .all()
+    )
+    for p in prescriptions:
+        cards.append(MedicationCardItem(
+            id=p.id, source="prescription", drug_name=p.drug_name,
+            dosage=p.dosage, frequency=p.frequency,
+            start_date=p.start_date, end_date=p.end_date, is_active=p.is_active,
+        ))
+
+    # 직접등록 (처방전 없는 custom 일정) - 같은 약은 하나로 묶음
+    customs = (
+        db.query(MedicationSchedule)
+        .filter(
+            MedicationSchedule.user_id == user_id,
+            MedicationSchedule.prescribed_medicine_id.is_(None),
+            MedicationSchedule.is_active == True,
+        )
+        .order_by(MedicationSchedule.created_at.desc())
+        .all()
+    )
+    seen = set()
+    for s in customs:
+        if s.drug_name in seen:
+            continue
+        seen.add(s.drug_name)
+        cards.append(MedicationCardItem(
+            id=s.schedule_id, source="custom", drug_name=s.drug_name,
+            dosage=None, frequency=None, start_date=None, end_date=None,
+            is_active=s.is_active,
+        ))
+
+    return MedicationListResponse(medications=cards)
 
 def get_today_medications(user_id: int, db: Session) -> TodayMedicationResponse:
     return get_medications_by_date(user_id, date.today(), db)

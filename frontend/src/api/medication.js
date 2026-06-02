@@ -165,24 +165,74 @@ function transformSchedules(raw) {
     timeSlots,
   };
 }
+// ── 응답 변환 (실제 API → 프론트 기대 모양) ──────────────────
+const ok = (data) => ({ success: true, data });
+
+const toMedicationCard = (p) => ({
+  id:          p.id,
+  source:      p.source,
+  name:        p.drug_name,
+  status:      p.is_active ? '진행 중' : '종료',
+  category:    p.source === 'custom' ? '일반의약품' : '처방약',
+  description: p.frequency || p.dosage || '',
+  startDate:   p.start_date,
+  endDate:     p.end_date,
+});
+
+const mealLabelOf = (hhmm) => {
+  const hour = parseInt(String(hhmm).slice(0, 2), 10);
+  if (hour < 11) return '아침';
+  if (hour < 17) return '점심';
+  return '저녁';
+};
+
+const toTodayView = (res) => {
+  const schedules = res.schedules || [];
+  const total     = schedules.length;
+  const completed = schedules.filter((s) => s.is_taken).length;
+
+  const groupMap = new Map();
+  for (const s of schedules) {
+    const clockTime = String(s.intake_time).slice(0, 5);
+    if (!groupMap.has(clockTime)) {
+      groupMap.set(clockTime, { mealTime: mealLabelOf(clockTime), clockTime, timing: '', entries: [] });
+    }
+    groupMap.get(clockTime).entries.push({
+      medicationId:     s.schedule_id,
+      medicationName:   s.drug_name,
+      dosageAmount:     s.dosage ?? '',
+      dosageUnit:       '',
+      categoryLabel:    '처방약',
+      completionStatus: s.is_taken ? '완료' : '예정',
+    });
+  }
+
+  const groups = [...groupMap.values()].map((g) => ({
+    ...g,
+    completionStatus: g.entries.every((e) => e.completionStatus === '완료') ? '완료' : '예정',
+  }));
+
+  const [y, m, d] = String(res.date).split('-');
+  return {
+    dateLabel:      `${y}년 ${Number(m)}월 ${Number(d)}일`,
+    totalCount:     total,
+    completedCount: completed,
+    completionRate: total ? Math.round((completed / total) * 100) : 0,
+    groups,
+  };
+};
 
 // ── 실제 API 서비스 ─────────────────────────────────────────
 const RealService = {
   // ✅ 변환 적용
-  getMedications: async () => {
-    const raw = await apiClient.get('/prescriptions');
-    const result = transformPrescriptions(raw);
-    console.log('raw:', raw);        // API 응답 확인
-    console.log('result:', result);  // 변환 후 확인
-    return transformPrescriptions(raw);
-  },
-  getTodayMedication: async () => {
-    const raw = await apiClient.get('/today');
-    return { success: true, data: transformSchedules(raw) };
-  },
+  getMedications:         async (filter)           => ok((await apiClient.get('/list')).medications.map(toMedicationCard)),
+  addDirectMedication:    (req)                    => apiClient.post('/schedules', req),
+
+  getTodayMedication:     async ()                 => ok(toTodayView(await apiClient.get('/today'))),
+
   fetchMedicationsByDate: async (dateStr) => {
     const raw = await apiClient.get(`/by-date?date=${dateStr}`);
-    return { success: true, data: transformSchedules(raw) };
+    return ok(toTodayView(raw));
   },
 
   // 기존 그대로
@@ -229,7 +279,7 @@ const Service = USE_MOCK ? MockService : RealService;
 // ── export ───────────────────────────────────────────────────
 export const getMedications         = (filter = {}) => Service.getMedications(filter);
 export const getMedicationById      = (id)          => Service.getMedicationById(id);
-export const addMedication          = (req)         => Service.addMedication(req);
+export const addDirectMedication    = (req)         => (Service.addDirectMedication ?? Service.addMedication)(req);
 export const deleteMedication       = (id)          => Service.deleteMedication(id);
 export const getTodayMedication     = ()            => Service.getTodayMedication();
 export const checkMedication        = (req)         => Service.checkMedication(req);

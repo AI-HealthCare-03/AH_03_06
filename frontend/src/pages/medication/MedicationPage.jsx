@@ -201,7 +201,7 @@ function MedicationList({ onTodayClick, navigate }) {
                 </div>
 
                 {/* ── ⋮ 버튼 + 드롭다운 메뉴 (복약 중 탭에서만) ── */}
-                {activeTab === '복약 중' && (
+                {activeTab === '복약 중' && med.source !== 'custom' && (
                   <div className="relative shrink-0">
                     {/* ⋮ 버튼 */}
                     <button

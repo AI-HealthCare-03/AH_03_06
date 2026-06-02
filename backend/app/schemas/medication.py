@@ -32,6 +32,19 @@ class PrescriptionResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class MedicationCardItem(BaseModel):
+    id:            int
+    source:        str            # 'prescription' | 'custom'
+    drug_name:     str
+    dosage:        Optional[str] = None
+    frequency:     Optional[str] = None
+    start_date:    Optional[date] = None
+    end_date:      Optional[date] = None
+    is_active:     bool
+
+class MedicationListResponse(BaseModel):
+    medications: List[MedicationCardItem]
+
 
 class PrescriptionDeleteResponse(BaseModel):
     detail: str
