@@ -1,45 +1,41 @@
 import requests
 import os
 
-TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMCIsImV4cCI6MTc4MDM1ODIxM30.K4r2iLKvdSklDjoPd0BGFuX7U-7YRO8MlbrWWRH6I0E"
+TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMCIsImV4cCI6MTc4MDM4NzcxOH0.yPFQx7_tH-OWDYVFVlDSSYzzVJcBIG6Zrj35Knd18ak"
 BASE = "http://localhost:8000/api/v1"
 HEADERS = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
 
-session = requests.post(f"{BASE}/chat/sessions", json={"context_type": "DIET_GUIDE", "context_id": None}, headers=HEADERS).json()
+session = requests.post(f"{BASE}/chat/sessions", json={"context_type": "HEALTH_CHECKUP", "context_id": None}, headers=HEADERS).json()
 session_id = session["id"]
 print(f"세션 ID: {session_id}\n")
 
 questions = [
-    # 식단 플랜
-    # ("왜 이 식단 플랜이 추천됐나요?", "식단 플랜이 궁금해요"),
-    # ("다른 식단 플랜은 어떤 게 있나요?", "식단 플랜이 궁금해요"),
-    # ("이 식단 플랜이 제 건강에 맞나요?", "식단 플랜이 궁금해요"),
-    # ("식단 플랜을 바꿀 수 있나요?", "식단 플랜이 궁금해요"),
+    # 혈압
+    ("내 혈압 수치가 정상인가요?",          "혈압이 궁금해요"),
+    ("혈압을 낮추려면 어떻게 해야 하나요?", "혈압이 궁금해요"),
+    ("고혈압 위험이 있나요?",               "혈압이 궁금해요"),
 
-    # 영양소 계산
-    # ("권장 칼로리는 어떻게 계산됐나요?", "영양소 계산이 궁금해요"),
-    # ("단백질을 더 먹어도 되나요?", "영양소 계산이 궁금해요"),
-    # ("탄수화물을 줄이면 어떤 효과가 있나요?", "영양소 계산이 궁금해요"),
-    # ("지방은 어떤 종류를 먹어야 하나요?", "영양소 계산이 궁금해요"),
+    # 혈당
+    ("혈당 수치가 위험한가요?",      "혈당이 궁금해요"),
+    ("혈당을 낮추는 방법이 있나요?", "혈당이 궁금해요"),
+    ("당뇨 전단계인가요?",           "혈당이 궁금해요"),
 
-    # 실천 방법
-    # ("제한 식품을 꼭 지켜야 하나요?", "실천 방법이 궁금해요"),
-    ("점심 외식 메뉴가 궁금해요", "실천 방법이 궁금해요"),
-    ("점심에 삼겹살 먹어도 되나요?", "실천 방법이 궁금해요"),
-    ("잡곡밥 대신 뭐 먹을 수 있나요?", "대체 식품이 궁금해요"),
-    ("점심 편의점 메뉴 추천해줘", "대체 식품이 궁금해요"),
-
-    # 대체 식품
-    ("잡곡밥 대신 뭐 먹을 수 있나요?", "대체 식품이 궁금해요"),
-    ("GS25에서 점심 뭐 먹어요?", "대체 식품이 궁금해요"),
+    # 전반적인 건강 상태
+    ("어떤 부분을 개선해야 하나요?",    "전반적인 건강 상태가 궁금해요"),
+    ("다음 검진은 언제 받아야 하나요?", "전반적인 건강 상태가 궁금해요"),
+    ("가장 주의해야 할 수치가 뭔가요?", "전반적인 건강 상태가 궁금해요"),
 ]
 
-output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_result_v3.txt")
+output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_result_health.txt")
 
 with open(output_path, "w", encoding="utf-8") as f:
     for q, category in questions:
-        res = requests.post(f"{BASE}/chat/sessions/{session_id}/messages", json={"message": q, "category": category}, headers=HEADERS).json()
-        line = f"[{category}]\nQ: {q}\nA: {res['message']}\n{'='*80}\n"
+        res = requests.post(
+            f"{BASE}/chat/sessions/{session_id}/messages",
+            json={"message": q, "category": category},
+            headers=HEADERS
+        ).json()
+        line = f"[{category}]\nQ: {q}\nA: {res.get('message', res)}\n{'='*80}\n"
         print(line)
         f.write(line)
 
