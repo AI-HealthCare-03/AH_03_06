@@ -113,7 +113,7 @@ def _build_and_invoke(session_id: int, session: ChatSession, user_id: int,
     elif session.context_type == 'HEALTH_CHECKUP':
         system_prompt = get_health_prompt(category or '', message, context_data)
     elif session.context_type == 'PRESCRIPTION':
-        system_prompt = get_prescription_prompt(category or '', context_data)
+        system_prompt = get_prescription_prompt(category or '', message, context_data)
     else:
         system_prompt = context_data
 

@@ -1,32 +1,32 @@
 import requests
 import os
 
-TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMCIsImV4cCI6MTc4MDM4NzcxOH0.yPFQx7_tH-OWDYVFVlDSSYzzVJcBIG6Zrj35Knd18ak"
+TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMCIsImV4cCI6MTc4MDM5MDY1MH0.3cDfczVhv6LHDH3_Plw0oZZGLQUjFhPsLnHt9MnLwgc"
 BASE = "http://localhost:8000/api/v1"
 HEADERS = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
 
-session = requests.post(f"{BASE}/chat/sessions", json={"context_type": "HEALTH_CHECKUP", "context_id": None}, headers=HEADERS).json()
+session = requests.post(f"{BASE}/chat/sessions", json={"context_type": "PRESCRIPTION", "context_id": None}, headers=HEADERS).json()
 session_id = session["id"]
 print(f"세션 ID: {session_id}\n")
 
 questions = [
-    # 혈압
-    ("내 혈압 수치가 정상인가요?",          "혈압이 궁금해요"),
-    ("혈압을 낮추려면 어떻게 해야 하나요?", "혈압이 궁금해요"),
-    ("고혈압 위험이 있나요?",               "혈압이 궁금해요"),
+    # 복용 방법
+    ("언제 복용하는 게 좋나요?",            "복용 방법이 궁금해요"),
+    ("음식과 함께 먹어도 되나요?",          "복용 방법이 궁금해요"),
+    ("복용을 빠뜨리면 어떻게 해야 하나요?", "복용 방법이 궁금해요"),
 
-    # 혈당
-    ("혈당 수치가 위험한가요?",      "혈당이 궁금해요"),
-    ("혈당을 낮추는 방법이 있나요?", "혈당이 궁금해요"),
-    ("당뇨 전단계인가요?",           "혈당이 궁금해요"),
+    # 부작용
+    ("이 약들 부작용이 있나요?",            "부작용이 궁금해요"),
+    ("부작용이 생기면 어떻게 해야 하나요?", "부작용이 궁금해요"),
+    ("장기 복용해도 괜찮나요?",             "부작용이 궁금해요"),
 
-    # 전반적인 건강 상태
-    ("어떤 부분을 개선해야 하나요?",    "전반적인 건강 상태가 궁금해요"),
-    ("다음 검진은 언제 받아야 하나요?", "전반적인 건강 상태가 궁금해요"),
-    ("가장 주의해야 할 수치가 뭔가요?", "전반적인 건강 상태가 궁금해요"),
+    # 약 조합
+    ("이 약들 함께 먹어도 되나요?",   "약 조합이 궁금해요"),
+    ("주의해야 할 음식이 있나요?",     "약 조합이 궁금해요"),
+    ("다른 약과 함께 먹어도 되나요?", "약 조합이 궁금해요"),
 ]
 
-output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_result_health.txt")
+output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_result_prescription.txt")
 
 with open(output_path, "w", encoding="utf-8") as f:
     for q, category in questions:
