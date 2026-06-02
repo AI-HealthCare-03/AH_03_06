@@ -166,7 +166,6 @@ export default function MedicationFormPage() {
           alarmEnabled: form.alarmEnabled,
           alarmTime:    form.alarmEnabled ? form.alarmTime : null,
         });
-
       } else {
         // 1️⃣ 일정 수정
         console.log('[수정] schedulePayload:', schedulePayload);

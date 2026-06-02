@@ -35,8 +35,9 @@ const apiClient = {
  * 시간대(아침/점심/저녁)와 타이밍(식전/식후)을 추출
  */
 function parseDosageMessage(msg = '') {
-  const mealTime = ['아침', '점심', '저녁'].find(t => msg.includes(t)) ?? '기타';
-  const timing   = msg.includes('식전') ? '식전' : msg.includes('식후') ? '식후' : '';
+  const safeMsg  = msg ?? '';
+  const mealTime = ['아침', '점심', '저녁'].find(t => safeMsg.includes(t)) ?? '기타';
+  const timing   = safeMsg.includes('식전') ? '식전' : safeMsg.includes('식후') ? '식후' : '';
   return { mealTime, timing };
 }
 
@@ -170,6 +171,9 @@ const RealService = {
   // ✅ 변환 적용
   getMedications: async () => {
     const raw = await apiClient.get('/prescriptions');
+    const result = transformPrescriptions(raw);
+    console.log('raw:', raw);        // API 응답 확인
+    console.log('result:', result);  // 변환 후 확인
     return transformPrescriptions(raw);
   },
   getTodayMedication: async () => {

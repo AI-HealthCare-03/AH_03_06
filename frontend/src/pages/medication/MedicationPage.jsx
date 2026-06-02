@@ -347,7 +347,8 @@ function TodayMedication({ onBack }) {
       const res = await getTodayMedication()
       if (res.success) setTodayMedication(res.data)
       else setError(res.message ?? '데이터를 불러오지 못했습니다.')
-    } catch {
+    } catch (e){
+      console.error('오늘의 복약 에러:', e)
       setError('네트워크 오류가 발생했습니다.')
     } finally {
       setIsLoading(false)
