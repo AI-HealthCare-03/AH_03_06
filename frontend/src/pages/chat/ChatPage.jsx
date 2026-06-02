@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Header from '../../components/Header.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faWandMagicSparkles, faPaperPlane, faChevronLeft,
   faRotateRight, faTrash, faPenToSquare, faChevronDown, faChevronUp,
+  faEllipsisVertical, faUtensils,
 } from '@fortawesome/free-solid-svg-icons'
 import {
   sendChatMessage, getChatHistory,
   deleteChatMessage, editChatMessage, regenerateChatMessage,
+  clearChatMessages, deleteChatSession,
 } from '../../api/chat.js'
+import { getDietGuideByDate } from '../../api/dietGuides.js'
 
 const CATEGORIES = {
   DIET_GUIDE: [
@@ -99,6 +102,17 @@ const CATEGORIES = {
   ],
 }
 
+const MEAL_PLAN_KO = {
+  'Balanced Diet':               '균형 식단',
+  'Low-Sodium Diet':             '저염 식단',
+  'Low-Carb Diet':               '저탄수화물 식단',
+  'Low-Calorie Diet':            '저칼로리 식단',
+  'Low-Carb Low-Sodium Diet':    '저탄수화물·저염 식단',
+  'Low-Calorie Low-Sodium Diet': '저칼로리·저염 식단',
+  'Low-Carb Low-Calorie Diet':   '저탄수화물·저칼로리 식단',
+  'Therapeutic Diet':            '치료 식단',
+}
+
 const WELCOME_MESSAGE = {
   DIET_GUIDE:     '안녕하세요! AI 식단 상담사입니다.\n식단 플랜, 영양소, 제한 식품 등 궁금한 것을 자유롭게 물어보세요.\n아래 예시 질문을 참고하셔도 좋습니다.',
   HEALTH_CHECKUP: '안녕하세요! AI 건강검진 상담사입니다.\n혈압, 혈당, 건강 상태 등 궁금한 것을 자유롭게 물어보세요.\n아래 예시 질문을 참고하셔도 좋습니다.',
@@ -130,10 +144,89 @@ function TypingDots() {
   )
 }
 
+function DietGuidePanel({ guide }) {
+  const [expanded, setExpanded] = useState(false)
+  if (!guide) return null
+
+  return (
+    <div className="border-b border-borderHairline bg-primarySoft">
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-2.5"
+      >
+        <div className="flex items-center gap-2">
+          <FontAwesomeIcon icon={faUtensils} className="text-primary text-[11px]" />
+          <span className="text-[12px] font-[700] text-primary">
+            {MEAL_PLAN_KO[guide.meal_plan_type] ?? guide.meal_plan_type}
+          </span>
+          <span className="text-[11px] text-primary/60">{guide.guide_date}</span>
+        </div>
+        <FontAwesomeIcon
+          icon={expanded ? faChevronUp : faChevronDown}
+          className="text-primary text-[10px]"
+        />
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-3 space-y-2">
+          <div className="grid grid-cols-4 gap-2">
+            <div className="bg-white rounded-[8px] px-2 py-1.5 text-center">
+              <p className="text-[10px] text-mute mb-0.5">칼로리</p>
+              <p className="text-[12px] font-[700] text-textHeading">
+                {guide.nutrient_standard?.recommended_calories}
+                <span className="text-[10px] font-[400] text-mute ml-0.5">kcal</span>
+              </p>
+            </div>
+            <div className="bg-white rounded-[8px] px-2 py-1.5 text-center">
+              <p className="text-[10px] text-mute mb-0.5">탄수화물</p>
+              <p className="text-[12px] font-[700] text-textHeading">
+                {guide.nutrient_standard?.recommended_carbs}
+                <span className="text-[10px] font-[400] text-mute ml-0.5">g</span>
+              </p>
+            </div>
+            <div className="bg-white rounded-[8px] px-2 py-1.5 text-center">
+              <p className="text-[10px] text-mute mb-0.5">단백질</p>
+              <p className="text-[12px] font-[700] text-textHeading">
+                {guide.nutrient_standard?.recommended_protein}
+                <span className="text-[10px] font-[400] text-mute ml-0.5">g</span>
+              </p>
+            </div>
+            <div className="bg-white rounded-[8px] px-2 py-1.5 text-center">
+              <p className="text-[10px] text-mute mb-0.5">지방</p>
+              <p className="text-[12px] font-[700] text-textHeading">
+                {guide.nutrient_standard?.recommended_fat}
+                <span className="text-[10px] font-[400] text-mute ml-0.5">g</span>
+              </p>
+            </div>
+          </div>
+          {[['아침', guide.breakfast], ['점심', guide.lunch], ['저녁', guide.dinner]].map(([label, content]) => {
+            if (!content) return null
+            const summary = content
+              .replace(/^[-•]\s*/gm, '')
+              .trim()
+              .split('\n')
+              .filter(Boolean)
+              .slice(0, 3)
+              .join(', ')
+            return (
+              <div key={label} className="flex gap-2">
+                <span className="text-[11px] font-[700] text-primary w-6 shrink-0 leading-[1.6]">{label}</span>
+                <span className="text-[12px] text-textBody leading-relaxed">{summary}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ChatPage() {
-  const { sessionId }   = useParams()
-  const [searchParams]  = useSearchParams()
-  const contextType     = searchParams.get('context_type') ?? 'DIET_GUIDE'
+  const navigate              = useNavigate()
+  const { sessionId }         = useParams()
+  const [searchParams]        = useSearchParams()
+  const contextType           = searchParams.get('context_type') ?? 'DIET_GUIDE'
+  const guideDate             = searchParams.get('guide_date') ?? null
   const [messages,         setMessages]         = useState([])
   const [input,            setInput]            = useState('')
   const [loading,          setLoading]          = useState(false)
@@ -142,11 +235,13 @@ function ChatPage() {
   const [showCategories,   setShowCategories]   = useState(false)
   const [editingId,        setEditingId]        = useState(null)
   const [editInput,        setEditInput]        = useState('')
+  const [showMenu,         setShowMenu]         = useState(false)
+  const [dietGuide,        setDietGuide]        = useState(null)
   const bottomRef = useRef(null)
   const inputRef  = useRef(null)
 
-  const categories    = CATEGORIES[contextType] ?? CATEGORIES.DIET_GUIDE
-  const welcomeMsg    = WELCOME_MESSAGE[contextType] ?? WELCOME_MESSAGE.DIET_GUIDE
+  const categories = CATEGORIES[contextType] ?? CATEGORIES.DIET_GUIDE
+  const welcomeMsg = WELCOME_MESSAGE[contextType] ?? WELCOME_MESSAGE.DIET_GUIDE
 
   useEffect(() => {
     if (!sessionId) return
@@ -154,6 +249,13 @@ function ChatPage() {
       .then((data) => { setMessages(data.messages ?? []) })
       .catch(() => {})
   }, [sessionId])
+
+  useEffect(() => {
+    if (contextType !== 'DIET_GUIDE' || !guideDate) return
+    getDietGuideByDate(guideDate)
+      .then(data => setDietGuide(data))
+      .catch(() => {})
+  }, [contextType, guideDate])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -260,6 +362,24 @@ function ChatPage() {
     }
   }
 
+  const handleClearMessages = async () => {
+    if (!window.confirm('채팅 기록을 모두 삭제할까요?')) return
+    setShowMenu(false)
+    try {
+      await clearChatMessages(sessionId)
+      setMessages([])
+    } catch {}
+  }
+
+  const handleLeaveSession = async () => {
+    if (!window.confirm('채팅방을 나가시겠습니까? 채팅 기록이 모두 삭제됩니다.')) return
+    setShowMenu(false)
+    try {
+      await deleteChatSession(sessionId)
+    } catch {}
+    navigate(-1)
+  }
+
   const renderQuestions = (cat, size = 'md') => {
     const px   = size === 'sm' ? 'px-3 py-2.5' : 'px-4 py-3'
     const text = size === 'sm' ? 'text-[12px]' : 'text-[13px]'
@@ -281,11 +401,47 @@ function ChatPage() {
     <div className="bg-white md:bg-[#F4F4F5] w-full h-[100dvh] flex justify-center">
       <div className="w-full bg-white flex flex-col h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 md:h-auto md:max-h-[calc(100dvh-4rem)]">
 
-        <Header variant="back" title={CONTEXT_TITLE[contextType] ?? 'AI 상담'} />
+        <Header
+          variant="back"
+          title={CONTEXT_TITLE[contextType] ?? 'AI 상담'}
+          rightAction={
+            <div className="relative">
+              <button
+                onClick={() => setShowMenu(v => !v)}
+                className="w-10 h-10 flex items-center justify-center text-textHeading"
+              >
+                <FontAwesomeIcon icon={faEllipsisVertical} className="text-[16px]" />
+              </button>
+              {showMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+                  <div className="absolute right-0 top-10 z-50 bg-white rounded-[10px] shadow-lg border border-borderHairline overflow-hidden w-[160px]">
+                    <button
+                      onClick={handleClearMessages}
+                      className="w-full px-5 py-3 text-[14px] font-[500] text-textHeading text-left hover:bg-bgSubtle"
+                    >
+                      채팅 기록 삭제
+                    </button>
+                    <button
+                      onClick={handleLeaveSession}
+                      className="w-full px-5 py-3 text-[14px] font-[500] text-error text-left hover:bg-bgSubtle"
+                    >
+                      채팅방 나가기
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          }
+        />
+
+        {/* 식단 고정 패널 */}
+        {contextType === 'DIET_GUIDE' && (
+          <DietGuidePanel guide={dietGuide} />
+        )}
 
         <main className="flex-1 overflow-y-auto px-5 pt-4 pb-2 space-y-4">
 
-          {/* 웰컴 메시지 버블 — 항상 표시 */}
           <div className="flex justify-start">
             <div className="w-7 h-7 rounded-full bg-primarySoft flex items-center justify-center mr-2 shrink-0 mt-1">
               <FontAwesomeIcon icon={faWandMagicSparkles} className="text-primary text-[10px]" />
@@ -297,7 +453,6 @@ function ChatPage() {
             </div>
           </div>
 
-          {/* 대화 메시지 */}
           {messages.map((msg) => (
             <div
               key={msg.id}
@@ -384,10 +539,7 @@ function ChatPage() {
           <div ref={bottomRef} />
         </main>
 
-        {/* 하단 고정 영역 */}
         <div className="shrink-0 border-t border-borderHairline bg-white">
-
-          {/* 예시 질문 토글 — 항상 표시 */}
           <div className="px-5">
             <button
               onClick={() => { setShowCategories(v => !v); setSelectedCategory(null) }}
@@ -432,7 +584,6 @@ function ChatPage() {
             )}
           </div>
 
-          {/* 입력창 */}
           <div className="px-5 py-3">
             <div className="flex items-center gap-2 bg-bgSubtle rounded-[12px] px-4 py-2">
               <input
