@@ -1,15 +1,10 @@
 # app/services/dur_service.py
 # 복약 안전점검(DUR) — 진료기록 처방 묶음에 대한 안전성 검증.
 #
-# 처방 약 묶음의 5겹 안전성 검증(safety_check_all). 마스터는 적재된 DB 테이블에서 빌드.
-#
-# Phase 1 (현재): 동일성분 중복 · 효능군 중복(ATC) · 병용금기(품목 페어) · 회수약.
-# Phase 2 (예정): 노인주의(나이+성분코드) · 1일 최대투여량 초과.
-#
-# 내부 결과 dict 의 카테고리 키는 llm_service.format_safety_alerts 가 소비하는 계약과
-# 동일하게 유지한다 (duplicates_ingredient / duplicates_efficacy / elderly_cautions /
-# dose_exceeded / recall_warnings + 신규 contraindications).
-#
+# 안전점검 결과 dict의 카테고리 키는 llm_service.format_safety_alerts 와 공유하는 인터페이스라
+# 임의로 바꾸지 말 것 (바꾸려면 format_safety_alerts 도 같이).
+# 키: duplicates_ingredient / duplicates_efficacy / elderly_cautions / dose_exceeded / recall_warnings / contraindications
+
 # 데이터 근거 (라이브 RDS 검증):
 #   - drug_info.drug_code = DUR item_seq (CAST, 402k 매칭)
 #   - 병용금기는 dur_concurrent_product(품목 페어)만 사용
@@ -42,20 +37,16 @@ LEVEL_WARN = "WARN"
 LEVEL_INFO = "INFO"
 _LEVEL_ORDER = {LEVEL_BLOCK: 0, LEVEL_WARN: 1, LEVEL_INFO: 2}
 
-# ATC 코드 앞 5자리(화학적 소분류)로 효능군 "중복" 그룹핑.
-# 식약처 "분류명" 컬럼이 DB에 없어 ATC 로 대체.
-# 5자리를 쓰는 이유: 4자리(약리학적 소분류, 예 A10B 혈당강하제)는 너무 거칠어,
-# 기전이 다른 표준 병용요법(글리메피리드 A10BB + 시타글립틴 A10BH)까지 "중복"으로
-# 오경고한다. 5자리(A10BB=설포닐우레아 / A10BH=DPP-4)는 같은 화학계열 중복만 잡아
-# 진짜 치료적 중복(예: 설포닐우레아 2종)을 검출하면서 상보적 병용은 통과시킨다.
+# 효능 중복 판정: ATC 앞 5자리(화학적 소분류) 기준 — DB에 식약처 분류명 컬럼이 없어 ATC로 대체
+# 4자리(약리 소분류)는 기전이 다른 병용까지 오경고(글리메피리드 A10BB + 시타글립틴 A10BH = 표준 병용인데 중복 판정)
+# 5자리는 같은 화학계열(설포닐우레아 2종 등)만 잡아 상보적 병용은 통과
 _ATC_CLASS_PREFIX_LEN = 5
 
-# 약명→item_seq 폴백 매칭 채택 임계 (오매칭이 미검출보다 위험).
+# 약명 → item_seq 폴백 매칭 채택 임계 (오매칭이 미검출보다 위험)
 _MATCH_CONFIDENCE_MIN = 90
 
-# 노인주의 (HIRA §7-1 다빈도 노인주의 약물 — 벤조디아제핀계·삼환계 항우울제 등).
-# 영문성분명이 DB에 없어 한글 주성분명 LIKE 로
-# drug_ingredient_map 에서 성분코드를 해석한다(동일성분 검사와 같은 코드체계라 일관).
+# 노인주의 (HIRA 다빈도 노인주의 약물 — 벤조디아제핀계·삼환계 항우울제 등)
+# 영문성분명이 DB에 없어 한글 주성분명 LIKE 로 drug_ingredient_map 에서 성분코드를 해석한다(동일성분 검사와 같은 코드체계라 일관)
 _ELDERLY_AGE_THRESHOLD = 65
 _ELDERLY_NAME_KEYWORDS = (
     "아미트리프틸린", "디아제팜", "클로나제팜", "노르트립틸린", "플루니트라제팜",
@@ -497,6 +488,7 @@ def gather_overlapping_prescriptions(db: Session, record, within_windows) -> lis
             MedicalRecord.user_id == record.user_id,
             MedicalRecord.is_deleted == 0,
             MedicalRecord.id != record.id,
+            Prescription.is_active == True,
         )
         .all()
     )
