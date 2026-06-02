@@ -7,7 +7,7 @@ function authHeaders() {
   return t ? { Authorization: `Bearer ${t}` } : {}
 }
 
-export async function listDietGuides() {
+export async function listDietGuideDates() {
   const res = await fetch(`${base()}/guides/diet`, {
     headers: { ...authHeaders() },
   })
@@ -15,19 +15,43 @@ export async function listDietGuides() {
   return res.json()
 }
 
-export async function getDietGuide(id) {
-  const res = await fetch(`${base()}/guides/diet/${id}`, {
+export async function getDietGuideByDate(guideDate) {
+  const res = await fetch(`${base()}/guides/diet/${guideDate}`, {
     headers: { ...authHeaders() },
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
-export async function generateDietGuide(checkupId) {
+export async function generateDietGuide(checkupId, targetDate = null) {
+  const body = { checkup_id: checkupId }
+  if (targetDate) body.target_date = targetDate
   const res = await fetch(`${base()}/guides/diet/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ checkup_id: checkupId }),
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function regenerateDietGuide(checkupId, targetDate = null) {
+  const body = { checkup_id: checkupId }
+  if (targetDate) body.target_date = targetDate
+  const res = await fetch(`${base()}/guides/diet/regenerate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function generateDietGuideCourse(checkupId, days = 7) {
+  const res = await fetch(`${base()}/guides/diet/generate-course`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ checkup_id: checkupId, days }),
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()

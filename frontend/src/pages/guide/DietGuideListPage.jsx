@@ -1,12 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../../components/Header.jsx'
-import FloatingButton from '../../components/FloatingButton.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faUtensils, faEllipsisVertical, faXmark } from '@fortawesome/free-solid-svg-icons'
-import { listDietGuides, generateDietGuide } from '../../api/dietGuides.js'
+import { faUtensils, faChevronRight } from '@fortawesome/free-solid-svg-icons'
+import { listDietGuideDates, getDietGuideByDate, generateDietGuide, regenerateDietGuide } from '../../api/dietGuides.js'
 import { listHealthCheckups } from '../../api/healthCheckup.js'
 
+const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 
 const MEAL_PLAN_KO = {
   'Balanced Diet':               '균형 식단',
@@ -19,92 +19,109 @@ const MEAL_PLAN_KO = {
   'Therapeutic Diet':            '치료 식단',
 }
 
-
-function formatCreatedAt(iso) {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+function buildCalendarGrid(year, month) {
+  const firstDay = new Date(year, month - 1, 1).getDay()
+  const lastDate = new Date(year, month, 0).getDate()
+  const prevLast = new Date(year, month - 1, 0).getDate()
+  const cells = []
+  for (let i = firstDay - 1; i >= 0; i--) cells.push({ day: prevLast - i, cur: false })
+  for (let d = 1; d <= lastDate; d++)     cells.push({ day: d, cur: true })
+  const remain = 42 - cells.length
+  for (let d = 1; d <= remain; d++)       cells.push({ day: d, cur: false })
+  return cells
 }
 
+function toDateStr(year, month, day) {
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function MealSummaryRow({ label, content }) {
+  if (!content) return null
+  const lines   = content.replace(/^[-•]\s*/gm, '').trim().split('\n').filter(Boolean)
+  const summary = lines.slice(0, 3).join(', ')
+  return (
+    <div className="flex items-start gap-3 py-2">
+      <span className="text-[11px] font-[700] text-mute w-6 flex-shrink-0 pt-0.5">{label}</span>
+      <span className="text-[13px] text-textBody leading-relaxed line-clamp-2">{summary}</span>
+    </div>
+  )
+}
 
 function DietGuideListPage() {
-  const navigate = useNavigate()
-  const [guides, setGuides] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [showModal, setShowModal] = useState(false)
-  const [checkups, setCheckups] = useState([])
-  const [checkupsLoading, setCheckupsLoading] = useState(false)
-  const [generating, setGenerating] = useState(false)
-  const [generatingMsg, setGeneratingMsg] = useState('')
+  const navigate   = useNavigate()
+  const now        = new Date()
+  const [year,     setYear]     = useState(now.getFullYear())
+  const [month,    setMonth]    = useState(now.getMonth() + 1)
+  const [selected, setSelected] = useState(toDateStr(now.getFullYear(), now.getMonth() + 1, now.getDate()))
+  const [guideDates,   setGuideDates]   = useState([])
+  const [guide,        setGuide]        = useState(null)
+  const [guideLoading, setGuideLoading] = useState(false)
+  const [generating,   setGenerating]   = useState(false)
   const pollRef = useRef(null)
-  const prevCountRef = useRef(0)
 
   useEffect(() => {
-    fetchGuides()
+    fetchGuideDates()
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [])
 
-  const fetchGuides = async () => {
-    setLoading(true)
-    setError('')
+  useEffect(() => {
+    if (!selected) return
+    setGuide(null)
+    setGuideLoading(true)
+    getDietGuideByDate(selected)
+      .then(data => setGuide(data))
+      .catch(() => setGuide(null))
+      .finally(() => setGuideLoading(false))
+  }, [selected])
+
+  const fetchGuideDates = async () => {
     try {
-      const data = await listDietGuides()
-      const list = Array.isArray(data?.guides) ? data.guides : []
-      setGuides(list)
-      prevCountRef.current = list.length
-    } catch (err) {
-      setError(err?.message ?? '가이드 목록을 불러오지 못했어요.')
-    } finally {
-      setLoading(false)
-    }
+      const data = await listDietGuideDates()
+      setGuideDates(Array.isArray(data?.dates) ? data.dates : [])
+    } catch {}
   }
 
-  const startPolling = () => {
+  const startPolling = (targetDate) => {
     if (pollRef.current) clearInterval(pollRef.current)
     pollRef.current = setInterval(async () => {
       try {
-        const data = await listDietGuides()
-        const list = Array.isArray(data?.guides) ? data.guides : []
-        if (list.length > prevCountRef.current) {
-          setGuides(list)
-          prevCountRef.current = list.length
+        const data = await getDietGuideByDate(targetDate)
+        if (data) {
+          setGuide(data)
+          setGuideDates(prev => prev.includes(targetDate) ? prev : [...prev, targetDate])
           setGenerating(false)
-          setGeneratingMsg('')
           clearInterval(pollRef.current)
         }
       } catch {}
     }, 3000)
   }
 
-  const handleOpenModal = async () => {
-    setShowModal(true)
-    setCheckupsLoading(true)
+  const handleGenerate = async () => {
     try {
-      const data = await listHealthCheckups()
-      setCheckups(Array.isArray(data?.checkups) ? data.checkups : [])
-    } catch {
-      setCheckups([])
-    } finally {
-      setCheckupsLoading(false)
-    }
-  }
-
-  const handleSelectCheckup = async (checkupId) => {
-    setGenerating(true)
-    setGeneratingMsg('가이드를 생성하고 있어요. 잠시만 기다려 주세요…')
-    try {
-      await generateDietGuide(checkupId)
-      setShowModal(false)
-      startPolling()
+      const data     = await listHealthCheckups()
+      const checkups = Array.isArray(data?.checkups) ? data.checkups : []
+      if (checkups.length === 0) {
+        window.alert('등록된 건강검진 기록이 없어요.')
+        return
+      }
+      setGenerating(true)
+      await generateDietGuide(checkups[0].id, selected)
+      startPolling(selected)
     } catch (err) {
       setGenerating(false)
-      setGeneratingMsg('')
       window.alert(err?.message ?? '가이드 생성 요청에 실패했어요.')
     }
   }
+
+  const prevMonth = () => {
+    if (month === 1) { setYear(y => y - 1); setMonth(12) } else setMonth(m => m - 1)
+  }
+  const nextMonth = () => {
+    if (month === 12) { setYear(y => y + 1); setMonth(1) } else setMonth(m => m + 1)
+  }
+
+  const cells        = buildCalendarGrid(year, month)
+  const guideDateSet = new Set(guideDates)
 
   return (
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
@@ -112,120 +129,116 @@ function DietGuideListPage() {
 
         <Header variant="back" title="식단 가이드" />
 
-        <main className="px-5 pt-5 pb-2 space-y-3">
+        <main className="px-4 py-4 space-y-3">
 
-          {generatingMsg && (
-            <div className="bg-primarySoft border border-primary/20 rounded-[10px] px-4 py-3">
-              <p className="text-[12px] text-primary text-center">{generatingMsg}</p>
+          {/* 달력 */}
+          <div className="bg-white rounded-2xl px-4 py-4 shadow-sm border border-borderHairline">
+            <div className="flex items-center justify-between mb-4">
+              <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-bgSubtle">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#09090B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <span className="text-[15px] font-semibold text-textHeading">{year}년 {month}월</span>
+              <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-bgSubtle">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#09090B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-7 mb-1">
+              {DAY_LABELS.map((d, i) => (
+                <div key={d} className={`text-center text-[11px] font-medium py-1
+                  ${i === 0 ? 'text-[#EF4444]' : i === 6 ? 'text-primary' : 'text-mute'}`}>
+                  {d}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-y-1">
+              {cells.map((cell, idx) => {
+                const col      = idx % 7
+                const isSun    = col === 0
+                const isSat    = col === 6
+                const dateStr  = cell.cur ? toDateStr(year, month, cell.day) : null
+                const isSel    = dateStr === selected
+                const hasGuide = dateStr && guideDateSet.has(dateStr)
+
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => cell.cur && setSelected(dateStr)}
+                    disabled={!cell.cur}
+                    className={`flex flex-col items-center py-1 rounded-xl transition-colors
+                      ${isSel ? 'bg-primary' : cell.cur ? 'hover:bg-bgSubtle' : ''}`}
+                  >
+                    <span className={`text-[13px] font-medium w-7 h-7 flex items-center justify-center rounded-full
+                      ${!cell.cur ? 'text-[#D4D4D8]' : isSel ? 'text-white' : isSun ? 'text-[#EF4444]' : isSat ? 'text-primary' : 'text-textHeading'}`}>
+                      {cell.day}
+                    </span>
+                    <span className={`w-1 h-1 rounded-full mt-0.5
+                      ${hasGuide ? (isSel ? 'bg-white/60' : 'bg-primary') : 'invisible'}`} />
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="flex justify-center mt-3 pt-3 border-t border-borderHairline">
+              <span className="flex items-center gap-1.5 text-[11px] text-mute">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" /> 식단 있음
+              </span>
+            </div>
+          </div>
+
+          {/* 로딩 */}
+          {guideLoading && (
+            <p className="text-[13px] text-mute text-center py-6">불러오는 중…</p>
+          )}
+
+          {/* 생성 중 */}
+          {generating && !guide && (
+            <div className="bg-primarySoft border border-primary/20 rounded-[12px] px-4 py-3">
+              <p className="text-[12px] text-primary text-center animate-pulse">가이드를 생성하고 있어요. 잠시만 기다려 주세요…</p>
             </div>
           )}
 
-          {loading && (
-            <p className="text-[13px] text-mute text-center py-10">불러오는 중…</p>
-          )}
-
-          {!loading && error && (
-            <p className="text-[13px] text-error text-center py-10">{error}</p>
-          )}
-
-          {!loading && !error && guides.length === 0 && (
-            <section className="bg-bgSubtle border border-borderHairline rounded-[12px] p-6 text-center mt-6">
+          {/* 식단 없음 */}
+          {!guideLoading && !guide && !generating && (
+            <section className="bg-bgSubtle border border-borderHairline rounded-[12px] p-6 text-center">
               <FontAwesomeIcon icon={faUtensils} className="text-mute text-[24px] mb-3" />
-              <h2 className="text-[14px] font-[700] text-textHeading mb-1">
-                아직 생성된 식단 가이드가 없어요
-              </h2>
-              <p className="text-[12px] text-subtext leading-relaxed">
-                아래 + 버튼을 눌러 건강검진 기록을 선택하고 식단 가이드를 받아보세요.
-              </p>
+              <h2 className="text-[14px] font-[700] text-textHeading mb-1">해당 날짜의 식단 가이드가 없어요</h2>
+              <p className="text-[12px] text-subtext leading-relaxed mb-4">최신 건강검진 결과를 기반으로 맞춤 식단을 생성해 드려요.</p>
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                className="w-full h-11 bg-primary text-white text-[14px] font-[700] rounded-[10px] transition-colors disabled:bg-mute disabled:cursor-not-allowed"
+              >
+                식단 생성하기
+              </button>
             </section>
           )}
 
-          {!loading && !error && guides.length > 0 && (
-            <>
-              <p className="text-[11px] text-mute pt-1">총 {guides.length}건</p>
-              {guides.map((g) => (
-                <div
-                  key={g.id}
-                  onClick={() => navigate(`/diet-guides/${g.id}`)}
-                  className="bg-white border border-borderHairline rounded-[12px] p-4 flex items-start justify-between gap-3 cursor-pointer active:bg-bgSubtle transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h2 className="text-[14px] font-[700] text-textHeading truncate">
-                        {g.meal_plan_type
-                          ? (MEAL_PLAN_KO[g.meal_plan_type] ?? g.meal_plan_type)
-                          : '식단 가이드'}
-                      </h2>
-                      {!g.is_verified && (
-                        <span className="flex-shrink-0 px-1.5 py-0.5 bg-bgSubtle text-mute text-[10px] font-[500] rounded">
-                          검증 중
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-mute">{formatCreatedAt(g.created_at)}</p>
-                  </div>
-                  <button
-                    onClick={(e) => e.stopPropagation()}
-                    className="p-1 -mr-1 text-mute hover:text-textBody transition-colors flex-shrink-0"
-                  >
-                    <FontAwesomeIcon icon={faEllipsisVertical} className="text-[14px]" />
-                  </button>
+          {/* 식단 요약 */}
+          {!guideLoading && guide && (
+            <div
+              onClick={() => navigate(`/diet-guides/${selected}`)}
+              className="bg-white border border-borderHairline rounded-[12px] px-5 py-4 cursor-pointer active:bg-bgSubtle transition-colors"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-[14px] font-[700] text-textHeading">
+                  {MEAL_PLAN_KO[guide.meal_plan_type] ?? guide.meal_plan_type}
+                </h2>
+                <div className="flex items-center gap-1 text-mute">
+                  <span className="text-[11px]">상세보기</span>
+                  <FontAwesomeIcon icon={faChevronRight} className="text-[10px]" />
                 </div>
-              ))}
-            </>
+              </div>
+              <div className="divide-y divide-borderHairline">
+                <MealSummaryRow label="아침" content={guide.breakfast} />
+                <MealSummaryRow label="점심" content={guide.lunch} />
+                <MealSummaryRow label="저녁" content={guide.dinner} />
+              </div>
+            </div>
           )}
 
         </main>
-
-        <FloatingButton onClick={handleOpenModal} />
-
-        {showModal && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={() => !generating && setShowModal(false)} />
-            <div className="relative w-full md:max-w-[480px] bg-white rounded-t-[20px] px-5 pt-5 pb-8 space-y-4 max-h-[70vh] overflow-y-auto">
-              <div className="flex items-center justify-between">
-                <h2 className="text-[16px] font-[700] text-textHeading">건강검진 선택</h2>
-                <button
-                  onClick={() => !generating && setShowModal(false)}
-                  className="p-1 text-mute hover:text-textBody"
-                >
-                  <FontAwesomeIcon icon={faXmark} className="text-[18px]" />
-                </button>
-              </div>
-              <p className="text-[12px] text-subtext">어떤 건강검진 결과를 기준으로 식단 가이드를 생성할까요?</p>
-
-              {checkupsLoading && (
-                <p className="text-[13px] text-mute text-center py-6">불러오는 중…</p>
-              )}
-
-              {!checkupsLoading && checkups.length === 0 && (
-                <p className="text-[13px] text-mute text-center py-6">등록된 건강검진 기록이 없어요.</p>
-              )}
-
-              {!checkupsLoading && checkups.length > 0 && (
-                <div className="space-y-2">
-                  {checkups.map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => handleSelectCheckup(c.id)}
-                      disabled={generating}
-                      className="w-full bg-white border border-borderHairline rounded-[10px] p-4 text-left active:bg-bgSubtle transition-colors disabled:opacity-50"
-                    >
-                      <p className="text-[13px] font-[600] text-textHeading">{c.checkup_year}년 건강검진 결과</p>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {generating && (
-                <p className="text-[12px] text-primary text-center animate-pulse">
-                  가이드를 생성하고 있어요…
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
       </div>
     </div>
   )

@@ -98,7 +98,7 @@ function App() {
         <Route path="/sleep-guides/new" element={<PrivateRoute auth={auth}><SleepGuideInputPage /></PrivateRoute>} />
         <Route path="/sleep-guides/:guideId" element={<PrivateRoute auth={auth}><SleepGuidePage /></PrivateRoute>} />
         <Route path="/diet-guides" element={<PrivateRoute auth={auth}><DietGuideListPage /></PrivateRoute>} />
-        <Route path="/diet-guides/:id" element={<PrivateRoute auth={auth}><DietGuidePage /></PrivateRoute>} />
+        <Route path="/diet-guides/:date" element={<PrivateRoute auth={auth}><DietGuidePage /></PrivateRoute>} />
         <Route path="/user" element={<PrivateRoute auth={auth}><MyPage /></PrivateRoute>} />
         <Route path="/user/profile/edit" element={<PrivateRoute auth={auth}><ProfileEdit /></PrivateRoute>} />
         <Route path="/health-checkup" element={<PrivateRoute auth={auth}><HealthCheckList /></PrivateRoute>} />

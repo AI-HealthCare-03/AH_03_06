@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getAccessToken } from '../../utils/token.js'
+import { createChatSession } from '../../api/chat.js'
 import Header from '../../components/Header.jsx'
 import BottomAction from '../../components/BottomAction.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faTriangleExclamation, faCircleCheck, faCircleInfo, faEllipsisVertical } from '@fortawesome/free-solid-svg-icons'
+import { faTriangleExclamation, faCircleCheck, faCircleInfo, faEllipsisVertical, faComments } from '@fortawesome/free-solid-svg-icons'
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
@@ -132,6 +133,15 @@ function HealthCheckResults() {
       .catch(err => console.log('error:', err))
   }
 
+  const handleChat = async () => {
+    try {
+      const session = await createChatSession('HEALTH_CHECKUP', data?.id ? Number(data.id) : null)
+      navigate(`/chat/${session.id}?context_type=HEALTH_CHECKUP`)
+    } catch {
+      window.alert('채팅 세션 생성에 실패했어요.')
+    }
+  }
+
   return (
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
       <div className="w-full min-h-[100dvh] bg-white flex flex-col mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 md:overflow-hidden">
@@ -250,6 +260,14 @@ function HealthCheckResults() {
               본 결과는 건강검진 데이터를 기반으로 제공되며, 의학적 진단을 대신할 수 없습니다. 정확한 진단 및 치료를 위해서는 반드시 전문의와 상담하시기 바랍니다.
             </p>
           </div>
+
+          <button
+            onClick={handleChat}
+            className="w-full h-12 bg-white border border-primary text-primary text-[14px] font-[700] rounded-[12px] flex items-center justify-center gap-2 hover:bg-primarySoft transition-colors"
+          >
+            <FontAwesomeIcon icon={faComments} className="text-[14px]" />
+            <span>AI에게 질문하기</span>
+          </button>
 
         </div>
 
