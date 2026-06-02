@@ -27,7 +27,8 @@ export default {
         primarySoft: '#EFF6FF',
 
         // Neutral
-        textBody: '#09090B',
+        // C-6 절충: 본문 기준값을 실사용 우세값(#18181B)으로 맞춤. 레거시 text.* 제거·전면 치환은 회의 후.
+        textBody: '#18181B',
         textHeading: '#18181B',
         subtext: '#52525B',
         mute: '#A1A1AA',
@@ -38,7 +39,12 @@ export default {
 
         // 예외: 건강 상태 뱃지/카드 전용
         warning: '#F59E0B',
+        warningSoft: '#FEF3C7',
         error: '#DC2626',
+        errorSoft: '#FEE2E2',
+        // 정상/성공 — 기존엔 토큰 없이 raw green이 흩어져 있어 신설(코드 실측값 기준: green-600/green-50)
+        success: '#16A34A',
+        successSoft: '#F0FDF4',
       },
       boxShadow: {
         soft: '0 1px 2px 0 rgb(0 0 0 / 0.04)',
