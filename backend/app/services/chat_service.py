@@ -111,7 +111,7 @@ def _build_and_invoke(session_id: int, session: ChatSession, user_id: int,
     if session.context_type == 'DIET_GUIDE':
         system_prompt = get_diet_prompt(category or '', message, context_data)
     elif session.context_type == 'HEALTH_CHECKUP':
-        system_prompt = get_health_prompt(category or '', context_data)
+        system_prompt = get_health_prompt(category or '', message, context_data)
     elif session.context_type == 'PRESCRIPTION':
         system_prompt = get_prescription_prompt(category or '', context_data)
     else:
