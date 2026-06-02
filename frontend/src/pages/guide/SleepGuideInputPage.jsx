@@ -219,12 +219,12 @@ function SleepGuideInputPage() {
 
   return (
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
-      <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8">
+      <div className="w-full bg-white relative flex flex-col h-[100dvh] overflow-hidden mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8">
 
         <Header variant="back" title="수면 가이드" />
         <ProgressBar step={step} />
 
-        <main className="flex-1 px-5 pt-3 pb-28 overflow-y-auto">
+        <main className="flex-1 min-h-0 px-5 pt-3 pb-4 overflow-y-auto">
 
           {/* 1단계: 수면 시각 */}
           {step === 1 && (
@@ -395,8 +395,8 @@ function SleepGuideInputPage() {
           )}
         </main>
 
-        {/* 하단 고정 네비게이션 */}
-        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-borderHairline px-5 py-3 flex items-center gap-3">
+        {/* 하단 고정 네비게이션 — flex 자식(shrink-0)으로 항상 화면 하단 고정 */}
+        <div className="shrink-0 bg-white border-t border-borderHairline px-5 py-3 flex items-center gap-3">
           {step > 1 && (
             <button
               type="button"
