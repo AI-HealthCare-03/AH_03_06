@@ -13,7 +13,7 @@ from app.prompts.diet_prompts import get_diet_prompt
 from app.prompts.health_prompts import get_health_prompt
 from app.prompts.prescription_prompts import get_prescription_prompt
 
-llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.3)
+llm    = ChatOpenAI(model='gpt-4o-mini', temperature=0.3)
 client = OpenAI()
 
 MEAL_PLAN_KO = {
@@ -141,7 +141,17 @@ def _build_and_invoke(session_id: int, session: ChatSession, user_id: int,
         return response.content
 
 
-def create_session(user_id: int, context_type: str, context_id: Optional[int], db: Session) -> ChatSession:
+def get_or_create_session(user_id: int, context_type: str,
+                           context_id: Optional[int], db: Session) -> ChatSession:
+    query = db.query(ChatSession).filter(
+        ChatSession.user_id      == user_id,
+        ChatSession.context_type == context_type,
+    )
+    if context_id:
+        query = query.filter(ChatSession.context_id == context_id)
+    session = query.order_by(ChatSession.created_at.desc()).first()
+    if session:
+        return session
     session = ChatSession(
         user_id=user_id,
         context_type=context_type,
@@ -153,9 +163,49 @@ def create_session(user_id: int, context_type: str, context_id: Optional[int], d
     return session
 
 
-def send_message(session_id: int, user_id: int, message: str, category: Optional[str], db: Session) -> dict:
+def create_session(user_id: int, context_type: str,
+                   context_id: Optional[int], db: Session) -> ChatSession:
+    return get_or_create_session(user_id, context_type, context_id, db)
+
+
+def get_session(session_id: int, user_id: int, db: Session) -> ChatSession:
     session = db.query(ChatSession).filter(
-        ChatSession.id == session_id,
+        ChatSession.id      == session_id,
+        ChatSession.user_id == user_id,
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail='chat_session_not_found')
+    return session
+
+
+def delete_session(session_id: int, user_id: int, db: Session) -> None:
+    session = db.query(ChatSession).filter(
+        ChatSession.id      == session_id,
+        ChatSession.user_id == user_id,
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail='chat_session_not_found')
+    db.query(ChatMessage).filter(ChatMessage.session_id == session_id).delete()
+    db.delete(session)
+    db.commit()
+
+
+def clear_messages(session_id: int, user_id: int, db: Session) -> dict:
+    session = db.query(ChatSession).filter(
+        ChatSession.id      == session_id,
+        ChatSession.user_id == user_id,
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail='chat_session_not_found')
+    db.query(ChatMessage).filter(ChatMessage.session_id == session_id).delete()
+    db.commit()
+    return {'session_id': session_id, 'messages': []}
+
+
+def send_message(session_id: int, user_id: int, message: str,
+                  category: Optional[str], db: Session) -> dict:
+    session = db.query(ChatSession).filter(
+        ChatSession.id      == session_id,
         ChatSession.user_id == user_id,
     ).first()
     if not session:
@@ -163,7 +213,7 @@ def send_message(session_id: int, user_id: int, message: str, category: Optional
 
     answer = _build_and_invoke(session_id, session, user_id, message, category, db)
 
-    db.add(ChatMessage(session_id=session_id, role='user', content=message))
+    db.add(ChatMessage(session_id=session_id, role='user',      content=message))
     db.add(ChatMessage(session_id=session_id, role='assistant', content=answer))
     db.commit()
 
@@ -171,22 +221,19 @@ def send_message(session_id: int, user_id: int, message: str, category: Optional
         ChatMessage.session_id == session_id
     ).order_by(ChatMessage.created_at.asc()).all()
 
-    return {
-        'message': answer,
-        'history': all_history,
-    }
+    return {'message': answer, 'history': all_history}
 
 
 def delete_message(session_id: int, message_id: int, user_id: int, db: Session) -> dict:
     session = db.query(ChatSession).filter(
-        ChatSession.id == session_id,
+        ChatSession.id      == session_id,
         ChatSession.user_id == user_id,
     ).first()
     if not session:
         raise HTTPException(status_code=404, detail='chat_session_not_found')
 
     message = db.query(ChatMessage).filter(
-        ChatMessage.id == message_id,
+        ChatMessage.id         == message_id,
         ChatMessage.session_id == session_id,
     ).first()
     if not message:
@@ -199,39 +246,35 @@ def delete_message(session_id: int, message_id: int, user_id: int, db: Session) 
         ChatMessage.session_id == session_id
     ).order_by(ChatMessage.created_at.asc()).all()
 
-    return {
-        'session_id': session_id,
-        'messages': all_history,
-    }
+    return {'session_id': session_id, 'messages': all_history}
 
 
 def edit_message(session_id: int, message_id: int, user_id: int,
                   message: str, category: Optional[str], db: Session) -> dict:
     session = db.query(ChatSession).filter(
-        ChatSession.id == session_id,
+        ChatSession.id      == session_id,
         ChatSession.user_id == user_id,
     ).first()
     if not session:
         raise HTTPException(status_code=404, detail='chat_session_not_found')
 
     target = db.query(ChatMessage).filter(
-        ChatMessage.id == message_id,
+        ChatMessage.id         == message_id,
         ChatMessage.session_id == session_id,
-        ChatMessage.role == 'user',
+        ChatMessage.role       == 'user',
     ).first()
     if not target:
         raise HTTPException(status_code=404, detail='message_not_found')
 
-    # 해당 메시지 이후 대화 모두 삭제
     db.query(ChatMessage).filter(
         ChatMessage.session_id == session_id,
-        ChatMessage.id >= message_id,
+        ChatMessage.id         >= message_id,
     ).delete()
     db.commit()
 
     answer = _build_and_invoke(session_id, session, user_id, message, category, db)
 
-    db.add(ChatMessage(session_id=session_id, role='user', content=message))
+    db.add(ChatMessage(session_id=session_id, role='user',      content=message))
     db.add(ChatMessage(session_id=session_id, role='assistant', content=answer))
     db.commit()
 
@@ -239,39 +282,34 @@ def edit_message(session_id: int, message_id: int, user_id: int,
         ChatMessage.session_id == session_id
     ).order_by(ChatMessage.created_at.asc()).all()
 
-    return {
-        'message': answer,
-        'history': all_history,
-    }
+    return {'message': answer, 'history': all_history}
 
 
 def regenerate_message(session_id: int, message_id: int, user_id: int,
                         category: Optional[str], db: Session) -> dict:
     session = db.query(ChatSession).filter(
-        ChatSession.id == session_id,
+        ChatSession.id      == session_id,
         ChatSession.user_id == user_id,
     ).first()
     if not session:
         raise HTTPException(status_code=404, detail='chat_session_not_found')
 
     target = db.query(ChatMessage).filter(
-        ChatMessage.id == message_id,
+        ChatMessage.id         == message_id,
         ChatMessage.session_id == session_id,
-        ChatMessage.role == 'assistant',
+        ChatMessage.role       == 'assistant',
     ).first()
     if not target:
         raise HTTPException(status_code=404, detail='message_not_found')
 
-    # 해당 assistant 메시지 바로 앞 user 메시지 조회
     user_message = db.query(ChatMessage).filter(
         ChatMessage.session_id == session_id,
-        ChatMessage.id < message_id,
-        ChatMessage.role == 'user',
+        ChatMessage.id         <  message_id,
+        ChatMessage.role       == 'user',
     ).order_by(ChatMessage.id.desc()).first()
     if not user_message:
         raise HTTPException(status_code=404, detail='user_message_not_found')
 
-    # 기존 assistant 메시지 삭제
     db.delete(target)
     db.commit()
 
@@ -284,15 +322,12 @@ def regenerate_message(session_id: int, message_id: int, user_id: int,
         ChatMessage.session_id == session_id
     ).order_by(ChatMessage.created_at.asc()).all()
 
-    return {
-        'message': answer,
-        'history': all_history,
-    }
+    return {'message': answer, 'history': all_history}
 
 
 def get_history(session_id: int, user_id: int, db: Session) -> dict:
     session = db.query(ChatSession).filter(
-        ChatSession.id == session_id,
+        ChatSession.id      == session_id,
         ChatSession.user_id == user_id,
     ).first()
     if not session:
@@ -302,7 +337,4 @@ def get_history(session_id: int, user_id: int, db: Session) -> dict:
         ChatMessage.session_id == session_id
     ).order_by(ChatMessage.created_at.asc()).all()
 
-    return {
-        'session_id': session_id,
-        'messages': messages,
-    }
+    return {'session_id': session_id, 'messages': messages}

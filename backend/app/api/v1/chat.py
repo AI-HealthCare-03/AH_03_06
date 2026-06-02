@@ -30,6 +30,32 @@ def create_session(
     )
 
 
+@router.get('/sessions/{session_id}', response_model=ChatSessionResponse)
+def get_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return chat_service.get_session(
+        session_id=session_id,
+        user_id=current_user.id,
+        db=db,
+    )
+
+
+@router.delete('/sessions/{session_id}', status_code=204)
+def delete_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    chat_service.delete_session(
+        session_id=session_id,
+        user_id=current_user.id,
+        db=db,
+    )
+
+
 @router.post('/sessions/{session_id}/messages', response_model=ChatMessageResponse)
 def send_message(
     session_id: int,
@@ -42,6 +68,19 @@ def send_message(
         user_id=current_user.id,
         message=request.message,
         category=request.category,
+        db=db,
+    )
+
+
+@router.delete('/sessions/{session_id}/messages', response_model=ChatHistoryResponse)
+def clear_messages(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return chat_service.clear_messages(
+        session_id=session_id,
+        user_id=current_user.id,
         db=db,
     )
 
