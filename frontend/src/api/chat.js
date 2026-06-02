@@ -63,3 +63,20 @@ export async function regenerateChatMessage(sessionId, messageId, category = nul
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
+
+export async function clearChatMessages(sessionId) {
+  const res = await fetch(`${base()}/chat/sessions/${sessionId}/messages`, {
+    method: 'DELETE',
+    headers: { ...authHeaders() },
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function deleteChatSession(sessionId) {
+  const res = await fetch(`${base()}/chat/sessions/${sessionId}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders() },
+  })
+  if (!res.ok) throw new Error(await res.text())
+}

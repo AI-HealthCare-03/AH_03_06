@@ -123,7 +123,7 @@ function DietGuidePage() {
     if (!guide) return
     try {
       const data = await createChatSession('DIET_GUIDE', guide.id)
-      navigate(`/chat/${data.id}?context_type=DIET_GUIDE`)
+      navigate(`/chat/${data.id}?context_type=DIET_GUIDE&guide_date=${guide.guide_date}`)
     } catch {
       window.alert('채팅 세션 생성에 실패했어요.')
     }
