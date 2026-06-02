@@ -1,13 +1,13 @@
-from sqlalchemy import BigInteger, Boolean, Column, DateTime, DECIMAL, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, Column, Date, DateTime, DECIMAL, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.sql import func
 from app.database import Base
 
 
 class NutrientStandard(Base):
-    __tablename__ = 'NUTRIENT_STANDARD'
+    __tablename__ = 'nutrient_standard'
 
     id                   = Column(BigInteger, primary_key=True, autoincrement=True)
-    user_id = Column(BigInteger, ForeignKey('user.id'), nullable=False)
+    user_id              = Column(BigInteger, ForeignKey('user.id'), nullable=False)
     recommended_calories = Column(Integer, nullable=True)
     recommended_protein  = Column(DECIMAL(5, 2), nullable=True)
     recommended_carbs    = Column(DECIMAL(5, 2), nullable=True)
@@ -17,11 +17,12 @@ class NutrientStandard(Base):
 
 
 class DietGuide(Base):
-    __tablename__ = 'DIET_GUIDE'
+    __tablename__ = 'diet_guide'
 
     id                   = Column(BigInteger, primary_key=True, autoincrement=True)
-    user_id = Column(BigInteger, ForeignKey('user.id'), nullable=False)
-    nutrient_standard_id = Column(BigInteger, ForeignKey('NUTRIENT_STANDARD.id'), nullable=False)
+    user_id              = Column(BigInteger, ForeignKey('user.id'), nullable=False)
+    nutrient_standard_id = Column(BigInteger, ForeignKey('nutrient_standard.id'), nullable=False)
+    guide_date           = Column(Date, nullable=False)
     breakfast            = Column(Text, nullable=True)
     lunch                = Column(Text, nullable=True)
     dinner               = Column(Text, nullable=True)
@@ -33,3 +34,7 @@ class DietGuide(Base):
     actual_fat           = Column(DECIMAL(5, 2), nullable=True)
     is_verified          = Column(Boolean, nullable=False, default=False)
     created_at           = Column(DateTime, nullable=False, default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'guide_date', name='uq_diet_guide_user_date'),
+    )

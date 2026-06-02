@@ -1,10 +1,16 @@
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 
 class DietGuideGenerateRequest(BaseModel):
     checkup_id: int
+    target_date: Optional[date] = None
+
+
+class DietGuideGenerateCourseRequest(BaseModel):
+    checkup_id: int
+    days: int = 7
 
 
 class NutrientStandardSchema(BaseModel):
@@ -15,22 +21,23 @@ class NutrientStandardSchema(BaseModel):
 
 
 class NutrientAchievementSchema(BaseModel):
-    calories: int
-    protein: int
-    carbs: int
-    fat: int
+    calories: Optional[int] = None
+    protein: Optional[int] = None
+    carbs: Optional[int] = None
+    fat: Optional[int] = None
 
 
 class DietGuideResponse(BaseModel):
     id: int
+    guide_date: date
     meal_plan_type: str
     nutrient_standard: NutrientStandardSchema
-    breakfast: Optional[str]
-    lunch: Optional[str]
-    dinner: Optional[str]
-    recommended_foods: Optional[str]
-    restricted_foods: Optional[str]
-    nutrient_achievement: Optional[NutrientAchievementSchema]
+    breakfast: Optional[str] = None
+    lunch: Optional[str] = None
+    dinner: Optional[str] = None
+    recommended_foods: Optional[str] = None
+    restricted_foods: Optional[str] = None
+    nutrient_achievement: Optional[NutrientAchievementSchema] = None
     is_verified: bool
     created_at: datetime
 
@@ -38,18 +45,8 @@ class DietGuideResponse(BaseModel):
         from_attributes = True
 
 
-class DietGuideListItem(BaseModel):
-    id: int
-    meal_plan_type: str
-    is_verified: bool
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class DietGuideListResponse(BaseModel):
-    guides: list[DietGuideListItem]
+class DietGuideDateListResponse(BaseModel):
+    dates: list[date]
 
 
 class DietGuideGenerateResponse(BaseModel):
