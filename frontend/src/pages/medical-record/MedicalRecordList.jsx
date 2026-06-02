@@ -9,8 +9,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listMedicalRecords } from '../../api/medicalRecord'
-import BottomNav from '../../components/BottomNav'
 import Header from '../../components/Header'
+import EmptyState from '../../components/EmptyState'
+import { faFileLines } from '@fortawesome/free-solid-svg-icons'
 
 // ── 진료과 목록 (실제 서비스에서는 API로 조회) ───────────────
 const DEPARTMENTS = [
@@ -72,25 +73,6 @@ function RecordCard({ record, departmentName, onClick }) {
         </p>
       )}
     </button>
-  )
-}
-
-// ── 빈 상태 컴포넌트 ──────────────────────────────────────────
-function EmptyState({ hasFilters }) {
-  return (
-    <div className="flex flex-col items-center justify-center flex-1 gap-3 py-20 text-center">
-      <div className="w-16 h-16 rounded-full bg-neutral-50 flex items-center justify-center mb-1">
-        <svg className="w-8 h-8 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      </div>
-      <p className="text-sm font-semibold text-neutral-500">
-        {hasFilters ? '검색 결과가 없어요' : '아직 진료기록이 없어요'}
-      </p>
-      <p className="text-xs text-neutral-400">
-        {hasFilters ? '다른 검색어나 필터를 시도해 보세요' : '오른쪽 아래 + 버튼으로 추가해 보세요'}
-      </p>
-    </div>
   )
 }
 
@@ -237,10 +219,10 @@ export default function MedicalRecordList() {
     <div className="mobile-container flex flex-col min-h-dvh bg-white font-['Pretendard',sans-serif]">
 
       {/* 앱바 */}
-      <Header title="진료기록" showDivider={false} />
+      <Header variant="back" title="진료기록" showDivider={false} />
 
       {/* 검색바 */}
-      <div className="">
+      <div className="px-5 pt-1 pb-3">
         <form onSubmit={handleSearch} className="relative">
           <input
             type="search"
@@ -262,7 +244,7 @@ export default function MedicalRecordList() {
       <div className="px-5 pb-4 flex items-center justify-between shrink-0">
         {/* 건수 */}
         <span className="text-sm text-neutral-500">
-          {loading ? '' : `전체 ${records.length}건`}
+          {loading || error ? '' : `총 ${records.length}건`}
         </span>
 
         <div className="flex items-center gap-2">
@@ -295,7 +277,7 @@ export default function MedicalRecordList() {
       </div>
 
       {/* 목록 */}
-      <main className="flex-1 px-5 flex flex-col gap-3 overflow-y-auto pb-28">
+      <main className="flex-1 px-5 flex flex-col gap-3 overflow-y-auto pb-24">
         {loading ? (
           // 스켈레톤
           Array.from({ length: 3 }).map((_, i) => (
@@ -309,7 +291,13 @@ export default function MedicalRecordList() {
             </button>
           </div>
         ) : records.length === 0 ? (
-          <EmptyState hasFilters={hasFilters} />
+          <div className="flex-1 flex items-center justify-center">
+            <EmptyState
+              icon={faFileLines}
+              title={hasFilters ? '검색 결과가 없어요' : '아직 진료기록이 없어요'}
+              description={hasFilters ? '다른 검색어나 필터를 시도해 보세요' : '오른쪽 아래 + 버튼으로 추가해 보세요'}
+            />
+          </div>
         ) : (
           records.map(record => (
             <RecordCard
@@ -325,7 +313,7 @@ export default function MedicalRecordList() {
       {/* FAB - 등록 버튼 */}
       <button
         onClick={() => navigate('/medical-records/new')}
-        className="fixed bottom-20 right-5 w-14 h-14 rounded-full bg-blue-600 text-white shadow-[0_8px_24px_rgba(37,99,235,0.4)] flex items-center justify-center active:scale-95 transition-transform duration-150 z-10"
+        className="fixed bottom-6 right-5 w-14 h-14 rounded-full bg-blue-600 text-white shadow-[0_8px_24px_rgba(37,99,235,0.4)] flex items-center justify-center active:scale-95 transition-transform duration-150 z-10"
         aria-label="진료기록 추가"
       >
         <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -337,11 +325,11 @@ export default function MedicalRecordList() {
       {showFilter && (
         <>
           {/* 딤 배경 */}
-          <div className="fixed inset-0 bg-black/30 z-20" onClick={() => setIsFilterOpen(false)} />
+          <div className="fixed inset-0 bg-black/30 z-20" onClick={() => setShowFilter(false)} />
 
-          {/* 바텀시트 — 탭바(64px) 위까지만 차지 */}
-          <div className="fixed bottom-16 left-0 right-0 bg-white rounded-t-2xl z-30 flex flex-col"
-               style={{ maxHeight: 'calc(100vh - 64px)' }}>
+          {/* 바텀시트 — 화면 하단까지 (탭바 없음) */}
+          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-30 flex flex-col"
+               style={{ maxHeight: '100vh' }}>
 
             {/* 핸들 */}
             <div className="flex justify-center pt-3 pb-2 shrink-0">
@@ -367,7 +355,6 @@ export default function MedicalRecordList() {
           </div>
         </>
       )}
-      <BottomNav />
     </div>
   )
 }
