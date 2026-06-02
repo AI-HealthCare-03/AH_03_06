@@ -56,3 +56,11 @@ export async function generateDietGuideCourse(checkupId, days = 7) {
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
+
+export async function deleteDietGuide(guideDate) {
+  const res = await fetch(`${base()}/guides/diet/${guideDate}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders() },
+  })
+  if (!res.ok) throw new Error(await res.text())
+}
