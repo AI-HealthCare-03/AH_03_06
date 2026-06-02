@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from sqlalchemy.orm import Session
 from app.models.diet import NutrientStandard, DietGuide
 
@@ -31,7 +32,7 @@ class DietGuideRepository:
 
     @staticmethod
     def create(db: Session, user_id: int, nutrient_standard_id: int,
-               breakfast: str, lunch: str, dinner: str,
+               guide_date: date, breakfast: str, lunch: str, dinner: str,
                recommended_foods: str, restricted_foods: str,
                actual_calories: int, actual_protein: float,
                actual_carbs: float, actual_fat: float,
@@ -39,6 +40,7 @@ class DietGuideRepository:
         diet_guide = DietGuide(
             user_id=user_id,
             nutrient_standard_id=nutrient_standard_id,
+            guide_date=guide_date,
             breakfast=breakfast,
             lunch=lunch,
             dinner=dinner,
@@ -55,6 +57,13 @@ class DietGuideRepository:
         return diet_guide
 
     @staticmethod
+    def get_by_date(db: Session, user_id: int, guide_date: date) -> DietGuide | None:
+        return db.query(DietGuide).filter(
+            DietGuide.user_id == user_id,
+            DietGuide.guide_date == guide_date,
+        ).first()
+
+    @staticmethod
     def get_by_id(db: Session, diet_guide_id: int, user_id: int) -> DietGuide | None:
         return db.query(DietGuide).filter(
             DietGuide.id == diet_guide_id,
@@ -62,7 +71,24 @@ class DietGuideRepository:
         ).first()
 
     @staticmethod
-    def get_list_by_user_id(db: Session, user_id: int) -> list[DietGuide]:
+    def get_dates_by_user_id(db: Session, user_id: int) -> list[date]:
+        rows = db.query(DietGuide.guide_date).filter(
+            DietGuide.user_id == user_id,
+        ).order_by(DietGuide.guide_date.desc()).all()
+        return [row.guide_date for row in rows]
+
+    @staticmethod
+    def get_recent_guides(db: Session, user_id: int, days: int = 7) -> list[DietGuide]:
+        since = date.today() - timedelta(days=days)
         return db.query(DietGuide).filter(
             DietGuide.user_id == user_id,
-        ).order_by(DietGuide.created_at.desc()).all()
+            DietGuide.guide_date >= since,
+        ).order_by(DietGuide.guide_date.desc()).all()
+
+    @staticmethod
+    def delete_by_date(db: Session, user_id: int, guide_date: date) -> None:
+        db.query(DietGuide).filter(
+            DietGuide.user_id == user_id,
+            DietGuide.guide_date == guide_date,
+        ).delete()
+        db.flush()

@@ -1,11 +1,11 @@
 import os
 import re
-from datetime import date
+from datetime import date, timedelta
 from sqlalchemy.orm import Session
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 
-from app.repositories.diet import NutrientStandardRepository, DietGuideRepository
+from app.repositories.diet_repository import NutrientStandardRepository, DietGuideRepository
 from app.models.diet import NutrientStandard, DietGuide
 from app.models.health_checkup import HealthCheckup
 from app.models.user import UserProfile
@@ -60,14 +60,14 @@ def assign_group(sbp: float, dbp: float, fbs: float, bmi: float,
     obesity      = (bmi_c >= 1) or (waist_c >= 1)
     count        = sum([hypertension, glucose, obesity])
 
-    if count == 0:                       return '정상군'
-    elif count == 3:                     return '복합위험군'
-    elif hypertension and glucose:       return '고혈압+혈당이상군'
-    elif hypertension and obesity:       return '고혈압+비만군'
-    elif glucose and obesity:            return '혈당이상+비만군'
-    elif hypertension:                   return '고혈압군'
-    elif glucose:                        return '혈당이상군'
-    else:                                return '비만군'
+    if count == 0:                             return '정상군'
+    elif hypertension and glucose and obesity: return '복합위험군'
+    elif hypertension and glucose:             return '고혈압+혈당이상군'
+    elif hypertension and obesity:             return '고혈압+비만군'
+    elif glucose and obesity:                  return '혈당이상+비만군'
+    elif hypertension:                         return '고혈압군'
+    elif glucose:                              return '혈당이상군'
+    else:                                      return '비만군'
 
 
 def calculate_nutrient(age: int, gender: int, height: float,
@@ -174,8 +174,8 @@ class DietService:
             'gender': gender,
         }
 
-    def get_diet_guide(self, db: Session, diet_guide_id: int, user_id: int):
-        diet_guide = DietGuideRepository.get_by_id(db, diet_guide_id, user_id)
+    def get_diet_guide(self, db: Session, guide_date: date, user_id: int):
+        diet_guide = DietGuideRepository.get_by_date(db, user_id, guide_date)
         if not diet_guide:
             return None
 
@@ -183,6 +183,7 @@ class DietService:
 
         return {
             'id':               diet_guide.id,
+            'guide_date':       diet_guide.guide_date,
             'meal_plan_type':   nutrient_standard.meal_plan_type,
             'nutrient_standard': {
                 'recommended_calories': nutrient_standard.recommended_calories,
@@ -205,22 +206,11 @@ class DietService:
             'created_at':  diet_guide.created_at,
         }
 
-    def get_diet_guide_list(self, db: Session, user_id: int):
-        guides = DietGuideRepository.get_list_by_user_id(db, user_id)
-        result = []
-        for g in guides:
-            nutrient_standard = db.query(NutrientStandard).filter(
-                NutrientStandard.id == g.nutrient_standard_id
-            ).first()
-            result.append({
-                'id': g.id,
-                'meal_plan_type': nutrient_standard.meal_plan_type if nutrient_standard else None,
-                'is_verified': g.is_verified,
-                'created_at': g.created_at,
-            })
-        return result
+    def get_diet_guide_dates(self, db: Session, user_id: int) -> list[date]:
+        return DietGuideRepository.get_dates_by_user_id(db, user_id)
 
-    def generate_diet_guide(self, db: Session, user_id: int, checkup: dict):
+    def _generate_single(self, db: Session, user_id: int, checkup: dict,
+                          target_date: date, recent_menus: list[str]) -> DietGuide:
         bmi   = checkup.get('bmi') or round(
             checkup['weight'] / ((checkup['height'] / 100) ** 2), 1
         )
@@ -241,15 +231,17 @@ class DietService:
             group  = group,
         )
 
-        nutrient_standard = NutrientStandardRepository.create(
-            db                   = db,
-            user_id              = user_id,
-            meal_plan_type       = nutrient['meal_plan_type'],
-            recommended_calories = nutrient['recommended_calories'],
-            recommended_protein  = nutrient['recommended_protein'],
-            recommended_carbs    = nutrient['recommended_carbs'],
-            recommended_fat      = nutrient['recommended_fat'],
-        )
+        nutrient_standard = NutrientStandardRepository.get_by_user_id(db, user_id)
+        if not nutrient_standard:
+            nutrient_standard = NutrientStandardRepository.create(
+                db                   = db,
+                user_id              = user_id,
+                meal_plan_type       = nutrient['meal_plan_type'],
+                recommended_calories = nutrient['recommended_calories'],
+                recommended_protein  = nutrient['recommended_protein'],
+                recommended_carbs    = nutrient['recommended_carbs'],
+                recommended_fat      = nutrient['recommended_fat'],
+            )
 
         keyword  = GROUP_SEARCH_KEYWORDS.get(group, '균형 식단')
         rag_docs = self.vectordb.similarity_search(keyword, k=2)
@@ -257,6 +249,11 @@ class DietService:
             f'- ({doc.metadata["source"]}) {doc.page_content[:150]}'
             for doc in rag_docs
         ])
+
+        recent_menu_text = ''
+        if recent_menus:
+            recent_menu_text = '\n[최근 식단 이력 - 아래 메뉴와 중복되지 않도록 구성하세요]\n'
+            recent_menu_text += '\n'.join(recent_menus)
 
         prompt = f"""당신은 한국인 영양사입니다. 아래 정보를 바탕으로 개인 맞춤형 식단 가이드를 작성해주세요.
 
@@ -278,7 +275,7 @@ class DietService:
 
 [의학 근거]
 {rag_text}
-
+{recent_menu_text}
 위 정보를 바탕으로 다음 형식으로 작성해주세요.
 
 [식단 가이드]
@@ -308,6 +305,7 @@ class DietService:
             db                   = db,
             user_id              = user_id,
             nutrient_standard_id = nutrient_standard.id,
+            guide_date           = target_date,
             breakfast            = parsed['breakfast'],
             lunch                = parsed['lunch'],
             dinner               = parsed['dinner'],
@@ -320,5 +318,66 @@ class DietService:
             is_verified          = is_verified,
         )
 
+        return diet_guide
+
+    def generate_diet_guide(self, db: Session, user_id: int, checkup: dict,
+                             target_date: date | None = None) -> DietGuide:
+        if target_date is None:
+            target_date = date.today()
+
+        existing = DietGuideRepository.get_by_date(db, user_id, target_date)
+        if existing:
+            return existing
+
+        recent_guides = DietGuideRepository.get_recent_guides(db, user_id, days=7)
+        recent_menus  = [
+            f'{g.guide_date} - 아침: {g.breakfast} / 점심: {g.lunch} / 저녁: {g.dinner}'
+            for g in recent_guides
+        ]
+
+        diet_guide = self._generate_single(db, user_id, checkup, target_date, recent_menus)
         db.commit()
         return diet_guide
+
+    def regenerate_diet_guide(self, db: Session, user_id: int, checkup: dict,
+                               target_date: date | None = None) -> DietGuide:
+        if target_date is None:
+            target_date = date.today()
+
+        DietGuideRepository.delete_by_date(db, user_id, target_date)
+
+        recent_guides = DietGuideRepository.get_recent_guides(db, user_id, days=7)
+        recent_menus  = [
+            f'{g.guide_date} - 아침: {g.breakfast} / 점심: {g.lunch} / 저녁: {g.dinner}'
+            for g in recent_guides
+        ]
+
+        diet_guide = self._generate_single(db, user_id, checkup, target_date, recent_menus)
+        db.commit()
+        return diet_guide
+
+    def generate_course(self, db: Session, user_id: int, checkup: dict,
+                         days: int = 7) -> list[DietGuide]:
+        results      = []
+        recent_menus = []
+
+        for i in range(days):
+            target_date = date.today() + timedelta(days=i)
+
+            existing = DietGuideRepository.get_by_date(db, user_id, target_date)
+            if existing:
+                results.append(existing)
+                recent_menus.append(
+                    f'{existing.guide_date} - 아침: {existing.breakfast} / 점심: {existing.lunch} / 저녁: {existing.dinner}'
+                )
+                continue
+
+            diet_guide = self._generate_single(db, user_id, checkup, target_date, recent_menus)
+            db.commit()
+
+            results.append(diet_guide)
+            recent_menus.append(
+                f'{diet_guide.guide_date} - 아침: {diet_guide.breakfast} / 점심: {diet_guide.lunch} / 저녁: {diet_guide.dinner}'
+            )
+
+        return results
