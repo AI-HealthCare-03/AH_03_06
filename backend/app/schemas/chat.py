@@ -24,6 +24,11 @@ class ChatMessageRequest(BaseModel):
     category: Optional[str] = None
 
 
+class ChatMessageEditRequest(BaseModel):
+    message:  str
+    category: Optional[str] = None
+
+
 class ChatMessageItem(BaseModel):
     id:         int
     role:       str
