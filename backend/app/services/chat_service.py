@@ -1,50 +1,37 @@
-from datetime import datetime
 from typing import Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from langchain_openai import ChatOpenAI
+from openai import OpenAI
 
 from app.models.chat import ChatSession, ChatMessage
 from app.models.health_checkup import HealthCheckup
 from app.models.prescription import Prescription
 from app.models.diet import DietGuide, NutrientStandard
 from app.models.medical_record import MedicalRecord
+from app.prompts.diet_prompts import get_diet_prompt
+from app.prompts.health_prompts import get_health_prompt
+from app.prompts.prescription_prompts import get_prescription_prompt
 
 llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.3)
+client = OpenAI()
 
-SYSTEM_PROMPTS = {
-    'HEALTH_CHECKUP': """당신은 건강검진 결과를 설명해주는 헬스케어 AI 어시스턴트입니다.
-아래 사용자의 건강검진 데이터를 바탕으로 질문에 답변하세요.
-의학적 진단이나 처방은 하지 않으며, 반드시 의사 상담을 권고하세요.""",
-
-    'PRESCRIPTION': """당신은 처방약 정보를 안내하는 헬스케어 AI 어시스턴트입니다.
-아래 사용자의 처방약 데이터를 바탕으로 질문에 답변하세요.
-의학적 진단이나 처방 변경은 하지 않으며, 반드시 의사·약사 상담을 권고하세요.""",
-
-    'DIET_GUIDE': """당신은 식단 가이드를 설명해주는 헬스케어 AI 어시스턴트입니다.
-아래 사용자의 식단 가이드와 그룹 결정 근거를 바탕으로 질문에 답변하세요.
-의학적 진단이나 처방은 하지 않으며, 반드시 의사·영양사 상담을 권고하세요.""",
+MEAL_PLAN_KO = {
+    'Balanced Diet':               '균형 식단',
+    'Low-Sodium Diet':             '저염 식단',
+    'Low-Carb Diet':               '저탄수화물 식단',
+    'Low-Calorie Diet':            '저칼로리 식단',
+    'Low-Carb Low-Sodium Diet':    '저탄수화물·저염 식단',
+    'Low-Calorie Low-Sodium Diet': '저칼로리·저염 식단',
+    'Low-Carb Low-Calorie Diet':   '저탄수화물·저칼로리 식단',
+    'Therapeutic Diet':            '치료 식단',
 }
 
-GROUP_RULE_PROMPT = """
-[그룹 결정 규칙]
-- 수축기혈압 120 미만, 이완기혈압 80 미만 → 정상
-- 수축기혈압 120 이상 또는 이완기혈압 80 이상 → 고혈압 위험
-- 공복혈당 100 미만 → 정상
-- 공복혈당 100 이상 → 혈당이상
-- BMI 23 미만 → 정상
-- BMI 23 이상 → 비만 위험
+CONVENIENCE_STORE_KEYWORDS = ['편의점', 'gs25', 'cu', '세븐일레븐', '이마트24', 'GS25', 'CU', '세븐']
 
-[식단 플랜 매핑]
-- 정상군 → 균형 식단
-- 고혈압군 → 저염 식단
-- 혈당이상군 → 저탄수화물 식단
-- 비만군 → 저칼로리 식단
-- 고혈압+혈당이상군 → 저탄수화물·저염 식단
-- 고혈압+비만군 → 저칼로리·저염 식단
-- 혈당이상+비만군 → 저탄수화물·저칼로리 식단
-- 복합위험군 → 치료 식단
-"""
+
+def _needs_web_search(message: str) -> bool:
+    return any(keyword in message.lower() for keyword in [k.lower() for k in CONVENIENCE_STORE_KEYWORDS])
 
 
 def _get_context_data(context_type: str, context_id: Optional[int], user_id: int, db: Session) -> str:
@@ -100,8 +87,9 @@ LDL: {checkup.ldl}
         nutrient = db.query(NutrientStandard).filter(
             NutrientStandard.id == guide.nutrient_standard_id
         ).first()
+        meal_plan_ko = MEAL_PLAN_KO.get(nutrient.meal_plan_type, nutrient.meal_plan_type) if nutrient else ''
         return f"""[식단 가이드]
-식단 플랜: {nutrient.meal_plan_type if nutrient else ''}
+식단 플랜: {meal_plan_ko}
 권장 칼로리: {nutrient.recommended_calories if nutrient else ''} kcal
 권장 단백질: {nutrient.recommended_protein if nutrient else ''} g
 권장 탄수화물: {nutrient.recommended_carbs if nutrient else ''} g
@@ -110,8 +98,7 @@ LDL: {checkup.ldl}
 점심: {guide.lunch}
 저녁: {guide.dinner}
 권장 식품: {guide.recommended_foods}
-제한 식품: {guide.restricted_foods}
-{GROUP_RULE_PROMPT}"""
+제한 식품: {guide.restricted_foods}"""
 
     return ''
 
@@ -128,7 +115,7 @@ def create_session(user_id: int, context_type: str, context_id: Optional[int], d
     return session
 
 
-def send_message(session_id: int, user_id: int, message: str, db: Session) -> dict:
+def send_message(session_id: int, user_id: int, message: str, category: Optional[str], db: Session) -> dict:
     session = db.query(ChatSession).filter(
         ChatSession.id == session_id,
         ChatSession.user_id == user_id,
@@ -138,22 +125,40 @@ def send_message(session_id: int, user_id: int, message: str, db: Session) -> di
 
     context_data = _get_context_data(session.context_type, session.context_id, user_id, db)
 
+    if session.context_type == 'DIET_GUIDE':
+        system_prompt = get_diet_prompt(category or '', message, context_data)
+    elif session.context_type == 'HEALTH_CHECKUP':
+        system_prompt = get_health_prompt(category or '', context_data)
+    elif session.context_type == 'PRESCRIPTION':
+        system_prompt = get_prescription_prompt(category or '', context_data)
+    else:
+        system_prompt = context_data
+
+    print(f"[DEBUG] category: {category}, message: {message}")
+    print(f"[DEBUG] prompt 앞 200자: {system_prompt[:200]}")
+
     history = db.query(ChatMessage).filter(
         ChatMessage.session_id == session_id
     ).order_by(ChatMessage.created_at.asc()).all()
 
-    # 최근 10턴만 유지
     recent_history = history[-20:] if len(history) > 20 else history
 
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPTS[session.context_type] + '\n\n' + context_data}
-    ]
+    messages = [{"role": "system", "content": system_prompt}]
     for h in recent_history:
         messages.append({"role": h.role, "content": h.content})
     messages.append({"role": "user", "content": message})
 
-    response = llm.invoke(messages)
-    answer = response.content
+    if _needs_web_search(message):
+        tools = [{"type": "web_search_preview"}]
+        response = client.responses.create(
+            model='gpt-4o-mini',
+            tools=tools,
+            input=messages,
+        )
+        answer = response.output_text
+    else:
+        response = llm.invoke(messages)
+        answer = response.content
 
     db.add(ChatMessage(session_id=session_id, role='user', content=message))
     db.add(ChatMessage(session_id=session_id, role='assistant', content=answer))

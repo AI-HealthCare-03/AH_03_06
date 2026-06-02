@@ -20,7 +20,8 @@ class ChatSessionResponse(BaseModel):
 
 
 class ChatMessageRequest(BaseModel):
-    message: str
+    message:  str
+    category: Optional[str] = None
 
 
 class ChatMessageItem(BaseModel):

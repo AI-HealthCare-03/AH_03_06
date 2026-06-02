@@ -38,8 +38,15 @@ import HealthCheckList from "./pages/health-checkup/HealthCheckList.jsx"
 import HealthCheckInput from "./pages/health-checkup/HealthCheckInput.jsx"
 import HealthCheckResults from "./pages/health-checkup/HealthCheckResults.jsx"
 import MedicationPage from './pages/medication/MedicationPage.jsx'
+
+
+
 import MedicationRecordPage from './pages/medication/MedicationRecordPage.jsx'
 import MedicationFormPage from './pages/medication/MedicationFormPage.jsx'
+import MedicationDashboardPage from './pages/medication/MedicationDashboardPage.jsx';
+import MedicationHistoryPage from './pages/medication/MedicationHistoryPage.jsx';
+
+
 import ChatPage from './pages/chat/ChatPage.jsx'
 
 let _setAuth = null
@@ -108,6 +115,7 @@ function App() {
         <Route path="/medication" element={<PrivateRoute auth={auth}><MedicationPage /></PrivateRoute>} />
         <Route path="/medication/record" element={<PrivateRoute auth={auth}><MedicationRecordPage /></PrivateRoute>} />
         <Route path="/medication/form" element={<PrivateRoute auth={auth}><MedicationFormPage /></PrivateRoute>} />
+        <Route path="/medication/history" element={<PrivateRoute auth={auth}><MedicationHistoryPage /></PrivateRoute>} />
         <Route path="/chat/:sessionId" element={<PrivateRoute auth={auth}><ChatPage /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>

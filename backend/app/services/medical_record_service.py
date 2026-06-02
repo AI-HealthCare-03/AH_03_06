@@ -244,7 +244,7 @@ def get_record_safety_check(
         b = profile.birthday
         patient = {"age": today.year - b.year - ((today.month, today.day) < (b.month, b.day))}
 
-    result = dur_service.safety_check_prescriptions(prescriptions, patient=patient, db=db)
+    result = dur_service.safety_check_record(db, record, prescriptions, patient)
     return dur_service.to_response(record_id, result)
 
 

@@ -1,12 +1,8 @@
-# app/schemas/medication.py
-# 복약 관련 요청/응답 스키마
-
-from datetime import date, datetime
+from datetime import date, time, datetime
 from typing import Optional, List
 from pydantic import BaseModel
 
 
-# 복용 약 등록 요청
 class PrescriptionCreateRequest(BaseModel):
     medical_record_id: int
     drug_id:           Optional[int] = None
@@ -19,7 +15,6 @@ class PrescriptionCreateRequest(BaseModel):
     is_active:         Optional[bool] = True
 
 
-# 복용 약 응답
 class PrescriptionResponse(BaseModel):
     id:                int
     medical_record_id: int
@@ -38,40 +33,79 @@ class PrescriptionResponse(BaseModel):
         from_attributes = True
 
 
-# 복용 약 삭제 응답
 class PrescriptionDeleteResponse(BaseModel):
     detail: str
 
 
-# 복약 일정 등록/수정 요청
+class PrescriptionListItem(BaseModel):
+    id:            int
+    drug_name:     str
+    dosage:        Optional[str] = None
+    frequency:     Optional[str] = None
+    duration_days: Optional[int] = None
+    start_date:    Optional[date] = None
+    end_date:      Optional[date] = None
+    is_active:     bool
+
+    class Config:
+        from_attributes = True
+
+
+class PrescriptionListResponse(BaseModel):
+    prescriptions: List[PrescriptionListItem]
+
+
+class TodayMedicationScheduleItem(BaseModel):
+    schedule_id:    int
+    drug_name:      str
+    dosage:         Optional[str] = None
+    intake_time:    time
+    dosage_message: Optional[str] = None
+    is_taken:       bool
+    log_id:         Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TodayMedicationResponse(BaseModel):
+    date:      date
+    schedules: List[TodayMedicationScheduleItem]
+
+
+class DateMedicationResponse(BaseModel):
+    date:      date
+    schedules: List[TodayMedicationScheduleItem]
+
+
 class MedicationScheduleRequest(BaseModel):
     intake_time:       str
+    drug_name:         Optional[str] = None
     dosage_message:    Optional[str] = None
     notification_type: Optional[str] = "PUSH"
     days:              Optional[List[str]] = []
+    is_custom:         Optional[bool] = False
 
 
-# 복약 일정 응답
 class MedicationScheduleResponse(BaseModel):
     id:                int
-    medication_id:     int
+    medication_id:     Optional[int] = None
     intake_time:       str
     dosage_message:    Optional[str] = None
     is_after_meal:     Optional[bool] = None
     notification_type: str
     is_active:         bool
+    is_custom:         bool
     days:              List[str]
 
     class Config:
         from_attributes = True
 
 
-# 복약 일정 목록 응답
 class MedicationScheduleListResponse(BaseModel):
     schedules: List[MedicationScheduleResponse]
 
 
-# 복약 알림 수정 요청
 class MedicationAlarmUpdateRequest(BaseModel):
     medication_name: Optional[str] = None
     alarm_time:      Optional[str] = None
@@ -79,7 +113,6 @@ class MedicationAlarmUpdateRequest(BaseModel):
     is_active:       Optional[bool] = None
 
 
-# 복약 알림 수정 응답
 class MedicationAlarmUpdateResponse(BaseModel):
     id:              int
     medication_name: str
@@ -92,7 +125,6 @@ class MedicationAlarmUpdateResponse(BaseModel):
         from_attributes = True
 
 
-# 복약 이력 아이템 응답
 class AlarmResponse(BaseModel):
     id:           int
     alarm_times:  List[str]
@@ -120,7 +152,6 @@ class MedicationHistoryItem(BaseModel):
         from_attributes = True
 
 
-# 복약 이력 목록 응답
 class MedicationHistoryResponse(BaseModel):
     total: int
     page:  int
@@ -128,7 +159,6 @@ class MedicationHistoryResponse(BaseModel):
     items: List[MedicationHistoryItem]
 
 
-# 복약 완료율 일별 응답
 class DailyMedicationRate(BaseModel):
     date:  date
     total: int
@@ -136,7 +166,6 @@ class DailyMedicationRate(BaseModel):
     rate:  float
 
 
-# 복약별 완료율 응답
 class MedicationRate(BaseModel):
     medication_id: int
     name:          str
@@ -145,7 +174,6 @@ class MedicationRate(BaseModel):
     rate:          float
 
 
-# 복약 완료율 대시보드 응답
 class MedicationDashboardResponse(BaseModel):
     period:       str
     start_date:   date

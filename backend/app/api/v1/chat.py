@@ -15,7 +15,6 @@ from app.schemas.chat import (
 router = APIRouter()
 
 
-# POST /api/v1/chat/sessions - 세션 생성
 @router.post('/sessions', response_model=ChatSessionResponse, status_code=201)
 def create_session(
     request: ChatSessionCreateRequest,
@@ -30,7 +29,6 @@ def create_session(
     )
 
 
-# POST /api/v1/chat/sessions/{session_id}/messages - 메시지 전송
 @router.post('/sessions/{session_id}/messages', response_model=ChatMessageResponse)
 def send_message(
     session_id: int,
@@ -42,11 +40,11 @@ def send_message(
         session_id=session_id,
         user_id=current_user.id,
         message=request.message,
+        category=request.category,
         db=db,
     )
 
 
-# GET /api/v1/chat/sessions/{session_id}/messages - 대화 히스토리 조회
 @router.get('/sessions/{session_id}/messages', response_model=ChatHistoryResponse)
 def get_history(
     session_id: int,

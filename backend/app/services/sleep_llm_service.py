@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Iterable, Optional
 
 from openai import AsyncOpenAI
@@ -28,8 +29,7 @@ from app.utils.rag import retrieve
 COLLECTION_NAME = "sleep_guidelines"
 
 
-# ──────────────────────────── 시스템 프롬프트 ────────────────────────────
-# 명세 §5 (수면가이드파이프라인_0508최종.md) 의 작성 규칙을 그대로 반영.
+# 시스템 프롬프트
 # JSON mode 사용 — content 가 반드시 JSON object.
 
 SYSTEM_PROMPT = """당신은 한국어 수면 건강 코칭 AI 입니다.
@@ -67,7 +67,7 @@ SYSTEM_PROMPT = """당신은 한국어 수면 건강 코칭 AI 입니다.
 """
 
 
-# ──────────────────────────── RAG 쿼리 매핑 ────────────────────────────
+# RAG 쿼리 매핑
 # 분류별 검색 쿼리 (한국어 + 영문 병행).
 # 영문은 AASM 가이드라인 cross-lingual 매칭 보강용 (한국어 청크가 한국판 임상지침 1종이라
 # 한국어 쿼리만 쓰면 AASM 3종 청크가 거의 활용 안 됨 — verify_sleep_rag 결과 근거).
@@ -111,14 +111,14 @@ def select_queries(result: sc.ClassificationResult) -> list[str]:
     return queries
 
 
-# ──────────────────────────── RAG 검색 ────────────────────────────
+# RAG 검색
 
 def retrieve_sleep_context(
     queries: list[str],
     top_k_per_query: int = 3,
     threshold: float = 0.25,  # 0.3 → 0.25 (한↔영 cross-lingual 약함 보완)
 ) -> tuple[list[dict[str, Any]], set[str]]:
-    """여러 쿼리 결과 합치고 중복 제거. (chunks, sources) 반환."""
+    """여러 쿼리 결과 합치고 중복 제거. 약물 청크 제외 + 한국어 가중·유사도순 정렬 후 반환."""
     all_chunks: list[dict[str, Any]] = []
     seen_content: set[str] = set()
     sources: set[str] = set()
@@ -128,13 +128,24 @@ def retrieve_sleep_context(
             q, collection_name=COLLECTION_NAME, top_k=top_k_per_query, threshold=threshold
         )
         for r in results:
+            meta = r.get("metadata", {})
+            # 약물 처방 청크는 코칭 본문에 넣지 않음 (처방 누수 방지). content_class 메타는 재빌드 후 적용 — filename 으로도 가드
+            if meta.get("content_class") == "clinical_treatment" or meta.get("filename") == "2017_pharma_AASM.pdf":
+                continue
             key = r["content"][:80]
             if key in seen_content:
                 continue
             seen_content.add(key)
             all_chunks.append(r)
-            sources.add(r["metadata"].get("source", "?"))
+            sources.add(meta.get("source", "?"))
 
+    # 한국어 청크 가중(+0.05) + 유사도순 정렬 — 상위 컷에서 한국어 근거가 밀려나지 않게
+    def _rank(r: dict[str, Any]) -> float:
+        meta = r.get("metadata", {})
+        ko = meta.get("lang") == "ko" or meta.get("filename") == "2020_insomnia_KSSM.pdf"
+        return r.get("similarity", 0.0) + (0.05 if ko else 0.0)
+
+    all_chunks.sort(key=_rank, reverse=True)
     return all_chunks, sources
 
 
@@ -142,7 +153,7 @@ def is_retrieval_empty(chunks: list[dict[str, Any]]) -> bool:
     return len(chunks) == 0
 
 
-# ──────────────────────────── 회귀 기대 개선치 ────────────────────────────
+# 회귀 기대 개선치
 # guide_score_formula.GUIDE_RECOMMENDATIONS 를 사용자 친화 텍스트로 변환.
 
 def build_improvement_hints(user_info: dict[str, Any]) -> list[str]:
@@ -156,7 +167,7 @@ def build_improvement_hints(user_info: dict[str, Any]) -> list[str]:
     return hints
 
 
-# ──────────────────────────── 사용자 프롬프트 ────────────────────────────
+# 사용자 프롬프트
 
 def build_user_prompt(
     *,
@@ -205,12 +216,12 @@ ESS 합계: {classification.ess_score}/24 ({ess_class_str})
 """
 
 
-# ──────────────────────────── Fallback ────────────────────────────
+# Fallback
 
 def _make_fallback_response(classification: sc.ClassificationResult) -> dict[str, Any]:
     """RAG 0건 or LLM 실패 시 차분한 거절 응답.
 
-    명세상 fallback 은 일반 수면 위생 안내 + 상담 권장 (조건 충족 시).
+    fallback 은 일반 수면 위생 안내 + 상담 권장 (조건 충족 시).
     """
     return {
         "key_point": (
@@ -238,7 +249,7 @@ def _make_fallback_response(classification: sc.ClassificationResult) -> dict[str
     }
 
 
-# ──────────────────────────── OpenAI 호출 ────────────────────────────
+# OpenAI 호출
 
 _async_openai_client: Optional[AsyncOpenAI] = None
 
@@ -266,7 +277,7 @@ async def _call_llm(system_prompt: str, user_prompt: str) -> dict[str, Any]:
     return json.loads(content)
 
 
-# ──────────────────────────── 메인 진입점 ────────────────────────────
+# 메인 진입점
 
 REQUIRED_KEYS = (
     "key_point", "today_actions", "weekly_goal", "coping_strategy",
@@ -299,6 +310,28 @@ def _normalize_to_string(val: Any) -> Optional[str]:
         return "\n".join(f"{i+1}. {item}" for i, item in enumerate(items))
     # dict 등 기타는 str() 변환
     return str(val)
+
+
+# 처방 누수 최종 방어 — RAG 가드를 통과한 약물명이 본문에 남으면 일반어로 치환
+_DRUG_BLOCKLIST = (
+    "suvorexant", "eszopiclone", "zaleplon", "zolpidem", "triazolam", "temazepam",
+    "ramelteon", "doxepin", "trazodone", "tiagabine", "diphenhydramine", "melatonin", "valerian",
+    "수보렉산트", "에스조피클론", "잘레플론", "졸피뎀", "트리아졸람", "테마제팜",
+    "라멜테온", "독세핀", "트라조돈", "디펜히드라민", "멜라토닌", "발레리안",
+)
+
+
+def _scrub_drug_names(text: Optional[str]) -> Optional[str]:
+    """본문에 약물명이 새면 '수면 관련 약물'로 치환 (구체 약물 안내는 의료진 영역)."""
+    if not text:
+        return text
+    scrubbed = text
+    for name in _DRUG_BLOCKLIST:
+        if name.lower() in scrubbed.lower():
+            scrubbed = re.compile(re.escape(name), re.IGNORECASE).sub("수면 관련 약물", scrubbed)
+    if scrubbed != text:
+        print("[sleep_llm] 약물명 감지 → 일반어 치환")
+    return scrubbed
 
 
 async def generate_sleep_guide_async(
@@ -346,10 +379,10 @@ async def generate_sleep_guide_async(
         print(f"[sleep_llm] 응답 필수 키 누락 → fallback. 받은 키: {list(response.keys())}")
         return _make_fallback_response(classification), set()
 
-    # 6. 모든 텍스트 필드 string 정규화 (LLM 이 list 로 보내는 경우 대응)
+    # 6. 모든 텍스트 필드 string 정규화 + 약물명 스크럽
     for k in TEXT_KEYS:
         if k in response:
-            response[k] = _normalize_to_string(response[k])
+            response[k] = _scrub_drug_names(_normalize_to_string(response[k]))
 
     # 7. consultation_recommendation 정규화 (조건 안 맞으면 null)
     if not classification.consultation_required:

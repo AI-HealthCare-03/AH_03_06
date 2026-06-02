@@ -43,3 +43,5 @@ Thumbs.db
 frontend/node_modules/
 frontend/.vite/frontend/node_modules/
 frontend/.vite/
+
+test_result.txt
