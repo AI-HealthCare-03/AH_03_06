@@ -5,7 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faWandMagicSparkles, faPaperPlane, faChevronLeft,
   faRotateRight, faTrash, faPenToSquare, faChevronDown, faChevronUp,
-  faEllipsisVertical, faUtensils,
+  faEllipsisVertical, faUtensils, faHeartPulse,
 } from '@fortawesome/free-solid-svg-icons'
 import {
   sendChatMessage, getChatHistory,
@@ -13,6 +13,7 @@ import {
   clearChatMessages, deleteChatSession,
 } from '../../api/chat.js'
 import { getDietGuideByDate } from '../../api/dietGuides.js'
+import { getHealthCheckupByYear } from '../../api/healthCheckup.js'
 
 const CATEGORIES = {
   DIET_GUIDE: [
@@ -147,7 +148,6 @@ function TypingDots() {
 function DietGuidePanel({ guide }) {
   const [expanded, setExpanded] = useState(false)
   if (!guide) return null
-
   return (
     <div className="border-b border-borderHairline bg-primarySoft">
       <button
@@ -161,53 +161,28 @@ function DietGuidePanel({ guide }) {
           </span>
           <span className="text-[11px] text-primary/60">{guide.guide_date}</span>
         </div>
-        <FontAwesomeIcon
-          icon={expanded ? faChevronUp : faChevronDown}
-          className="text-primary text-[10px]"
-        />
+        <FontAwesomeIcon icon={expanded ? faChevronUp : faChevronDown} className="text-primary text-[10px]" />
       </button>
-
       {expanded && (
         <div className="px-4 pb-3 space-y-2">
           <div className="grid grid-cols-4 gap-2">
-            <div className="bg-white rounded-[8px] px-2 py-1.5 text-center">
-              <p className="text-[10px] text-mute mb-0.5">칼로리</p>
-              <p className="text-[12px] font-[700] text-textHeading">
-                {guide.nutrient_standard?.recommended_calories}
-                <span className="text-[10px] font-[400] text-mute ml-0.5">kcal</span>
-              </p>
-            </div>
-            <div className="bg-white rounded-[8px] px-2 py-1.5 text-center">
-              <p className="text-[10px] text-mute mb-0.5">탄수화물</p>
-              <p className="text-[12px] font-[700] text-textHeading">
-                {guide.nutrient_standard?.recommended_carbs}
-                <span className="text-[10px] font-[400] text-mute ml-0.5">g</span>
-              </p>
-            </div>
-            <div className="bg-white rounded-[8px] px-2 py-1.5 text-center">
-              <p className="text-[10px] text-mute mb-0.5">단백질</p>
-              <p className="text-[12px] font-[700] text-textHeading">
-                {guide.nutrient_standard?.recommended_protein}
-                <span className="text-[10px] font-[400] text-mute ml-0.5">g</span>
-              </p>
-            </div>
-            <div className="bg-white rounded-[8px] px-2 py-1.5 text-center">
-              <p className="text-[10px] text-mute mb-0.5">지방</p>
-              <p className="text-[12px] font-[700] text-textHeading">
-                {guide.nutrient_standard?.recommended_fat}
-                <span className="text-[10px] font-[400] text-mute ml-0.5">g</span>
-              </p>
-            </div>
+            {[
+              { label: '칼로리', value: guide.nutrient_standard?.recommended_calories, unit: 'kcal' },
+              { label: '탄수화물', value: guide.nutrient_standard?.recommended_carbs, unit: 'g' },
+              { label: '단백질', value: guide.nutrient_standard?.recommended_protein, unit: 'g' },
+              { label: '지방', value: guide.nutrient_standard?.recommended_fat, unit: 'g' },
+            ].map(({ label, value, unit }) => (
+              <div key={label} className="bg-white rounded-[8px] px-2 py-1.5 text-center">
+                <p className="text-[10px] text-mute mb-0.5">{label}</p>
+                <p className="text-[12px] font-[700] text-textHeading">
+                  {value}<span className="text-[10px] font-[400] text-mute ml-0.5">{unit}</span>
+                </p>
+              </div>
+            ))}
           </div>
           {[['아침', guide.breakfast], ['점심', guide.lunch], ['저녁', guide.dinner]].map(([label, content]) => {
             if (!content) return null
-            const summary = content
-              .replace(/^[-•]\s*/gm, '')
-              .trim()
-              .split('\n')
-              .filter(Boolean)
-              .slice(0, 3)
-              .join(', ')
+            const summary = content.replace(/^[-•]\s*/gm, '').trim().split('\n').filter(Boolean).slice(0, 3).join(', ')
             return (
               <div key={label} className="flex gap-2">
                 <span className="text-[11px] font-[700] text-primary w-6 shrink-0 leading-[1.6]">{label}</span>
@@ -221,12 +196,62 @@ function DietGuidePanel({ guide }) {
   )
 }
 
+function HealthCheckupPanel({ checkup }) {
+  const [expanded, setExpanded] = useState(false)
+  if (!checkup) return null
+
+  const bmi = checkup.height && checkup.weight
+    ? (checkup.weight / ((checkup.height / 100) ** 2)).toFixed(1)
+    : null
+
+  const items = [
+    { label: '수축기혈압', value: checkup.bp_systolic,      unit: 'mmHg' },
+    { label: '이완기혈압', value: checkup.bp_diastolic,     unit: 'mmHg' },
+    { label: '공복혈당',   value: checkup.fasting_glucose,  unit: 'mg/dL' },
+    { label: '총콜레스테롤', value: checkup.total_cholesterol, unit: 'mg/dL' },
+    { label: 'HDL',       value: checkup.hdl,               unit: 'mg/dL' },
+    { label: 'LDL',       value: checkup.ldl,               unit: 'mg/dL' },
+    { label: '중성지방',   value: checkup.triglyceride,      unit: 'mg/dL' },
+    { label: 'BMI',       value: bmi,                       unit: 'kg/m²' },
+  ].filter(item => item.value !== null && item.value !== undefined)
+
+  return (
+    <div className="border-b border-borderHairline bg-primarySoft">
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-2.5"
+      >
+        <div className="flex items-center gap-2">
+          <FontAwesomeIcon icon={faHeartPulse} className="text-primary text-[11px]" />
+          <span className="text-[12px] font-[700] text-primary">{checkup.checkup_year}년 건강검진</span>
+        </div>
+        <FontAwesomeIcon icon={expanded ? faChevronUp : faChevronDown} className="text-primary text-[10px]" />
+      </button>
+      {expanded && (
+        <div className="px-4 pb-3">
+          <div className="grid grid-cols-4 gap-2">
+            {items.map(({ label, value, unit }) => (
+              <div key={label} className="bg-white rounded-[8px] px-2 py-1.5 text-center">
+                <p className="text-[10px] text-mute mb-0.5">{label}</p>
+                <p className="text-[12px] font-[700] text-textHeading">
+                  {value}<span className="text-[10px] font-[400] text-mute ml-0.5">{unit}</span>
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ChatPage() {
   const navigate              = useNavigate()
   const { sessionId }         = useParams()
   const [searchParams]        = useSearchParams()
   const contextType           = searchParams.get('context_type') ?? 'DIET_GUIDE'
   const guideDate             = searchParams.get('guide_date') ?? null
+  const checkupYear           = searchParams.get('checkup_year') ?? null
   const [messages,         setMessages]         = useState([])
   const [input,            setInput]            = useState('')
   const [loading,          setLoading]          = useState(false)
@@ -237,6 +262,7 @@ function ChatPage() {
   const [editInput,        setEditInput]        = useState('')
   const [showMenu,         setShowMenu]         = useState(false)
   const [dietGuide,        setDietGuide]        = useState(null)
+  const [checkupData,      setCheckupData]      = useState(null)
   const bottomRef = useRef(null)
   const inputRef  = useRef(null)
 
@@ -256,6 +282,13 @@ function ChatPage() {
       .then(data => setDietGuide(data))
       .catch(() => {})
   }, [contextType, guideDate])
+
+  useEffect(() => {
+    if (contextType !== 'HEALTH_CHECKUP' || !checkupYear) return
+    getHealthCheckupByYear(checkupYear)
+      .then(data => setCheckupData(data))
+      .catch(() => {})
+  }, [contextType, checkupYear])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -435,9 +468,12 @@ function ChatPage() {
           }
         />
 
-        {/* 식단 고정 패널 */}
         {contextType === 'DIET_GUIDE' && (
           <DietGuidePanel guide={dietGuide} />
+        )}
+
+        {contextType === 'HEALTH_CHECKUP' && (
+          <HealthCheckupPanel checkup={checkupData} />
         )}
 
         <main className="flex-1 overflow-y-auto px-5 pt-4 pb-2 space-y-4">

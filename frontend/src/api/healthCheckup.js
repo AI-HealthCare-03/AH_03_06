@@ -23,3 +23,11 @@ export async function getHealthCheckup(id) {
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
+
+export async function getHealthCheckupByYear(year) {
+  const res = await fetch(`${base()}/health-checkups/year/${year}`, {
+    headers: { ...authHeaders() },
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
