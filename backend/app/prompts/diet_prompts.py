@@ -79,25 +79,23 @@ RESTRICT_FOOD_PROMPT = BASE_PROMPT + """
 - 예: "고염식품은 수축기혈압 OOO mmHg인 고객님의 혈압을 더 높일 수 있어 제한됩니다."
 """
 
-EATING_OUT_RECOMMEND_PROMPT = BASE_PROMPT + """
-[답변 지침 - 외식 메뉴가 궁금해요]
-- 반드시 아침/점심/저녁 중 어느 끼니인지 메시지에서 확인하세요.
-- 해당 끼니의 권장 칼로리 배분(아침 30%, 점심 40%, 저녁 30%)을 기준으로 추천하세요.
-- 반드시 실제 한국 식당에서 주문 가능한 메뉴만 추천하세요.
-  예: 설렁탕, 된장찌개, 비빔밥(잡곡), 생선구이 정식, 순두부찌개, 나물 정식 등
-- 두부 스테이크, 채소 스틱 등 식당에서 주문할 수 없는 메뉴는 절대 추천하지 마세요.
-- 추천 메뉴의 칼로리와 나트륨 수치를 함께 안내하세요.
-- 제한 식품이 포함된 메뉴는 절대 추천하지 마세요.
-"""
-
 EATING_OUT_OK_PROMPT = BASE_PROMPT + """
 [답변 지침 - 이 음식 먹어도 되나요?]
-- 반드시 아침/점심/저녁 중 어느 끼니인지 메시지에서 확인하세요.
+- 메시지에 아침/점심/저녁이 명시되어 있으면 바로 답변하세요. 되묻지 마세요.
 - 해당 식품이 제한 식품 목록에 있는지 먼저 확인하세요.
 - 해당 끼니의 권장 칼로리 배분 기준으로 칼로리 초과 여부를 계산하세요.
 - 나트륨 함량도 하루 권장 나트륨 기준으로 계산하세요.
 - 먹어도 되는 경우 몇 g/몇 인분까지 가능한지 구체적으로 안내하세요.
 - 안 되는 경우 이유를 사용자의 실제 수치와 연결하여 설명하세요.
+"""
+
+FOOD_SUBSTITUTE_PROMPT = BASE_PROMPT + """
+[답변 지침 - 식품 대체]
+- 사용자가 언급한 특정 식품이 권장 식품인지 제한 식품인지 먼저 확인하세요.
+- 제한 식품이라면 왜 제한됐는지 사용자의 실제 수치와 연결하여 설명하세요.
+- 대체 가능한 식품은 반드시 우리 식단의 권장 식품 목록 안에서만 추천하세요.
+- 대체 식품의 칼로리와 나트륨 수치를 함께 안내하세요.
+- 퀴노아, 렌틸콩, 케일 등 식단 데이터에 없는 식품은 절대 언급하지 마세요.
 """
 
 CATEGORY_PROMPT_MAP = {
@@ -115,8 +113,10 @@ CATEGORY_PROMPT_MAP = {
     },
     '실천 방법이 궁금해요': {
         '제한 식품을 꼭 지켜야 하나요?': RESTRICT_FOOD_PROMPT,
-        '외식 메뉴가 궁금해요':          EATING_OUT_RECOMMEND_PROMPT,
         '이 음식 먹어도 되나요?':        EATING_OUT_OK_PROMPT,
+    },
+    '대체 식품이 궁금해요': {
+        '이 식품 대신 뭐 먹을 수 있나요?': FOOD_SUBSTITUTE_PROMPT,
     },
 }
 
@@ -143,5 +143,14 @@ GROUP_RULE_PROMPT = """
 
 def get_diet_prompt(category: str, message: str, context_data: str) -> str:
     category_map = CATEGORY_PROMPT_MAP.get(category, {})
-    prompt_template = category_map.get(message, list(category_map.values())[0] if category_map else BASE_PROMPT)
+
+    prompt_template = category_map.get(message)
+    if not prompt_template:
+        for key, prompt in category_map.items():
+            if key in message or message in key:
+                prompt_template = prompt
+                break
+    if not prompt_template:
+        prompt_template = list(category_map.values())[0] if category_map else BASE_PROMPT
+
     return prompt_template.format(context_data=context_data) + GROUP_RULE_PROMPT
