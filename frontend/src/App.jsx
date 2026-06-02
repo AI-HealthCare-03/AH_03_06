@@ -46,6 +46,7 @@ import MedicationFormPage from './pages/medication/MedicationFormPage.jsx'
 import MedicationDashboardPage from './pages/medication/MedicationDashboardPage.jsx';
 import MedicationHistoryPage from './pages/medication/MedicationHistoryPage.jsx';
 
+
 import ChatPage from './pages/chat/ChatPage.jsx'
 
 let _setAuth = null
@@ -97,7 +98,7 @@ function App() {
         <Route path="/sleep-guides/new" element={<PrivateRoute auth={auth}><SleepGuideInputPage /></PrivateRoute>} />
         <Route path="/sleep-guides/:guideId" element={<PrivateRoute auth={auth}><SleepGuidePage /></PrivateRoute>} />
         <Route path="/diet-guides" element={<PrivateRoute auth={auth}><DietGuideListPage /></PrivateRoute>} />
-        <Route path="/diet-guides/:id" element={<PrivateRoute auth={auth}><DietGuidePage /></PrivateRoute>} />
+        <Route path="/diet-guides/:date" element={<PrivateRoute auth={auth}><DietGuidePage /></PrivateRoute>} />
         <Route path="/user" element={<PrivateRoute auth={auth}><MyPage /></PrivateRoute>} />
         <Route path="/user/profile/edit" element={<PrivateRoute auth={auth}><ProfileEdit /></PrivateRoute>} />
         <Route path="/health-checkup" element={<PrivateRoute auth={auth}><HealthCheckList /></PrivateRoute>} />
@@ -114,6 +115,7 @@ function App() {
         <Route path="/medication" element={<PrivateRoute auth={auth}><MedicationPage /></PrivateRoute>} />
         <Route path="/medication/record" element={<PrivateRoute auth={auth}><MedicationRecordPage /></PrivateRoute>} />
         <Route path="/medication/form" element={<PrivateRoute auth={auth}><MedicationFormPage /></PrivateRoute>} />
+        <Route path="/medication/history" element={<PrivateRoute auth={auth}><MedicationHistoryPage /></PrivateRoute>} />
         <Route path="/chat/:sessionId" element={<PrivateRoute auth={auth}><ChatPage /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>

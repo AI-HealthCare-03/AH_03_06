@@ -17,11 +17,11 @@ export async function createChatSession(contextType, contextId = null) {
   return res.json()
 }
 
-export async function sendChatMessage(sessionId, message) {
+export async function sendChatMessage(sessionId, message, category = null) {
   const res = await fetch(`${base()}/chat/sessions/${sessionId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, category }),
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
@@ -33,4 +33,50 @@ export async function getChatHistory(sessionId) {
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
+}
+
+export async function deleteChatMessage(sessionId, messageId) {
+  const res = await fetch(`${base()}/chat/sessions/${sessionId}/messages/${messageId}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders() },
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function editChatMessage(sessionId, messageId, message, category = null) {
+  const res = await fetch(`${base()}/chat/sessions/${sessionId}/messages/${messageId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ message, category }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function regenerateChatMessage(sessionId, messageId, category = null) {
+  const res = await fetch(`${base()}/chat/sessions/${sessionId}/messages/${messageId}/regenerate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ message: '', category }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function clearChatMessages(sessionId) {
+  const res = await fetch(`${base()}/chat/sessions/${sessionId}/messages`, {
+    method: 'DELETE',
+    headers: { ...authHeaders() },
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
+export async function deleteChatSession(sessionId) {
+  const res = await fetch(`${base()}/chat/sessions/${sessionId}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders() },
+  })
+  if (!res.ok) throw new Error(await res.text())
 }

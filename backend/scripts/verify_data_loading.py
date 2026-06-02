@@ -31,7 +31,7 @@ def section(title):
 
 db = SessionLocal()
 try:
-    # ── [0] 테이블별 행 수 ───────────────────────────────────────
+    # [0] 테이블별 행 수
     section("[0] 테이블별 행 수")
     counts = {
         "drug_info":                          db.query(DrugInfo).count(),
@@ -46,7 +46,7 @@ try:
     for name, n in counts.items():
         print(f"  {name:38}  {n:>10,}행")
 
-    # ── [1] FK 무결성 ────────────────────────────────────────────
+    # [1] FK 무결성
     section("[1] FK 무결성 — 자식 테이블의 drug_id가 모두 drug_info에 존재하는가")
     orphan_detail = db.execute(text("""
         SELECT COUNT(*) FROM drug_info_detail d
@@ -62,7 +62,7 @@ try:
     print(f"  drug_ingredient_map 고아 행: {orphan_map}")
     print(f"  → {'무결성 OK ✅' if orphan_detail == 0 and orphan_map == 0 else '문제 발견 ❌'}")
 
-    # ── [2] 커버리지 ────────────────────────────────────────────
+    # [2] 커버리지
     section("[2] 커버리지 (drug_info 43,180행 기준)")
     total = counts["drug_info"]
 
@@ -91,7 +91,7 @@ try:
     print(f"    주성분 관계: {main_pairs:>9,}개")
     print(f"    첨가제 관계: {add_pairs:>9,}개")
 
-    # ── [3] 종단 trace ──────────────────────────────────────────
+    # [3] 종단 trace
     section("[3] 종단 trace — drug_info + e약은요 + 성분매핑이 모두 있는 약품 2개")
     sample_drugs = db.execute(text("""
         SELECT d.drug_id, d.drug_name, d.manufacturer, d.is_recalled

@@ -20,7 +20,7 @@ CLASS_CAUTION = 1
 CLASS_RISK = 2
 
 
-# ─────────────────── 시각 → 시간 파생 ───────────────────
+# 시각 → 시간 파생
 
 def time_to_hours_diff(bedtime: time, wakeup: time) -> float:
     """취침 시각 → 기상 시각의 경과 시간 (자정 넘김 처리, 시간 단위).
@@ -40,17 +40,42 @@ def sleep_hours_weighted_avg(weekday_hours: float, weekend_hours: float) -> floa
 
 
 def rhythm_diff_hours_from_wakeup(weekday_wakeup: time, weekend_wakeup: time) -> float:
-    """주중·주말 기상 시각 차이 (절댓값, 시간) — 사회적 시차 근사.
+    """주중·주말 기상 시각 차이 (절댓값, 시간) — 사회적 시차의 단순 근사.
 
-    ERD SleepGuide.rhythm_diff_hours 컬럼 산식 ("주중·주말 기상 시각 차") 를 따름.
-    학술 정확 정의(midpoint of sleep 차이)는 향후 확장 항목.
+    NOTE: classify_all 은 더 이상 이 함수를 쓰지 않고 social_jetlag_hours(midpoint
+    circular)를 사용한다. 기존 ERD 컬럼 산식("주중·주말 기상 시각 차") 호환·비교용으로 보존.
     """
     wd_min = weekday_wakeup.hour * 60 + weekday_wakeup.minute
     we_min = weekend_wakeup.hour * 60 + weekend_wakeup.minute
     return abs(we_min - wd_min) / 60.0
 
 
-# ─────────────────── 단축 설문 / ESS 합계 ───────────────────
+def social_jetlag_hours(
+    weekday_bedtime: time,
+    weekday_wakeup: time,
+    weekend_bedtime: time,
+    weekend_wakeup: time,
+) -> float:
+    """주중·주말 수면 midpoint 차이 (Wittmann 2006, circular). 시간 단위(0~12).
+
+    midpoint of sleep = 취침 시각 + 수면시간/2 (자정 넘김 처리, 24h modulo).
+    수면가이드 파이프라인 §1.3 및 KNHANES 2024 전처리와 동일한 학술 정의로,
+    기존 '기상 시각 차' 근사(rhythm_diff_hours_from_wakeup)를 대체한다.
+    """
+    def _midsleep(bedtime: time, wakeup: time) -> float:
+        bed = bedtime.hour + bedtime.minute / 60.0
+        wake = wakeup.hour + wakeup.minute / 60.0
+        if wake <= bed:  # 자정 넘김
+            wake += 24.0
+        return ((bed + wake) / 2.0) % 24.0
+
+    mid_wd = _midsleep(weekday_bedtime, weekday_wakeup)
+    mid_we = _midsleep(weekend_bedtime, weekend_wakeup)
+    diff = abs(mid_we - mid_wd) % 24.0
+    return min(diff, 24.0 - diff)
+
+
+# 단축 설문 / ESS 합계
 
 def brief_survey_total(q1: int, q2: int, q3: int, q4: int, q5: int) -> int:
     """단축 수면 설문 5문항 합계 (0~15)."""
@@ -67,7 +92,7 @@ def ess_total(q1: Optional[int], q2: Optional[int], q3: Optional[int],
     return sum(values)  # type: ignore[arg-type]
 
 
-# ─────────────────── 카페인 mg 환산 ───────────────────
+# 카페인 mg 환산
 
 def caffeine_mg_total(entries: Iterable) -> int:
     """카페인 음료 잔수 × 1잔당 mg 합산.
@@ -89,7 +114,7 @@ def caffeine_mg_total(entries: Iterable) -> int:
     return total
 
 
-# ─────────────────── 분류 ───────────────────
+# 분류
 
 def classify_sleep_hours(hours: float) -> int:
     """수면시간 분류 (NSF 성인 18~64세 기준).
@@ -144,14 +169,26 @@ def overall_status(
     brief_survey_class: int,
     ess_class: Optional[int],
 ) -> int:
-    """4개 항목 분류 중 최고값 — ERD overall_status (FR-803-1)."""
+    """종합 위험 단계 — 수면가이드 파이프라인 §2 분류 결과 처리 규칙.
+
+    - 위험(2) 항목이 1개 이상이면 위험(2)
+    - 그렇지 않고 주의(1) 항목이 2개 이상이면 주의(1)
+    - 그 외(주의 0~1개)는 정상(0)
+
+    기존 max() 방식에서 계획서 카운트룰로 정합화 (ml/src/sleep 구현과 동일).
+    max() 대비 차이: 단일 '주의' 1개만 있는 경우 기존엔 주의, 변경 후엔 정상.
+    """
     classes = [sleep_hours_class, rhythm_diff_class, brief_survey_class]
     if ess_class is not None:
         classes.append(ess_class)
-    return max(classes)
+    if classes.count(CLASS_RISK) >= 1:
+        return CLASS_RISK
+    if classes.count(CLASS_CAUTION) >= 2:
+        return CLASS_CAUTION
+    return CLASS_NORMAL
 
 
-# ─────────────────── 통합 결과 ───────────────────
+# 통합 결과
 
 @dataclass
 class ClassificationResult:
@@ -206,7 +243,7 @@ def classify_all(
     weekday_hours = time_to_hours_diff(weekday_bedtime, weekday_wakeup)
     weekend_hours = time_to_hours_diff(weekend_bedtime, weekend_wakeup)
     hours_avg = sleep_hours_weighted_avg(weekday_hours, weekend_hours)
-    rhythm_diff = rhythm_diff_hours_from_wakeup(weekday_wakeup, weekend_wakeup)
+    rhythm_diff = social_jetlag_hours(weekday_bedtime, weekday_wakeup, weekend_bedtime, weekend_wakeup)
 
     bs_total = brief_survey_total(brief_q1, brief_q2, brief_q3, brief_q4, brief_q5)
     ess_score = ess_total(ess_q1, ess_q2, ess_q3, ess_q4, ess_q5, ess_q6, ess_q7, ess_q8)

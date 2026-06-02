@@ -1,56 +1,50 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Header from '../../components/Header.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faWandMagicSparkles, faPaperPlane, faChevronLeft } from '@fortawesome/free-solid-svg-icons'
-import { sendChatMessage, getChatHistory } from '../../api/chat.js'
-
+import {
+  faWandMagicSparkles, faPaperPlane, faChevronLeft,
+  faRotateRight, faTrash, faPenToSquare, faChevronDown, faChevronUp,
+  faEllipsisVertical, faUtensils,
+} from '@fortawesome/free-solid-svg-icons'
+import {
+  sendChatMessage, getChatHistory,
+  deleteChatMessage, editChatMessage, regenerateChatMessage,
+  clearChatMessages, deleteChatSession,
+} from '../../api/chat.js'
+import { getDietGuideByDate } from '../../api/dietGuides.js'
 
 const CATEGORIES = {
   DIET_GUIDE: [
     {
       label: '식단 플랜이 궁금해요',
       questions: [
-        '왜 이 식단 플랜이 추천됐나요?',
-        '다른 식단 플랜은 어떤 게 있나요?',
-        '이 식단 플랜이 제 건강에 맞나요?',
-        '식단 플랜을 바꿀 수 있나요?',
+        { text: '왜 이 식단 플랜이 추천됐나요?',   prefill: false },
+        { text: '다른 식단 플랜은 어떤 게 있나요?', prefill: false },
+        { text: '이 식단 플랜이 제 건강에 맞나요?', prefill: false },
+        { text: '식단 플랜을 바꿀 수 있나요?',      prefill: false },
       ],
     },
     {
       label: '영양소 계산이 궁금해요',
       questions: [
-        '권장 칼로리는 어떻게 계산됐나요?',
-        '단백질을 더 먹어도 되나요?',
-        '탄수화물을 줄이면 어떤 효과가 있나요?',
-        '지방은 어떤 종류를 먹어야 하나요?',
+        { text: '권장 칼로리는 어떻게 계산됐나요?',      prefill: false },
+        { text: '단백질을 더 먹어도 되나요?',            prefill: false },
+        { text: '탄수화물을 줄이면 어떤 효과가 있나요?', prefill: false },
+        { text: '지방은 어떤 종류를 먹어야 하나요?',     prefill: false },
       ],
     },
     {
       label: '실천 방법이 궁금해요',
       questions: [
-        '제한 식품을 꼭 지켜야 하나요?',
-        '외식할 때 어떻게 해야 하나요?',
-        '간식을 먹어도 되나요?',
-        '식사 횟수는 어떻게 해야 하나요?',
+        { text: '제한 식품을 꼭 지켜야 하나요?', prefill: false },
+        { text: '이 음식 먹어도 되나요?',        prefill: true, placeholder: '이 음식 먹어도 되나요? 음식명: ' },
       ],
     },
     {
       label: '대체 식품이 궁금해요',
       questions: [
-        '권장 식품 대신 먹을 수 있는 게 있나요?',
-        '한국 음식 중 먹을 수 있는 게 뭐가 있나요?',
-        '편의점에서 먹을 수 있는 음식이 있나요?',
-        '외식 메뉴 중 괜찮은 게 있나요?',
-      ],
-    },
-    {
-      label: '주의사항이 궁금해요',
-      questions: [
-        '절대 먹으면 안 되는 음식이 있나요?',
-        '약 복용 중에 주의해야 할 음식이 있나요?',
-        '이 식단을 오래 유지해도 되나요?',
-        '혈압 수치와 식단이 어떤 관계가 있나요?',
+        { text: '이 식품 대신 뭐 먹을 수 있나요?', prefill: true, placeholder: '이 식품 대신 뭐 먹을 수 있나요? 식품명: ' },
       ],
     },
   ],
@@ -58,25 +52,25 @@ const CATEGORIES = {
     {
       label: '혈압이 궁금해요',
       questions: [
-        '내 혈압 수치가 정상인가요?',
-        '혈압을 낮추려면 어떻게 해야 하나요?',
-        '고혈압 위험이 있나요?',
+        { text: '내 혈압 수치가 정상인가요?',          prefill: false },
+        { text: '혈압을 낮추려면 어떻게 해야 하나요?', prefill: false },
+        { text: '고혈압 위험이 있나요?',               prefill: false },
       ],
     },
     {
       label: '혈당이 궁금해요',
       questions: [
-        '혈당 수치가 위험한가요?',
-        '혈당을 낮추는 방법이 있나요?',
-        '당뇨 전단계인가요?',
+        { text: '혈당 수치가 위험한가요?',      prefill: false },
+        { text: '혈당을 낮추는 방법이 있나요?', prefill: false },
+        { text: '당뇨 전단계인가요?',           prefill: false },
       ],
     },
     {
       label: '전반적인 건강 상태가 궁금해요',
       questions: [
-        '어떤 부분을 개선해야 하나요?',
-        '다음 검진은 언제 받아야 하나요?',
-        '가장 주의해야 할 수치가 뭔가요?',
+        { text: '어떤 부분을 개선해야 하나요?',    prefill: false },
+        { text: '다음 검진은 언제 받아야 하나요?', prefill: false },
+        { text: '가장 주의해야 할 수치가 뭔가요?', prefill: false },
       ],
     },
   ],
@@ -84,28 +78,45 @@ const CATEGORIES = {
     {
       label: '복용 방법이 궁금해요',
       questions: [
-        '언제 복용하는 게 좋나요?',
-        '음식과 함께 먹어도 되나요?',
-        '복용을 빠뜨리면 어떻게 해야 하나요?',
+        { text: '언제 복용하는 게 좋나요?',            prefill: false },
+        { text: '음식과 함께 먹어도 되나요?',          prefill: false },
+        { text: '복용을 빠뜨리면 어떻게 해야 하나요?', prefill: false },
       ],
     },
     {
       label: '부작용이 궁금해요',
       questions: [
-        '이 약들 부작용이 있나요?',
-        '부작용이 생기면 어떻게 해야 하나요?',
-        '장기 복용해도 괜찮나요?',
+        { text: '이 약들 부작용이 있나요?',            prefill: false },
+        { text: '부작용이 생기면 어떻게 해야 하나요?', prefill: false },
+        { text: '장기 복용해도 괜찮나요?',             prefill: false },
       ],
     },
     {
       label: '약 조합이 궁금해요',
       questions: [
-        '이 약들 함께 먹어도 되나요?',
-        '주의해야 할 음식이 있나요?',
-        '다른 약과 함께 먹어도 되나요?',
+        { text: '이 약들 함께 먹어도 되나요?',   prefill: false },
+        { text: '주의해야 할 음식이 있나요?',     prefill: false },
+        { text: '다른 약과 함께 먹어도 되나요?', prefill: false },
       ],
     },
   ],
+}
+
+const MEAL_PLAN_KO = {
+  'Balanced Diet':               '균형 식단',
+  'Low-Sodium Diet':             '저염 식단',
+  'Low-Carb Diet':               '저탄수화물 식단',
+  'Low-Calorie Diet':            '저칼로리 식단',
+  'Low-Carb Low-Sodium Diet':    '저탄수화물·저염 식단',
+  'Low-Calorie Low-Sodium Diet': '저칼로리·저염 식단',
+  'Low-Carb Low-Calorie Diet':   '저탄수화물·저칼로리 식단',
+  'Therapeutic Diet':            '치료 식단',
+}
+
+const WELCOME_MESSAGE = {
+  DIET_GUIDE:     '안녕하세요! AI 식단 상담사입니다.\n식단 플랜, 영양소, 제한 식품 등 궁금한 것을 자유롭게 물어보세요.\n아래 예시 질문을 참고하셔도 좋습니다.',
+  HEALTH_CHECKUP: '안녕하세요! AI 건강검진 상담사입니다.\n혈압, 혈당, 건강 상태 등 궁금한 것을 자유롭게 물어보세요.\n아래 예시 질문을 참고하셔도 좋습니다.',
+  PRESCRIPTION:   '안녕하세요! AI 처방약 상담사입니다.\n복용 방법, 부작용, 약 조합 등 궁금한 것을 자유롭게 물어보세요.\n아래 예시 질문을 참고하셔도 좋습니다.',
 }
 
 const CONTEXT_TITLE = {
@@ -121,19 +132,116 @@ function formatTime(iso) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+function TypingDots() {
+  return (
+    <div className="px-4 py-3 bg-bgSubtle rounded-[12px] rounded-tl-none inline-block">
+      <div className="flex gap-1 items-center">
+        <span className="w-1.5 h-1.5 rounded-full bg-mute animate-bounce" style={{ animationDelay: '0ms' }} />
+        <span className="w-1.5 h-1.5 rounded-full bg-mute animate-bounce" style={{ animationDelay: '150ms' }} />
+        <span className="w-1.5 h-1.5 rounded-full bg-mute animate-bounce" style={{ animationDelay: '300ms' }} />
+      </div>
+    </div>
+  )
+}
+
+function DietGuidePanel({ guide }) {
+  const [expanded, setExpanded] = useState(false)
+  if (!guide) return null
+
+  return (
+    <div className="border-b border-borderHairline bg-primarySoft">
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-2.5"
+      >
+        <div className="flex items-center gap-2">
+          <FontAwesomeIcon icon={faUtensils} className="text-primary text-[11px]" />
+          <span className="text-[12px] font-[700] text-primary">
+            {MEAL_PLAN_KO[guide.meal_plan_type] ?? guide.meal_plan_type}
+          </span>
+          <span className="text-[11px] text-primary/60">{guide.guide_date}</span>
+        </div>
+        <FontAwesomeIcon
+          icon={expanded ? faChevronUp : faChevronDown}
+          className="text-primary text-[10px]"
+        />
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-3 space-y-2">
+          <div className="grid grid-cols-4 gap-2">
+            <div className="bg-white rounded-[8px] px-2 py-1.5 text-center">
+              <p className="text-[10px] text-mute mb-0.5">칼로리</p>
+              <p className="text-[12px] font-[700] text-textHeading">
+                {guide.nutrient_standard?.recommended_calories}
+                <span className="text-[10px] font-[400] text-mute ml-0.5">kcal</span>
+              </p>
+            </div>
+            <div className="bg-white rounded-[8px] px-2 py-1.5 text-center">
+              <p className="text-[10px] text-mute mb-0.5">탄수화물</p>
+              <p className="text-[12px] font-[700] text-textHeading">
+                {guide.nutrient_standard?.recommended_carbs}
+                <span className="text-[10px] font-[400] text-mute ml-0.5">g</span>
+              </p>
+            </div>
+            <div className="bg-white rounded-[8px] px-2 py-1.5 text-center">
+              <p className="text-[10px] text-mute mb-0.5">단백질</p>
+              <p className="text-[12px] font-[700] text-textHeading">
+                {guide.nutrient_standard?.recommended_protein}
+                <span className="text-[10px] font-[400] text-mute ml-0.5">g</span>
+              </p>
+            </div>
+            <div className="bg-white rounded-[8px] px-2 py-1.5 text-center">
+              <p className="text-[10px] text-mute mb-0.5">지방</p>
+              <p className="text-[12px] font-[700] text-textHeading">
+                {guide.nutrient_standard?.recommended_fat}
+                <span className="text-[10px] font-[400] text-mute ml-0.5">g</span>
+              </p>
+            </div>
+          </div>
+          {[['아침', guide.breakfast], ['점심', guide.lunch], ['저녁', guide.dinner]].map(([label, content]) => {
+            if (!content) return null
+            const summary = content
+              .replace(/^[-•]\s*/gm, '')
+              .trim()
+              .split('\n')
+              .filter(Boolean)
+              .slice(0, 3)
+              .join(', ')
+            return (
+              <div key={label} className="flex gap-2">
+                <span className="text-[11px] font-[700] text-primary w-6 shrink-0 leading-[1.6]">{label}</span>
+                <span className="text-[12px] text-textBody leading-relaxed">{summary}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function ChatPage() {
-  const { sessionId } = useParams()
-  const [searchParams] = useSearchParams()
-  const contextType = searchParams.get('context_type') ?? 'DIET_GUIDE'
-  const [messages, setMessages] = useState([])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
+  const navigate              = useNavigate()
+  const { sessionId }         = useParams()
+  const [searchParams]        = useSearchParams()
+  const contextType           = searchParams.get('context_type') ?? 'DIET_GUIDE'
+  const guideDate             = searchParams.get('guide_date') ?? null
+  const [messages,         setMessages]         = useState([])
+  const [input,            setInput]            = useState('')
+  const [loading,          setLoading]          = useState(false)
+  const [loadingMessageId, setLoadingMessageId] = useState(null)
   const [selectedCategory, setSelectedCategory] = useState(null)
+  const [showCategories,   setShowCategories]   = useState(false)
+  const [editingId,        setEditingId]        = useState(null)
+  const [editInput,        setEditInput]        = useState('')
+  const [showMenu,         setShowMenu]         = useState(false)
+  const [dietGuide,        setDietGuide]        = useState(null)
   const bottomRef = useRef(null)
+  const inputRef  = useRef(null)
 
   const categories = CATEGORIES[contextType] ?? CATEGORIES.DIET_GUIDE
-  const showSuggested = messages.length === 0
+  const welcomeMsg = WELCOME_MESSAGE[contextType] ?? WELCOME_MESSAGE.DIET_GUIDE
 
   useEffect(() => {
     if (!sessionId) return
@@ -143,14 +251,33 @@ function ChatPage() {
   }, [sessionId])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    if (contextType !== 'DIET_GUIDE' || !guideDate) return
+    getDietGuideByDate(guideDate)
+      .then(data => setDietGuide(data))
+      .catch(() => {})
+  }, [contextType, guideDate])
 
-  const handleSend = async (text) => {
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, loadingMessageId])
+
+  const handleQuestionClick = (q, categoryLabel) => {
+    if (q.prefill) {
+      setInput(q.placeholder)
+      setShowCategories(false)
+      setSelectedCategory(null)
+      setTimeout(() => inputRef.current?.focus(), 50)
+    } else {
+      handleSend(q.text, categoryLabel)
+    }
+  }
+
+  const handleSend = async (text, category = null) => {
     const message = text || input.trim()
     if (!message || loading) return
     setInput('')
     setSelectedCategory(null)
+    setShowCategories(false)
     setLoading(true)
 
     setMessages((prev) => [...prev, {
@@ -161,7 +288,7 @@ function ChatPage() {
     }])
 
     try {
-      const data = await sendChatMessage(sessionId, message)
+      const data = await sendChatMessage(sessionId, message, category ?? selectedCategory?.label ?? null)
       setMessages(data.history ?? [])
     } catch {
       setMessages((prev) => [...prev, {
@@ -175,64 +302,157 @@ function ChatPage() {
     }
   }
 
-  return (
-    <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
-      <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8">
+  const handleDelete = async (messageId) => {
+    if (!window.confirm('이 메시지를 삭제할까요?')) return
+    try {
+      const data = await deleteChatMessage(sessionId, messageId)
+      setMessages(data.messages ?? [])
+    } catch {}
+  }
 
-        <Header variant="back" title={CONTEXT_TITLE[contextType] ?? 'AI 상담'} />
+  const handleEditStart = (msg) => {
+    setEditingId(msg.id)
+    setEditInput(msg.content)
+  }
+
+  const handleEditSubmit = async (messageId) => {
+    if (!editInput.trim() || loading) return
+    setEditingId(null)
+    setLoading(true)
+    setMessages((prev) => {
+      const idx = prev.findIndex(m => m.id === messageId)
+      if (idx === -1) return prev
+      return [...prev.slice(0, idx), { ...prev[idx], content: editInput.trim() }]
+    })
+    setLoadingMessageId('edit-' + messageId)
+    try {
+      const data = await editChatMessage(sessionId, messageId, editInput.trim(), selectedCategory?.label ?? null)
+      setMessages(data.history ?? [])
+    } catch {
+      setMessages((prev) => [...prev, {
+        id: Date.now(),
+        role: 'assistant',
+        content: '답변을 가져오지 못했어요. 다시 시도해 주세요.',
+        created_at: new Date().toISOString(),
+      }])
+    } finally {
+      setLoading(false)
+      setLoadingMessageId(null)
+    }
+  }
+
+  const handleRegenerate = async (messageId) => {
+    if (loading) return
+    setLoading(true)
+    setLoadingMessageId(messageId)
+    setMessages((prev) => prev.filter(m => m.id !== messageId))
+    try {
+      const data = await regenerateChatMessage(sessionId, messageId, selectedCategory?.label ?? null)
+      setMessages(data.history ?? [])
+    } catch {
+      setMessages((prev) => [...prev, {
+        id: Date.now(),
+        role: 'assistant',
+        content: '답변을 가져오지 못했어요. 다시 시도해 주세요.',
+        created_at: new Date().toISOString(),
+      }])
+    } finally {
+      setLoading(false)
+      setLoadingMessageId(null)
+    }
+  }
+
+  const handleClearMessages = async () => {
+    if (!window.confirm('채팅 기록을 모두 삭제할까요?')) return
+    setShowMenu(false)
+    try {
+      await clearChatMessages(sessionId)
+      setMessages([])
+    } catch {}
+  }
+
+  const handleLeaveSession = async () => {
+    if (!window.confirm('채팅방을 나가시겠습니까? 채팅 기록이 모두 삭제됩니다.')) return
+    setShowMenu(false)
+    try {
+      await deleteChatSession(sessionId)
+    } catch {}
+    navigate(-1)
+  }
+
+  const renderQuestions = (cat, size = 'md') => {
+    const px   = size === 'sm' ? 'px-3 py-2.5' : 'px-4 py-3'
+    const text = size === 'sm' ? 'text-[12px]' : 'text-[13px]'
+    return cat.questions.map((q, i) => (
+      <button
+        key={i}
+        onClick={() => handleQuestionClick(q, cat.label)}
+        className={`w-full text-left ${px} bg-bgSubtle border border-borderHairline rounded-[10px] ${text} text-textBody hover:bg-primarySoft hover:border-primary transition-colors flex items-center justify-between gap-2`}
+      >
+        <span>{q.text}</span>
+        {q.prefill && (
+          <span className="text-[10px] text-primary shrink-0">직접 입력</span>
+        )}
+      </button>
+    ))
+  }
+
+  return (
+    <div className="bg-white md:bg-[#F4F4F5] w-full h-[100dvh] flex justify-center">
+      <div className="w-full bg-white flex flex-col h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 md:h-auto md:max-h-[calc(100dvh-4rem)]">
+
+        <Header
+          variant="back"
+          title={CONTEXT_TITLE[contextType] ?? 'AI 상담'}
+          rightAction={
+            <div className="relative">
+              <button
+                onClick={() => setShowMenu(v => !v)}
+                className="w-10 h-10 flex items-center justify-center text-textHeading"
+              >
+                <FontAwesomeIcon icon={faEllipsisVertical} className="text-[16px]" />
+              </button>
+              {showMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+                  <div className="absolute right-0 top-10 z-50 bg-white rounded-[10px] shadow-lg border border-borderHairline overflow-hidden w-[160px]">
+                    <button
+                      onClick={handleClearMessages}
+                      className="w-full px-5 py-3 text-[14px] font-[500] text-textHeading text-left hover:bg-bgSubtle"
+                    >
+                      채팅 기록 삭제
+                    </button>
+                    <button
+                      onClick={handleLeaveSession}
+                      className="w-full px-5 py-3 text-[14px] font-[500] text-error text-left hover:bg-bgSubtle"
+                    >
+                      채팅방 나가기
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          }
+        />
+
+        {/* 식단 고정 패널 */}
+        {contextType === 'DIET_GUIDE' && (
+          <DietGuidePanel guide={dietGuide} />
+        )}
 
         <main className="flex-1 overflow-y-auto px-5 pt-4 pb-2 space-y-4">
 
-          {/* 1단계: 카테고리 선택 */}
-          {showSuggested && !selectedCategory && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <FontAwesomeIcon icon={faWandMagicSparkles} className="text-primary text-[13px]" />
-                <p className="text-[13px] font-[700] text-textHeading">무엇이 궁금하신가요?</p>
-              </div>
-              <div className="flex flex-col gap-2">
-                {categories.map((cat, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setSelectedCategory(cat)}
-                    className="w-full text-left px-4 py-3 bg-bgSubtle border border-borderHairline rounded-[10px] text-[13px] text-textBody hover:bg-primarySoft hover:border-primary transition-colors"
-                  >
-                    {cat.label}
-                  </button>
-                ))}
+          <div className="flex justify-start">
+            <div className="w-7 h-7 rounded-full bg-primarySoft flex items-center justify-center mr-2 shrink-0 mt-1">
+              <FontAwesomeIcon icon={faWandMagicSparkles} className="text-primary text-[10px]" />
+            </div>
+            <div className="max-w-[75%]">
+              <div className="px-4 py-3 bg-bgSubtle rounded-[12px] rounded-tl-none text-[14px] leading-relaxed whitespace-pre-wrap text-textBody">
+                {welcomeMsg}
               </div>
             </div>
-          )}
+          </div>
 
-          {/* 2단계: 세부 질문 선택 */}
-          {showSuggested && selectedCategory && (
-            <div className="space-y-3">
-              <button
-                onClick={() => setSelectedCategory(null)}
-                className="flex items-center gap-1 text-[12px] text-mute hover:text-textBody transition-colors"
-              >
-                <FontAwesomeIcon icon={faChevronLeft} className="text-[10px]" />
-                <span>돌아가기</span>
-              </button>
-              <div className="flex items-center gap-2">
-                <FontAwesomeIcon icon={faWandMagicSparkles} className="text-primary text-[13px]" />
-                <p className="text-[13px] font-[700] text-textHeading">{selectedCategory.label}</p>
-              </div>
-              <div className="flex flex-col gap-2">
-                {selectedCategory.questions.map((q, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleSend(q)}
-                    className="w-full text-left px-4 py-3 bg-bgSubtle border border-borderHairline rounded-[10px] text-[13px] text-textBody hover:bg-primarySoft hover:border-primary transition-colors"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 대화 메시지 */}
           {messages.map((msg) => (
             <div
               key={msg.id}
@@ -244,61 +464,149 @@ function ChatPage() {
                 </div>
               )}
               <div className="max-w-[75%] space-y-1">
-                <div
-                  className={`px-4 py-3 rounded-[12px] text-[14px] leading-relaxed whitespace-pre-wrap ${
-                    msg.role === 'user'
-                      ? 'bg-primary text-white rounded-tr-none'
-                      : 'bg-bgSubtle text-textBody rounded-tl-none'
-                  }`}
-                >
-                  {msg.content}
-                </div>
-                <p className={`text-[10px] text-mute ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
-                  {formatTime(msg.created_at)}
-                </p>
+                {editingId === msg.id ? (
+                  <div className="flex flex-col gap-2">
+                    <textarea
+                      value={editInput}
+                      onChange={(e) => setEditInput(e.target.value)}
+                      className="w-full px-3 py-2 text-[14px] border border-primary rounded-[10px] outline-none resize-none"
+                      rows={3}
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="px-3 py-1.5 text-[12px] text-mute border border-borderHairline rounded-[8px]"
+                      >
+                        취소
+                      </button>
+                      <button
+                        onClick={() => handleEditSubmit(msg.id)}
+                        className="px-3 py-1.5 text-[12px] text-white bg-primary rounded-[8px]"
+                      >
+                        전송
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div
+                      className={`px-4 py-3 rounded-[12px] text-[14px] leading-relaxed whitespace-pre-wrap ${
+                        msg.role === 'user'
+                          ? 'bg-primary text-white rounded-tr-none'
+                          : 'bg-bgSubtle text-textBody rounded-tl-none'
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
+                    <div className={`flex items-center gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <p className="text-[10px] text-mute">{formatTime(msg.created_at)}</p>
+                      {msg.role === 'user' && (
+                        <>
+                          <button onClick={() => handleEditStart(msg)} className="text-[10px] text-mute hover:text-textBody transition-colors">
+                            <FontAwesomeIcon icon={faPenToSquare} />
+                          </button>
+                          <button onClick={() => handleDelete(msg.id)} className="text-[10px] text-mute hover:text-error transition-colors">
+                            <FontAwesomeIcon icon={faTrash} />
+                          </button>
+                        </>
+                      )}
+                      {msg.role === 'assistant' && (
+                        <>
+                          <button onClick={() => handleRegenerate(msg.id)} disabled={loading} className="text-[10px] text-mute hover:text-primary transition-colors disabled:opacity-50">
+                            <FontAwesomeIcon icon={faRotateRight} />
+                          </button>
+                          <button onClick={() => handleDelete(msg.id)} className="text-[10px] text-mute hover:text-error transition-colors">
+                            <FontAwesomeIcon icon={faTrash} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           ))}
 
           {loading && (
             <div className="flex justify-start">
-              <div className="w-7 h-7 rounded-full bg-primarySoft flex items-center justify-center mr-2 shrink-0">
+              <div className="w-7 h-7 rounded-full bg-primarySoft flex items-center justify-center mr-2 shrink-0 mt-1">
                 <FontAwesomeIcon icon={faWandMagicSparkles} className="text-primary text-[10px]" />
               </div>
-              <div className="px-4 py-3 bg-bgSubtle rounded-[12px] rounded-tl-none">
-                <div className="flex gap-1 items-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-mute animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-mute animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-mute animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-              </div>
+              <TypingDots />
             </div>
           )}
 
           <div ref={bottomRef} />
         </main>
 
-        <div className="px-5 py-3 border-t border-borderHairline bg-white">
-          <div className="flex items-center gap-2 bg-bgSubtle rounded-[12px] px-4 py-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-              placeholder="직접 입력하기"
-              className="flex-1 bg-transparent text-[14px] text-textBody placeholder:text-mute outline-none"
-            />
+        <div className="shrink-0 border-t border-borderHairline bg-white">
+          <div className="px-5">
             <button
-              onClick={() => handleSend()}
-              disabled={!input.trim() || loading}
-              className="w-8 h-8 rounded-full bg-primary flex items-center justify-center disabled:bg-mute transition-colors"
+              onClick={() => { setShowCategories(v => !v); setSelectedCategory(null) }}
+              className="w-full flex items-center justify-between py-3 text-[12px] text-mute hover:text-textBody transition-colors"
             >
-              <FontAwesomeIcon icon={faPaperPlane} className="text-white text-[12px]" />
+              <div className="flex items-center gap-1.5">
+                <FontAwesomeIcon icon={faWandMagicSparkles} className="text-primary text-[11px]" />
+                <span>예시 질문 보기</span>
+              </div>
+              <FontAwesomeIcon icon={showCategories ? faChevronDown : faChevronUp} className="text-[10px]" />
             </button>
+
+            {showCategories && (
+              <div className="pb-3 max-h-[40vh] overflow-y-auto space-y-2">
+                {!selectedCategory ? (
+                  <div className="flex flex-col gap-2">
+                    {categories.map((cat, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setSelectedCategory(cat)}
+                        className="w-full text-left px-3 py-2.5 bg-bgSubtle border border-borderHairline rounded-[10px] text-[12px] text-textBody hover:bg-primarySoft hover:border-primary transition-colors"
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setSelectedCategory(null)}
+                      className="flex items-center gap-1 text-[11px] text-mute hover:text-textBody transition-colors"
+                    >
+                      <FontAwesomeIcon icon={faChevronLeft} className="text-[9px]" />
+                      <span>돌아가기</span>
+                    </button>
+                    <div className="flex flex-col gap-1.5">
+                      {renderQuestions(selectedCategory, 'sm')}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          <p className="text-[10px] text-mute text-center mt-2">
-            본 AI 답변은 참고용이며 의학적 진단을 대체하지 않습니다.
-          </p>
+
+          <div className="px-5 py-3">
+            <div className="flex items-center gap-2 bg-bgSubtle rounded-[12px] px-4 py-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+                placeholder="직접 입력하기"
+                className="flex-1 bg-transparent text-[14px] text-textBody placeholder:text-mute outline-none"
+              />
+              <button
+                onClick={() => handleSend()}
+                disabled={!input.trim() || loading}
+                className="w-8 h-8 rounded-full bg-primary flex items-center justify-center disabled:bg-mute transition-colors"
+              >
+                <FontAwesomeIcon icon={faPaperPlane} className="text-white text-[12px]" />
+              </button>
+            </div>
+            <p className="text-[10px] text-mute text-center mt-2">
+              본 AI 답변은 참고용이며 의학적 진단을 대체하지 않습니다.
+            </p>
+          </div>
         </div>
 
       </div>

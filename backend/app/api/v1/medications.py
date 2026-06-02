@@ -105,6 +105,14 @@ def update_schedule(
 ):
     return medication_service.update_schedule(current_user.id, schedule_id, request, db)
 
+# DELETE /api/v1/medications/schedules/{schedule_id} - 복약 일정 삭제
+@router.delete("/schedules/{schedule_id}", status_code=200)
+def delete_schedule(
+    schedule_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.delete_schedule(current_user.id, schedule_id, db)
 
 # PATCH /api/v1/medications/alarms/{alarm_id} - 복약 알림 수정
 @router.patch("/alarms/{alarm_id}", response_model=MedicationAlarmUpdateResponse)

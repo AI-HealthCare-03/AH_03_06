@@ -279,6 +279,16 @@ def update_schedule(user_id: int, schedule_id: int, request: MedicationScheduleR
     db.refresh(schedule)
     return _schedule_to_response(schedule)
 
+def delete_schedule(user_id: int, schedule_id: int, db: Session):
+    schedule = db.query(MedicationSchedule).filter(
+        MedicationSchedule.schedule_id == schedule_id,
+        MedicationSchedule.user_id == user_id,
+    ).first()
+    if not schedule:
+        raise HTTPException(status_code=404, detail="schedule_not_found")
+    db.delete(schedule)
+    db.commit()
+    return {"detail": "schedule_deleted"}
 
 def update_alarm(user_id: int, alarm_id: int, request: MedicationAlarmUpdateRequest, db: Session) -> MedicationAlarmUpdateResponse:
     if not any([request.medication_name, request.alarm_time, request.alarm_days, request.is_active is not None]):

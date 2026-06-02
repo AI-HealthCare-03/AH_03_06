@@ -1,7 +1,6 @@
 # app/services/drug_matching_service.py
-# 약품명 → item_seq 매칭 부품 (02_drug_matching 노트북 이식)
+# 약품명 → item_seq 매칭 부품
 # 1차 조각: 순수 함수·상수만. DB 접근/인덱스 빌드/match_drug 본체는 후속 조각에서 추가.
-# 출처: ml/notebooks/medication/02_drug_matching.ipynb
 
 from __future__ import annotations
 
@@ -17,9 +16,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-# ============================================================
-# 임계값 (노트북 cell 14)
-# ============================================================
+# 임계값
 # 짧은 query를 부분 입력으로 판정하는 길이 임계값 (정규화 후 글자 수)
 SHORT_QUERY_THRESHOLD = 5
 # fuzzy 점수가 이 미만이면 자모 분해 fuzzy 추가 시도 (오타 의심)
@@ -30,9 +27,7 @@ JAMO_MIN_ACCEPT_SCORE = 70
 FETCH_TOP_N = 15
 
 
-# ============================================================
-# tiebreak 정렬용 키워드 (노트북 cell 12)
-# ============================================================
+# tiebreak 정렬용 키워드
 # 한정어 prefix — 사용자가 일반 제품을 의도할 가능성 높을 때 후순위로
 QUALIFIER_PREFIXES = ('어린이', '소아용', '소아', '노인용')
 
@@ -46,9 +41,7 @@ VARIANT_KEYWORDS = (
 )
 
 
-# ============================================================
-# 제형 suffix & 염/수화물 패턴 (노트북 cell 10)
-# ============================================================
+# 제형 suffix & 염/수화물 패턴
 # 성분명+제형 패턴 인식용 (예: '메트포르민정500mg' → '메트포르민' 추출)
 _DOSAGE_FORM_SUFFIXES = ('정', '캡슐', '시럽', '주사', '주', '액', '연질캡슐', '경질캡슐', '서방정')
 
@@ -60,14 +53,11 @@ _SALT_SUFFIX_PATTERN = re.compile(
 )
 
 
-# ============================================================
-# 정규화 함수 (노트북 cell 8)
-# ============================================================
+# 정규화 함수
 def normalize_drug_name(name) -> str:
     """약품명에서 공백, 괄호 내용, 특수문자를 제거하고 소문자화한다.
 
-    노트북 cell 8 로직 그대로. NaN 처리는 노트북의 pd.isna() 의존 대신
-    None/빈문자 체크로 대체 (백엔드 호출 경로에서는 NaN 입력이 발생하지 않음).
+    NaN 입력은 발생하지 않으므로 None/빈문자 체크로만 처리.
     """
     if name is None:
         return ''
@@ -95,13 +85,10 @@ def normalize_drug_name(name) -> str:
     return name.lower()
 
 
-# ============================================================
-# 자모 분해 (노트북 cell 10)
-# ============================================================
+# 자모 분해
 def jamo_decompose(text: str) -> str:
     """한글 텍스트를 호환 자모로 분해 (한국어 1~2글자 오타 보정용).
 
-    노트북 cell 10 로직 그대로.
     예: '게보린' -> 'ㄱㅔㅂㅗㄹㅣㄴ' / '게부린' -> 'ㄱㅔㅂㅜㄹㅣㄴ' (모음 1자 차이)
     한글이 아닌 문자(영문, 숫자, 특수문자)는 그대로 유지.
     """
@@ -113,9 +100,7 @@ def jamo_decompose(text: str) -> str:
         return text
 
 
-# ============================================================
-# 신뢰도 분류 (노트북 cell 12)
-# ============================================================
+# 신뢰도 분류
 def _classify_confidence(score: float) -> str:
     """rapidfuzz 점수를 신뢰도 등급으로 분류한다."""
     if score >= 90:
@@ -125,9 +110,7 @@ def _classify_confidence(score: float) -> str:
     return 'low'
 
 
-# ============================================================
-# tiebreak 보조 함수 (노트북 cell 14)
-# ============================================================
+# tiebreak 보조 함수
 def _common_chunk_score(query_normalized: str, candidate_normalized: str) -> float:
     """쿼리 음절이 candidate에 등장하는 비율을 0~10점으로 환산.
 
@@ -151,18 +134,14 @@ def _common_prefix_len(s1: str, s2: str) -> int:
     return n
 
 
-# ============================================================
-# 용량 패턴 (노트북 cell 10)
-# ============================================================
+# 용량 패턴
 # 약명 끝부분의 용량 표기 — is_likely_ingredient_query 의 trailing 제거에 사용.
 _DOSE_PATTERN = re.compile(r'\d+(\.\d+)?(mg|g|ml|%|밀리그램|밀리그람)?$')
 
 
-# ============================================================
-# 성분명 처리 (노트북 cell 10)
-# ============================================================
+# 성분명 처리
 def _extract_ingredient_base(s: str) -> str:
-    """염/산/수화물 suffix 반복 제거해 INN base 추출 (노트북 cell 10).
+    """염/산/수화물 suffix 반복 제거해 INN base 추출.
 
     예: '암로디핀베실산염'         → '암로디핀'
         '시타글립틴인산염수화물'    → '시타글립틴'
@@ -173,12 +152,12 @@ def _extract_ingredient_base(s: str) -> str:
 
 
 def is_likely_ingredient_query(query: str, ingredient_set: set[str] | frozenset[str]) -> bool:
-    """query 가 (제품명이 아니라) 성분명 입력인지 판별 (노트북 cell 10).
+    """query 가 (제품명이 아니라) 성분명 입력인지 판별.
 
-    노트북 v8 (PR11) 정책: 단독 성분명 입력 시 임의 회사 제품을 1순위로
+    단독 성분명 입력 시 임의 회사 제품을 1순위로
     제안하는 의학적 위험을 막기 위해 best_match=None 으로 차단한다.
 
-    노트북 원본은 모듈 전역 INGREDIENT_SET 을 참조했지만, 본 이식본은
+    모듈 전역 대신 본 구현은
     set 을 인자로 받는 순수 함수 — INGREDIENT_SET 실제 빌드(DB 접근)는
     후속 조각(인덱스 빌드)으로 분리한다.
 
@@ -216,14 +195,12 @@ def is_likely_ingredient_query(query: str, ingredient_set: set[str] | frozenset[
     return False
 
 
-# ============================================================
-# 인덱스 데이터 구조 (노트북 cell 10/14 in-memory 컬럼 + ATC_MAP + INGREDIENT_SET)
-# ============================================================
+# 인덱스 데이터 구조
 @dataclass(frozen=True)
 class DrugMatchIndex:
     """약품명 매칭 인덱스 — 부팅 시 1회 빌드 후 in-memory 캐시.
 
-    노트북 cell 10/14 의 in-memory 컬럼·매핑·셋에 해당:
+    in-memory 컬럼·매핑·셋:
         - rows           : drug_info 행 dict 리스트 (원본 lookup 용).
         - by_normalized  : 정확 매칭용 dict (정규화 이름 → rows index list).
                            동명이품 위해 list (1 이상).
@@ -244,7 +221,7 @@ def _build_index_from_data(
     drug_rows: list[dict],
     ingredient_names: list,
 ) -> DrugMatchIndex:
-    """순수 함수 — DB 의존 없는 인덱스 빌드 (노트북 cell 10 in-memory 컬럼 생성 등가).
+    """순수 함수 — DB 의존 없는 인덱스 빌드.
 
     Args:
         drug_rows: drug_info 행 dict 리스트. 각 dict 는 drug_name 키 필수.
@@ -338,9 +315,7 @@ def build_index(db: Session) -> DrugMatchIndex:
     return idx
 
 
-# ============================================================
 # 모듈 전역 캐시 — 부팅 후 단일 빌드, 매칭 본체가 lazy 로 접근
-# ============================================================
 _index: DrugMatchIndex | None = None
 
 
@@ -358,15 +333,13 @@ def reset_index() -> None:
     _index = None
 
 
-# ============================================================
-# rapidfuzz 매칭 (노트북 cell 12 / 14)
-# ============================================================
+# rapidfuzz 매칭
 def _prefix_match(
     normalized_query: str,
     index: DrugMatchIndex,
     top_n: int = 5,
 ) -> list[dict]:
-    """정규화 query 로 시작하는 후보를 추출하고 본형 우선 정렬 (노트북 cell 14).
+    """정규화 query 로 시작하는 후보를 추출하고 본형 우선 정렬.
 
     짧은 부분 입력(SHORT_QUERY_THRESHOLD 이하) 케이스 전용. WRatio 후보 풀에서
     누락되는 본형(예: '타이레놀' → '타이레놀정500mg')을 회수하고, 변종(콜드·
@@ -402,7 +375,7 @@ def fuzzy_match(
     index: DrugMatchIndex,
     top_n: int = 5,
 ) -> list[dict]:
-    """정규화 query 와 normalized_list 의 WRatio 유사도 상위 N 반환 (노트북 cell 12).
+    """정규화 query 와 normalized_list 의 WRatio 유사도 상위 N 반환.
 
     동점 점수일 때 다음 우선순위로 1순위 결정:
         1. 정규화 매칭 텍스트가 query 로 시작하는 후보
@@ -450,13 +423,10 @@ def fuzzy_match(
     return candidates[:top_n]
 
 
-# ============================================================
-# 정확 매칭 (노트북 cell 10)
-# ============================================================
+# 정확 매칭
 def exact_match(query: str, index: DrugMatchIndex) -> dict | None:
-    """정규화 query 를 by_normalized 로 정확 매칭 (노트북 cell 10).
+    """정규화 query 를 by_normalized 로 정확 매칭.
 
-    노트북은 df[df['_normalized'] == nq] 로 풀스캔 후 len 분기.
     백엔드는 빌드 시 만들어둔 by_normalized dict 로 O(1) lookup.
 
     Returns:
@@ -491,7 +461,7 @@ def fuzzy_match_jamo(
     index: DrugMatchIndex,
     top_n: int = 5,
 ) -> list[dict]:
-    """자모 분해 후 fuzzy 매칭 — 한국어 1~2글자 오타 보정 (노트북 cell 12).
+    """자모 분해 후 fuzzy 매칭 — 한국어 1~2글자 오타 보정.
 
     fuzzy_match 가 character level 에서 잡지 못하는 한국어 오타를 잡아내는 보조.
     예: '게부린' → 'ㄱㅔㅂㅜㄹㅣㄴ' vs '게보린' → 'ㄱㅔㅂㅗㄹㅣㄴ' (자모 1자 차이).
@@ -539,22 +509,20 @@ def fuzzy_match_jamo(
     return candidates[:top_n]
 
 
-# ============================================================
-# ATC tiebreak (노트북 cell 14, v9/v11/v12)
-# ============================================================
+# ATC tiebreak
 def _atc_tiebreak(
     results: list[dict],
     atc_map: dict[str, str],
     query_normalized: str,
     top_n: int = 5,
 ) -> list[dict]:
-    """동일 ATC 후보군에 brand chunk + prefix bonus 가산 후 재정렬 (노트북 cell 14).
+    """동일 ATC 후보군에 brand chunk + prefix bonus 가산 후 재정렬.
 
     1순위 후보의 ATC 를 anchor 로 삼아, 동일 ATC 후보들의 chunk 일치도 + prefix
     길이×20 만큼 bonus 가산. 원본 score 는 _rerank_score 키로 분리해 보존.
     anchor ATC 없으면 원본 그대로 반환.
 
-    노트북과의 차이 — 노트북은 atc_map 키가 품목일련번호(int) 라 int(top_item_no)
+    atc_map 키가 품목일련번호(int) 라 int(top_item_no)
     변환을 시도. 본 이식본은 빌드 시 atc_map 키를 str(drug_code) 로 통일했으므로
     변환 없이 직접 lookup.
     """
@@ -590,15 +558,13 @@ def _atc_tiebreak(
     return rescored[:top_n]
 
 
-# ============================================================
-# 통합 매칭 (노트북 cell 14, v12 PR13)
-# ============================================================
+# 통합 매칭
 def match_drug(
     query: str,
     index: DrugMatchIndex,
     fuzzy_top_n: int = 5,
 ) -> dict:
-    """약품명 → drug_info 통합 매칭 (노트북 cell 14 그대로).
+    """약품명 → drug_info 통합 매칭.
 
     5단계 폴백:
         1. exact_match              — by_normalized O(1) lookup
@@ -607,8 +573,8 @@ def match_drug(
         2.  fuzzy + ATC tiebreak    — WRatio character level
         2.5. fuzzy_jamo + ATC tiebreak — 자모 분해 (jamo trigger: 원본 fuzzy < 85)
 
-    노트북 v9 의 jamo trigger 규칙: ATC tiebreak 적용 전의 원본 fuzzy 점수 기준.
-    노트북 v12 의 fetch 풀 규칙: 내부 fuzzy_match/fuzzy_match_jamo 는 FETCH_TOP_N(15)
+    jamo trigger 규칙: ATC tiebreak 적용 전의 원본 fuzzy 점수 기준.
+    fetch 풀 규칙: 내부 fuzzy_match/fuzzy_match_jamo 는 FETCH_TOP_N(15)
     으로 풀을 넓혀 본형 누락을 줄인 뒤, _atc_tiebreak 에서 fuzzy_top_n(=5) 으로 절단.
 
     Returns:

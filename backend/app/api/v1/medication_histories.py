@@ -51,6 +51,7 @@ def export_medication_history(
                 MedicationLog.intake_date,
                 MedicationSchedule.intake_time,
                 MedicationLog.status,
+                MedicationLog.checked_at,
             )
             .join(MedicationSchedule, MedicationLog.schedule_id == MedicationSchedule.schedule_id)
             .join(Prescription, MedicationSchedule.prescribed_medicine_id == Prescription.id)
@@ -65,22 +66,21 @@ def export_medication_history(
 
         buf = io.StringIO()
         writer = csv.writer(buf)
-        writer.writerow(["medication_name", "dosage", "intake_time", "is_completed"])
-        for drug_name, dosage, intake_date, intake_time, status in rows:
-            if intake_time:
-                dt_str = f"{intake_date.isoformat()}T{intake_time.isoformat(timespec='seconds')}"
-            else:
-                dt_str = intake_date.isoformat()
+        # 환자 셀프트래커 표준(날짜/시각/약품/용량/상태) 정합 — 한글 헤더
+        writer.writerow(["날짜", "예정시각", "약품명", "용량", "상태", "실제복용시각"])
+        for drug_name, dosage, intake_date, intake_time, status, checked_at in rows:
             writer.writerow([
+                intake_date.isoformat(),
+                intake_time.isoformat(timespec="seconds") if intake_time else "",
                 drug_name or "",
                 dosage or "",
-                dt_str,
-                "true" if status == "TAKEN" else "false",
+                "복용" if status == "TAKEN" else "미복용",
+                checked_at.isoformat(timespec="seconds") if checked_at else "",
             ])
 
         filename = f"medication_history_{start.isoformat()}_{end.isoformat()}.csv"
         return StreamingResponse(
-            iter([buf.getvalue()]),
+            iter(["﻿" + buf.getvalue()]),  # UTF-8 BOM — 엑셀 한글 깨짐 방지
             media_type="text/csv; charset=utf-8",
             headers={
                 "Content-Disposition": f'attachment; filename="{filename}"',
