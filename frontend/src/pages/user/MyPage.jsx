@@ -131,14 +131,14 @@ function MyPage() {
                     </div>
                     <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[12px]" />
                   </button>
-                  <button onClick={comingSoon} className="w-full h-14 px-4 flex items-center justify-between border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
+                  <button onClick={() => navigate('/user/profile/edit')} className="w-full h-14 px-4 flex items-center justify-between border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">
                         <FontAwesomeIcon icon={faBullseye} className="text-primary text-[14px]" />
                       </div>
                       <span className="text-[14px] font-medium text-[#09090B]">건강 목표 설정</span>
                     </div>
-                    <span className="text-[11px] font-medium text-[#A1A1AA] bg-[#F4F4F5] px-2 py-1 rounded-full">준비 중</span>
+                    <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[12px]" />
                   </button>
                   <button onClick={() => navigate('/health-checkup')} className="w-full h-14 px-4 flex items-center justify-between active:bg-[#FAFAFA] transition-colors">
                     <div className="flex items-center gap-3">

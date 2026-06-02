@@ -26,6 +26,8 @@ import SleepGuideInputPage from './pages/guide/SleepGuideInputPage'
 import SleepGuidePage from './pages/guide/SleepGuidePage'
 import DietGuideListPage from './pages/guide/DietGuideListPage.jsx'
 import DietGuidePage from './pages/guide/DietGuidePage.jsx'
+import ExerciseGuideListPage from './pages/guide/ExerciseGuideListPage.jsx'
+import ExerciseGuidePage from './pages/guide/ExerciseGuidePage.jsx'
 import MyPage from './pages/user/MyPage'
 import ProfileEdit from './pages/user/ProfileEdit'
 import MedicalRecordDetail from './pages/medical-record/MedicalRecordDetail.jsx'
@@ -99,6 +101,8 @@ function App() {
         <Route path="/sleep-guides/:guideId" element={<PrivateRoute auth={auth}><SleepGuidePage /></PrivateRoute>} />
         <Route path="/diet-guides" element={<PrivateRoute auth={auth}><DietGuideListPage /></PrivateRoute>} />
         <Route path="/diet-guides/:date" element={<PrivateRoute auth={auth}><DietGuidePage /></PrivateRoute>} />
+        <Route path="/exercise-guides" element={<PrivateRoute auth={auth}><ExerciseGuideListPage /></PrivateRoute>} />
+        <Route path="/guide/exercise" element={<PrivateRoute auth={auth}><ExerciseGuidePage /></PrivateRoute>} />
         <Route path="/user" element={<PrivateRoute auth={auth}><MyPage /></PrivateRoute>} />
         <Route path="/user/profile/edit" element={<PrivateRoute auth={auth}><ProfileEdit /></PrivateRoute>} />
         <Route path="/health-checkup" element={<PrivateRoute auth={auth}><HealthCheckList /></PrivateRoute>} />
