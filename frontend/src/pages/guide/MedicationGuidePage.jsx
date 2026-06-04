@@ -161,15 +161,6 @@ function MedicationGuidePage() {
                       <FoldableMarkdown content={guide.main_content} />
                     </div>
 
-                    {guide.references && (
-                      <div className="px-5 py-4">
-                        <h3 className="text-[11px] font-[700] text-mute mb-2 tracking-wider uppercase">
-                          출처
-                        </h3>
-                        <p className="text-[12px] text-subtext leading-relaxed">{guide.references}</p>
-                      </div>
-                    )}
-
                     {guide.safety_recommendations && (
                       <div className="px-5 py-4">
                         <h3 className="text-[11px] font-[700] text-mute mb-2 tracking-wider uppercase">
@@ -181,6 +172,18 @@ function MedicationGuidePage() {
                       </div>
                     )}
                   </div>
+                </section>
+              )}
+
+              {/* 참고 자료 — 검색된 출처 목록 (수면 가이드와 동일 형식) */}
+              {guide.references && guide.references.length > 0 && (
+                <section className="px-1">
+                  <p className="text-[11px] font-[700] text-mute mb-1 tracking-wider uppercase">참고 자료</p>
+                  <ul className="space-y-0.5">
+                    {guide.references.map((ref, i) => (
+                      <li key={i} className="text-[11px] text-subtext leading-relaxed">· {ref}</li>
+                    ))}
+                  </ul>
                 </section>
               )}
 

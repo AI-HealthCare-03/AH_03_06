@@ -319,18 +319,6 @@ function MedicationGuidePreview() {
                       </div>
                     </div>
 
-                    {/* 출처 (조건부, 현재 항상 null — DUR 연결 후 구조화) */}
-                    {guide.references && (
-                      <div className="px-5 py-4">
-                        <h3 className="text-[11px] font-[700] text-mute mb-2 tracking-wider uppercase">
-                          출처
-                        </h3>
-                        <p className="text-[12px] text-subtext leading-relaxed">
-                          {guide.references}
-                        </p>
-                      </div>
-                    )}
-
                     {/* 안전 권고 (조건부) */}
                     {guide.safety_recommendations && (
                       <div className="px-5 py-4">
@@ -348,6 +336,18 @@ function MedicationGuidePreview() {
               )}
 
               {/* (예약) "함께 복용 시 주의" — 다약 상호작용(DUR) 섹션 슬롯. 현재 데이터 없음. */}
+
+              {/* 참고 자료 — 검색된 출처 목록 (수면 가이드와 동일 형식) */}
+              {guide.references && guide.references.length > 0 && (
+                <section className="px-1">
+                  <p className="text-[11px] font-[700] text-mute mb-1 tracking-wider uppercase">참고 자료</p>
+                  <ul className="space-y-0.5">
+                    {guide.references.map((ref, i) => (
+                      <li key={i} className="text-[11px] text-subtext leading-relaxed">· {ref}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
 
               {/* 면책 */}
               {guide.disclaimer && (

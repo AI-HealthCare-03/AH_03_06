@@ -83,7 +83,7 @@ LLM 이 풀어 쓰고 싶은 내용은 **인용 부호 밖, 보충 화살표(→
 검증 가이드라인: 인용 부호 안 문장을 청크에서 단어 단위로 검색했을 때 거의 일치(공백·구두점 차이 정도)해야 한다. 일치하지 않으면 그 문장을 인용 부호 밖으로 옮겨 보충 형식으로 풀어 쓰거나, 청크의 실제 문장을 다시 인용한다.
 
 [발췌 형식 예시]
-> "이 약은 일시적 불면증의 완화에 사용합니다." — e약은요
+> "이 약은 일시적 불면증의 완화에 사용합니다."
 
 → 일시적인 잠 못 드는 증상 완화에 사용하는 약품입니다.
 
@@ -117,7 +117,6 @@ LLM 이 풀어 쓰고 싶은 내용은 **인용 부호 밖, 보충 화살표(→
 - **drug_info=0 이지만 drug_detail 이 있을 때** (전문의약품 등 e약은요 미수록 약품에서 매우 흔함 — 노바스크정·인데놀정 등):
   - **반드시 drug_detail 청크에서 발췌·인용**한다. "정보 없음", "확보하지 못했습니다", "검색 결과에 포함되어 있지 않습니다" 같은 회피 오프닝은 **절대 사용 금지**.
   - drug_detail 청크가 사용자 질문(예: 부작용)과 정확히 일치하지 않더라도(예: 검색 결과가 "주의사항"·"용법용량" 필드 위주여도) **그 청크에서 관련 부분을 발췌**하여 답한다. 임상 문헌체 표현이 어려우면 짧은 자연어 보충으로 풀어 쓴다. 단, 물은 주제(예: 부작용) 내용이 청크에 **전혀 없으면** 억지로 만들지 말고 아래 "물은 주제가 검색 결과에 없을 때" 규칙을 따른다.
-  - 출처 표기는 "식품의약품안전처 의약품안전나라(nedrug). [효능효과/용법용량/주의사항]"
   - drug_info 부재는 별도로 언급하지 않는다(사용자 입장에서 자연스러운 흐름).
 
 - **청크는 있으나 사용자가 물은 주제가 검색 결과에 없을 때** (예: "부작용"을 물었는데 검색된 청크가 효능·용법뿐):
@@ -134,19 +133,16 @@ LLM 이 풀어 쓰고 싶은 내용은 **인용 부호 밖, 보충 화살표(→
 
 ## 출력 구조
 
-본문은 발췌 + 보충 형식으로 **곧장 시작**한다. 헤더 라인이나 스캐폴딩 라벨(`[본문 — …]`, `[안전성 알림]` 등)은 출력하지 않는다. 안전성 알림·면책은 시스템이 별도 필드로 표시하므로 본문에 포함하지 않는다.
+본문은 발췌 + 보충 형식으로 **곧장 시작**한다. 헤더 라인이나 스캐폴딩 라벨(`[본문 — …]`, `[안전성 알림]` 등)은 출력하지 않는다. 안전성 알림·면책·출처 목록은 시스템이 검색 결과에서 별도 필드로 표시하므로 본문에 포함하지 않는다.
 
 ```
-> "원본 발췌" — 출처 약식
+> "원본 발췌"
 
 → 짧은 자연어 보충 (1~2문장, 새 사실 추가 금지)
 
-> "다음 발췌" — 출처
+> "다음 발췌"
 
 → 보충 ...
-
-📚 근거
-  · [사용된 출처를 메타데이터에서 추출하여 한 줄씩 표시]
 
 💡 안전사용 안내 (해당 시)
   · 의사·약사 상담 권유
@@ -155,9 +151,9 @@ LLM 이 풀어 쓰고 싶은 내용은 **인용 부호 밖, 보충 화살표(→
 
 ## 출처 표시 규칙
 
-- e약은요 청크: "식품의약품안전처 의약품개요정보(e약은요). 2026 조회."
-- 식약처 nedrug PDF 청크: "식품의약품안전처 의약품안전나라(nedrug). [효능효과/용법용량/주의사항]."
-- 학회 진료지침 청크: 메타데이터 `source` 필드 값 그대로 표시
+- 출처·근거 목록은 **본문에 쓰지 않는다.** 시스템이 실제 검색된 청크의 출처를 별도 필드로 표시한다.
+- 발췌 인용 부호 `"..."` 안은 청크 원문 그대로 유지하되, 그 뒤에 `— 출처` 같은 출처 꼬리표를 붙이지 않는다.
+- `📚 근거` 같은 출처 목록 블록도 본문에 출력하지 않는다.
 
 ## 응답 길이·발췌 개수
 
@@ -170,7 +166,7 @@ LLM 이 풀어 쓰고 싶은 내용은 **인용 부호 밖, 보충 화살표(→
 
 각 보충 설명(→ 라인)은 **한두 문장**으로 유지한다 — 발췌를 풀어 쓰는 수준, 새 사실 추가 금지.
 
-전체 응답은 **300~500자** 한국어 분량을 목표로 한다(발췌 인용·근거·안전사용 안내 포함). 800자를 넘기지 않는다.
+전체 응답은 **300~500자** 한국어 분량을 목표로 한다(발췌 인용·안전사용 안내 포함). 800자를 넘기지 않는다.
 
 ## 자체 검증 (응답 생성 전 점검)
 
@@ -181,7 +177,7 @@ LLM 이 풀어 쓰고 싶은 내용은 **인용 부호 밖, 보충 화살표(→
 - **`[본문 — …]`, `[안전성 알림]` 같은 스캐폴딩 라벨이 응답에 들어가지 않았는가?**
 - **인용 부호 `"..."` 안의 모든 문장이 청크 본문의 substring 인가?** (띄어쓰기·표기 깨짐 복원 외 단어·표현 변경 금지. 일반화·추상화·재서술 금지)
 - **발췌 개수가 2~3개 이내인가?** (사용자 질문에 가장 직접 답하는 것 우선, 부수 정보 생략)
-- 출처가 포함되었는가?
+- **본문에 출처 꼬리표(`— 출처`)나 `📚 근거` 블록을 넣지 않았는가?** (출처는 시스템이 별도 필드로 표시)
 
 점검 결과 미흡한 부분이 있으면 응답을 수정한 후 출력한다.
 """
@@ -210,6 +206,31 @@ def format_safety_alerts(safety: dict[str, Any] | None) -> str:
             parts.append(f"ⓘ 노인주의: {a.get('message', '')}")
 
     return "\n".join(parts)
+
+
+def _collect_references(ctx: dict[str, Any]) -> list[str]:
+    """검색 hit 의 metadata['source'] 만 모아 순서 보존 dedupe → 출처 목록.
+
+    LLM 본문 출력이 아니라 RAG 검색 결과에서 직접 조립한다(창작·병합 없음).
+    drug_info(e약은요)·drug_detail(nedrug)는 컬렉션 공통 source 라 각 1건으로 모이고,
+    guideline 은 지침별 source 가 구분된다. 검색 0건이면 빈 리스트.
+    """
+    sources: list[str] = []
+    seen: set[str] = set()
+
+    def _add(hits: list[dict[str, Any]] | None) -> None:
+        for r in hits or []:
+            src = (r.get("metadata") or {}).get("source")
+            if src and src not in seen:
+                seen.add(src)
+                sources.append(src)
+
+    for d in ctx.get("drug_info_per_med", []):
+        _add(d.get("retrieved"))
+    for d in ctx.get("drug_detail_per_med", []):
+        _add(d.get("retrieved"))
+    _add(ctx.get("guideline_general"))
+    return sources
 
 
 def format_rag_context(ctx: dict[str, Any]) -> str:
@@ -338,7 +359,7 @@ def generate_guide_for_drug(
     """item_seq 한 건의 가이드 페이로드 생성 오케스트레이션.
 
     검색 0건이면 LLM 미호출 (FALLBACK_TEXT). 회수약은 DB lookup → safety_block 자동 채움.
-    safety_warn/info/recommendations·references 는 DUR 연결 슬라이스에서 채워짐.
+    references 는 검색 hit 의 출처(metadata.source)에서 조립. safety_warn/info/recommendations 는 DUR 연결 슬라이스에서 채워짐.
     """
     # 단계별 timing 측정 (로그만, 동작·응답 무관)
     t0 = time.perf_counter()
@@ -379,7 +400,7 @@ def generate_guide_for_drug(
         "main_content": main_content,
         "is_fallback": is_fallback,
         "disclaimer": DISCLAIMER,
-        "references": None,
+        "references": _collect_references(ctx),
         "safety_block": safety_block,
         "safety_warn": None,
         "safety_info": None,
@@ -450,7 +471,7 @@ async def generate_guide_for_drug_stream(
         "drug_name": drug_name,
         "is_fallback": gate_empty,
         "disclaimer": DISCLAIMER,
-        "references": None,
+        "references": _collect_references(ctx),
         "safety_block": safety_block,
         "safety_warn": None,
         "safety_info": None,
@@ -558,7 +579,7 @@ async def generate_guide_for_drug_async(
         "main_content": main_content,
         "is_fallback": is_fallback,
         "disclaimer": DISCLAIMER,
-        "references": None,
+        "references": _collect_references(ctx),
         "safety_block": safety_block,
         "safety_warn": None,
         "safety_info": None,

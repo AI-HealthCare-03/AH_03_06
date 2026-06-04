@@ -94,7 +94,7 @@ class GuidePreviewResponse(BaseModel):
     main_content: str
     is_fallback: bool
     disclaimer: str
-    references: str | None = None
+    references: list[str] = []
     safety_block: str | None = None
     safety_warn: str | None = None
     safety_info: str | None = None

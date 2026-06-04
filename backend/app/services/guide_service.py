@@ -1,6 +1,8 @@
 # app/services/guide_service.py
 # 복약 가이드 비즈니스 로직 (생성/조회/목록/삭제)
 
+import json
+
 from fastapi import HTTPException
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
@@ -29,6 +31,17 @@ DISCLAIMER = (
 )
 
 
+def _decode_references(raw: str | None) -> list[str]:
+    """references Text 컬럼(JSON 문자열) → list[str]. 빈값·비JSON 레거시는 빈 목록."""
+    if not raw:
+        return []
+    try:
+        val = json.loads(raw)
+    except (ValueError, TypeError):
+        return []
+    return [str(s) for s in val] if isinstance(val, list) else []
+
+
 def _to_schema(guide: MedicationGuide) -> MedicationGuideSchema:
     return MedicationGuideSchema(
         guide_id=guide.id,
@@ -36,7 +49,8 @@ def _to_schema(guide: MedicationGuide) -> MedicationGuideSchema:
         safety_warn=guide.safety_warn,
         safety_info=guide.safety_info,
         main_content=guide.main_content,
-        references=guide.references,
+        # references 는 Text 컬럼에 JSON 문자열로 저장 → list[str] 로 디코드. 레거시 빈값/비JSON 은 빈 목록.
+        references=_decode_references(guide.references),
         safety_recommendations=guide.safety_recommendations,
         is_fallback=guide.is_fallback,
         created_at=guide.created_at.isoformat(timespec="seconds") + "Z",  # DB·서버 UTC → JS 로컬 변환 위해 Z 명시
@@ -104,7 +118,7 @@ async def request_guide_generation(
         safety_warn=payload.get("safety_warn"),
         safety_info=payload.get("safety_info"),
         main_content=payload["main_content"],
-        references=payload.get("references"),
+        references=json.dumps(payload.get("references") or [], ensure_ascii=False),
         safety_recommendations=payload.get("safety_recommendations"),
         is_fallback=payload.get("is_fallback", False),
     )
@@ -153,7 +167,7 @@ async def stream_guide_generation(
             safety_warn=meta_d.get("safety_warn"),
             safety_info=meta_d.get("safety_info"),
             main_content=main_content,
-            references=meta_d.get("references"),
+            references=json.dumps(meta_d.get("references") or [], ensure_ascii=False),
             safety_recommendations=meta_d.get("safety_recommendations"),
             is_fallback=meta_d.get("is_fallback", False),
         )

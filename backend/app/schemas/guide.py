@@ -50,7 +50,7 @@ class MedicationGuideSchema(BaseModel):
     safety_warn: str | None = None             # 경고 안내 (최대량 초과)
     safety_info: str | None = None             # 정보 안내 (노인주의 등)
     main_content: str                          # 가이드 본문 (발췌+보충, 필수)
-    references: str | None = None              # 사용된 출처 (식약처·nedrug·학회)
+    references: list[str] = []                  # 검색된 출처 목록 (수면 SleepGuideSchema 와 동형)
     safety_recommendations: str | None = None  # 안전 권고
     is_fallback: bool                          # 환각 차단 회피 응답 여부
     created_at: str                            # ISO 형식 (예: 2026-05-20T15:30:00)
