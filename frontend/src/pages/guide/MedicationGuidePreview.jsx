@@ -1,6 +1,4 @@
-// MedicationGuidePreview — 데모용 페이지.
-// drug_name 자동완성(필수) + user_query preset 칩(선택) → /preview 호출.
-// 추후 medication_id 흐름과 통합 예정.
+// 복약 가이드 미리보기 — 진료기록에서 약 탭 시 진입. drug_name 자동완성 + 질문 preset → /preview.
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -127,15 +125,14 @@ function MedicationGuidePreview() {
       <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 pb-10">
 
         {/* 상세 화면 컨벤션: 뒤로가기 헤더, BottomNav 없음 (기존 MedicationGuidePage 와 동일) */}
-        <Header variant="back" title="복약 가이드 (데모)" />
+        <Header variant="back" title="복약 가이드" />
 
         <main className="px-5 pt-5 pb-2 space-y-4">
 
-          {/* 데모용 입력 카드 — 추후 medication_id 흐름 통합 시 제거 */}
           <section className="bg-bgSubtle border border-borderHairline rounded-[10px] p-4 space-y-4">
             <div className="flex items-center gap-2">
               <FontAwesomeIcon icon={faCircleInfo} className="text-primary text-[13px]" />
-              <h2 className="text-[12px] font-[700] text-textHeading">약품 검색 (데모)</h2>
+              <h2 className="text-[12px] font-[700] text-textHeading">약품 검색</h2>
             </div>
 
             {/* 약 이름 — 자동완성 (datalist) + 검색 가능 범위 안내 */}
@@ -242,7 +239,7 @@ function MedicationGuidePreview() {
                 </h1>
               )}
 
-              {/* 안전 카드 (조건부) — DUR 연결 후 채워질 슬롯. 현재 셋 다 null. */}
+              {/* 안전 카드 (조건부) */}
               {guide.safety_block && (
                 <section className="bg-white border border-error/40 rounded-[10px] p-5">
                   <div className="flex items-center gap-2 mb-2">

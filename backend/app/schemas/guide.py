@@ -6,13 +6,11 @@
 #   GET    /api/v1/medication_guides/{id}        (단건 조회)
 #   GET    /api/v1/medication_guides             (목록 조회)
 #   DELETE /api/v1/medication_guides/{id}        (삭제)
-#
-# ERD 참조: 3.12 MEDICATION_GUIDE (5/19 확정)
 
 from pydantic import BaseModel
 
 
-# ===== POST /api/v1/medication_guides/generate =====
+# POST /api/v1/medication_guides/generate
 
 class GenerateGuideRequest(BaseModel):
     """복약 가이드 생성 요청 본문
@@ -35,30 +33,27 @@ class GenerateGuideResponse(BaseModel):
     detail: str  # 예: "medication_guide_generating"
 
 
-# ===== GET /api/v1/medication_guides/{id} =====
-# ===== GET /api/v1/medication_guides (목록 항목 공통) =====
+# GET /api/v1/medication_guides/{id}
+# GET /api/v1/medication_guides (목록 항목 공통)
 
 class MedicationGuideSchema(BaseModel):
-    """복약 가이드 단건 본문 (ERD MEDICATION_GUIDE 컬럼 기반)
+    """복약 가이드 단건 본문 (단건 조회 / 목록 항목 공통)."""
 
-    단건 조회 응답 / 목록 응답 각 항목 / Phase 2에서 DB row 매핑 대상.
-    """
-
-    # ----- ERD 컬럼 (DB 저장) -----
-    guide_id: int                              # ERD: id (PK)
+    # ----- DB 저장 컬럼 -----
+    guide_id: int                              # PK
     safety_block: str | None = None            # 차단 안내 (동일성분·회수약)
     safety_warn: str | None = None             # 경고 안내 (최대량 초과)
     safety_info: str | None = None             # 정보 안내 (노인주의 등)
     main_content: str                          # 가이드 본문 (발췌+보충, 필수)
-    references: list[str] = []                  # 검색된 출처 목록 (수면 SleepGuideSchema 와 동형)
+    references: list[str] = []                 # 검색된 출처 목록 (수면 SleepGuideSchema 와 동형)
     safety_recommendations: str | None = None  # 안전 권고
     is_fallback: bool                          # 환각 차단 회피 응답 여부
     created_at: str                            # ISO 형식 (예: 2026-05-20T15:30:00)
 
     # ----- 응답 시 추가 정보 (DB에는 저장하지 않음) -----
-    disclaimer: str                            # 면책 안내 (NFR-501-2 법적 필수)
+    disclaimer: str                            # 면책 안내 (법적 필수)
 
-    # ----- 의약품 정보 (Phase 2: medication 테이블 JOIN으로 채움) -----
+    # ----- 의약품 정보 (저장된 가이드 row 에서 채움) -----
     medication_id: int | None = None
     drug_name: str | None = None
 
@@ -72,7 +67,7 @@ class GuideListResponse(BaseModel):
     total: int
 
 
-# ===== DELETE /api/v1/medication_guides/{id} =====
+# DELETE /api/v1/medication_guides/{id}
 
 class DeleteGuideResponse(BaseModel):
     """복약 가이드 삭제 응답 (200 OK)"""
