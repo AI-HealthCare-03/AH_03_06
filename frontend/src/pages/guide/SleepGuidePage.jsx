@@ -12,8 +12,10 @@ import {
   faBullseye,
   faClipboardCheck,
   faChevronDown,
+  faComments,
 } from '@fortawesome/free-solid-svg-icons'
 import { getSleepGuide, deleteSleepGuide } from '../../api/sleepGuides.js'
+import { createChatSession } from '../../api/chat.js'
 
 
 const STATUS_META = {
@@ -41,7 +43,6 @@ function formatCreatedAt(iso) {
 }
 
 
-// 본문 섹션 (제목 + 내용)
 function Section({ icon, title, children }) {
   return (
     <div className="px-5 py-4">
@@ -86,9 +87,18 @@ function SleepGuidePage() {
     }
   }
 
+  const handleChat = async () => {
+    if (!guide) return
+    try {
+      const data = await createChatSession('SLEEP_GUIDE', Number(guideId))
+      navigate(`/chat/${data.id}?context_type=SLEEP_GUIDE&guide_id=${guideId}`)
+    } catch {
+      window.alert('채팅 세션 생성에 실패했어요.')
+    }
+  }
+
   const status = guide ? STATUS_META[guide.overall_status] || STATUS_META[0] : null
 
-  // 접기 대상: 핵심 포인트·오늘 할 일은 항상 표시, 그 아래 보조 섹션들을 더보기로 접는다.
   const hasFoldableSections = !!(
     guide && (guide.weekly_goal || guide.coping_strategy || guide.lifestyle_adjustment || guide.next_checkup_guide)
   )
@@ -249,6 +259,15 @@ function SleepGuidePage() {
                 className="w-full h-12 bg-primary hover:bg-primaryDark text-white text-[14px] font-[700] rounded-[10px] transition-colors"
               >
                 가이드 다시 받기
+              </button>
+
+              {/* AI에게 질문하기 */}
+              <button
+                onClick={handleChat}
+                className="w-full h-12 bg-white border border-primary text-primary text-[14px] font-[700] rounded-[10px] flex items-center justify-center gap-2 hover:bg-primarySoft transition-colors"
+              >
+                <FontAwesomeIcon icon={faComments} className="text-[14px]" />
+                <span>AI에게 질문하기</span>
               </button>
 
               {/* 면책 */}
