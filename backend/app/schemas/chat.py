@@ -5,7 +5,7 @@ from typing import Literal
 
 
 class ChatSessionCreateRequest(BaseModel):
-    context_type: Literal['HEALTH_CHECKUP', 'PRESCRIPTION', 'DIET_GUIDE']
+    context_type: Literal['HEALTH_CHECKUP', 'PRESCRIPTION', 'DIET_GUIDE', 'SLEEP_GUIDE']
     context_id:   Optional[int] = None
 
 
