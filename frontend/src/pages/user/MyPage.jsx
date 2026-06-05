@@ -10,8 +10,6 @@ import {
   faUserPen,
   faBullseye,
   faNotesMedical,
-  faBell,
-  faLink,
   faArrowRightFromBracket,
   faUserXmark,
 } from '@fortawesome/free-solid-svg-icons'
@@ -71,7 +69,6 @@ function MyPage() {
   }
 
   // 라우트·화면 미구현 메뉴 — 빈 화면 대신 안내 (구현되면 navigate 로 교체)
-  const comingSoon = () => window.alert('준비 중인 기능이에요. 곧 만나요!')
 
   const nickname = user?.nickname ?? '...'
   const email = user?.email ?? '...'
@@ -152,35 +149,10 @@ function MyPage() {
                 </div>
               </section>
 
-              {/* 알림 */}
-              <section>
-                <h3 className="text-[11px] font-bold text-[#A1A1AA] mb-2 px-1 tracking-wider uppercase">알림</h3>
-                <div className="bg-white rounded-[10px] border border-[#E4E4E7] overflow-hidden">
-                  <button onClick={comingSoon} className="w-full h-14 px-4 flex items-center justify-between active:bg-[#FAFAFA] transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">
-                        <FontAwesomeIcon icon={faBell} className="text-primary text-[14px]" />
-                      </div>
-                      <span className="text-[14px] font-medium text-[#09090B]">알림 설정</span>
-                    </div>
-                    <span className="text-[11px] font-medium text-[#A1A1AA] bg-[#F4F4F5] px-2 py-1 rounded-full">준비 중</span>
-                  </button>
-                </div>
-              </section>
-
               {/* 계정 */}
               <section>
                 <h3 className="text-[11px] font-bold text-[#A1A1AA] mb-2 px-1 tracking-wider uppercase">계정</h3>
                 <div className="bg-white rounded-[10px] border border-[#E4E4E7] overflow-hidden">
-                  <button onClick={comingSoon} className="w-full h-14 px-4 flex items-center justify-between border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">
-                        <FontAwesomeIcon icon={faLink} className="text-primary text-[14px]" />
-                      </div>
-                      <span className="text-[14px] font-medium text-[#09090B]">소셜 로그인 연동</span>
-                    </div>
-                    <span className="text-[11px] font-medium text-[#A1A1AA] bg-[#F4F4F5] px-2 py-1 rounded-full">준비 중</span>
-                  </button>
                   <button onClick={handleLogout} className="w-full h-14 px-4 flex items-center justify-start border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">

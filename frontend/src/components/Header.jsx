@@ -33,8 +33,8 @@ function Header({ variant = 'default', title, nickname, showDivider = true, righ
   }
 
   return (
-    <header className={`sticky top-0 z-40 bg-white ${showDivider ? 'border-b border-[#F4F4F5]' : ''} px-5 h-[72px] flex items-center`}>
-      <h1 className="text-[18px] font-[700] text-[#18181B] tracking-tight">{title}</h1>
+    <header className={`sticky top-0 z-40 bg-white ${showDivider ? 'border-b border-[#F4F4F5]' : ''} px-5 h-[72px] flex items-center justify-center`}>
+      <h1 className="text-[16px] font-[700] text-[#18181B] tracking-tight">{title}</h1>
     </header>
   )
 }
