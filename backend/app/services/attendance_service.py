@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.models.attendance import Attendance, AttendanceStreak
 from app.schemas.attendance import CheckInResponse, AttendanceStatusResponse, AttendanceCalendarResponse
+from app.services import point_service
 
 
 def check_in(user_id: int, db: Session) -> CheckInResponse:
@@ -32,16 +33,22 @@ def check_in(user_id: int, db: Session) -> CheckInResponse:
     yesterday = today - timedelta(days=1)
 
     if streak.last_checked_at == yesterday:
-        # 연속 출석
         streak.current_streak += 1
     else:
-        # 연속 끊김
         streak.current_streak = 1
 
     if streak.current_streak > streak.max_streak:
         streak.max_streak = streak.current_streak
 
     streak.last_checked_at = today
+
+    # 포인트 적립
+    point_service.earn(user_id, "attendance", db)
+    if streak.current_streak % 7 == 0:
+        point_service.earn(user_id, "attendance_7days", db)
+    if streak.current_streak % 30 == 0:
+        point_service.earn(user_id, "attendance_30days", db)
+
     db.commit()
 
     return CheckInResponse(
@@ -73,7 +80,6 @@ def get_status(user_id: int, db: Session) -> AttendanceStatusResponse:
 def get_calendar(user_id: int, year: int, month: int, db: Session) -> AttendanceCalendarResponse:
     from calendar import monthrange
 
-    # 해당 월 첫날 ~ 마지막날
     first_day = date(year, month, 1)
     last_day = date(year, month, monthrange(year, month)[1])
 
