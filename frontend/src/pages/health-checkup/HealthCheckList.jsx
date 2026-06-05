@@ -2,11 +2,10 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getAccessToken } from '../../utils/token.js'
 import Header from '../../components/Header.jsx'
-import BottomNav from '../../components/BottomNav.jsx'
-import FloatingButton from '../../components/FloatingButton.jsx'
 import HealthCheckCard from '../../components/HealthCheckCard.jsx'
+import EmptyState from '../../components/EmptyState.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faChevronDown, faSlidersH, faXmark } from '@fortawesome/free-solid-svg-icons'
+import { faChevronDown, faSlidersH, faXmark, faNotesMedical, faPlus } from '@fortawesome/free-solid-svg-icons'
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
@@ -83,10 +82,10 @@ function HealthCheckList() {
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
       <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 pb-24">
 
-        <Header variant="default" title="건강검진" showDivider={false} />
+        <Header variant="back" title="건강검진" showDivider={false} />
 
         <div className="sticky top-[72px] z-30 bg-white border-b border-[#F4F4F5] px-5 py-3 flex items-center justify-between">
-          <span className="text-[14px] font-[500] text-[#71717A]">전체 {filtered.length}건</span>
+          <span className="text-[14px] font-[500] text-[#71717A]">총 {filtered.length}건</span>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSortDesc(!sortDesc)}
@@ -109,8 +108,12 @@ function HealthCheckList() {
             <p className="text-[13px] text-[#A1A1AA] text-center py-10">불러오는 중...</p>
           )}
           {!loading && sorted.length === 0 && (
-            <div className="w-full min-h-[400px] flex flex-col items-center justify-center">
-              <p className="text-[13px] text-[#A1A1AA]">건강검진 기록이 없습니다</p>
+            <div className="min-h-[400px] flex items-center justify-center">
+              <EmptyState
+                icon={faNotesMedical}
+                title="아직 건강검진 기록이 없어요"
+                description={'건강검진 결과를 등록하면\n수치 변화를 한눈에 볼 수 있어요.'}
+              />
             </div>
           )}
           {sorted.map((record) => (
@@ -122,9 +125,14 @@ function HealthCheckList() {
           ))}
         </section>
 
-        <FloatingButton onClick={() => navigate('/health-checkup/input')} />
-
-        <BottomNav />
+        {/* FAB — 탭바 없는 하위 페이지라 인라인 bottom-6 (공유 FloatingButton은 탭바 높이로 고정돼 부적합) */}
+        <button
+          onClick={() => navigate('/health-checkup/input')}
+          className="fixed bottom-6 right-5 w-14 h-14 rounded-full bg-primary text-white shadow-lg flex items-center justify-center z-40"
+          aria-label="건강검진 추가"
+        >
+          <FontAwesomeIcon icon={faPlus} className="text-[22px]" />
+        </button>
       </div>
 
       {showFilter && (

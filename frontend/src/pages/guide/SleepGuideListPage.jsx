@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../../components/Header.jsx'
+import Badge from '../../components/Badge.jsx'
+import EmptyState from '../../components/EmptyState.jsx'
+import FloatingButton from '../../components/FloatingButton.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faMoon, faChevronRight } from '@fortawesome/free-solid-svg-icons'
 import { listSleepGuides } from '../../api/sleepGuides.js'
 
 
 const STATUS_META = {
-  0: { label: '정상', cls: 'text-primary bg-primarySoft' },
-  1: { label: '주의', cls: 'text-warning bg-warning/10' },
-  2: { label: '위험', cls: 'text-error bg-error/10' },
+  0: { label: '정상', tone: 'normal' },
+  1: { label: '주의', tone: 'warning' },
+  2: { label: '위험', tone: 'danger' },
 }
 
 
@@ -64,32 +67,18 @@ function SleepGuideListPage() {
 
           {/* 빈 상태 */}
           {!loading && !error && guides.length === 0 && (
-            <section className="bg-bgSubtle border border-borderHairline rounded-[12px] p-6 text-center mt-6">
-              <FontAwesomeIcon icon={faMoon} className="text-mute text-[24px] mb-3" />
-              <h2 className="text-[14px] font-[700] text-textHeading mb-1">아직 수면 가이드가 없어요</h2>
-              <p className="text-[12px] text-subtext leading-relaxed mb-4">
-                간단한 설문으로 나에게 맞는 수면 가이드를 받아보세요.
-              </p>
-              <button
-                onClick={() => navigate('/sleep-guides/new')}
-                className="w-full h-11 bg-primary hover:bg-primaryDark text-white text-[14px] font-[700] rounded-[10px] transition-colors"
-              >
-                가이드 받기
-              </button>
-            </section>
+            <EmptyState
+              icon={faMoon}
+              title="아직 수면 가이드가 없어요"
+              description="간단한 설문으로 나에게 맞는 수면 가이드를 받아보세요."
+            />
           )}
 
           {/* 리스트 */}
           {!loading && !error && guides.length > 0 && (
             <>
-              <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center pt-1">
                 <span className="text-[11px] text-mute">총 {guides.length}건</span>
-                <button
-                  onClick={() => navigate('/sleep-guides/new')}
-                  className="text-[12px] font-semibold text-primary"
-                >
-                  + 새 가이드
-                </button>
               </div>
               {guides.map((g) => {
                 const status = STATUS_META[g.overall_status] || STATUS_META[0]
@@ -101,9 +90,7 @@ function SleepGuideListPage() {
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-[700] ${status.cls}`}>
-                          {status.label}
-                        </span>
+                        <Badge tone={status.tone} pill>{status.label}</Badge>
                         <span className="text-[11px] text-mute">{formatDate(g.created_at)}</span>
                         {g.is_fallback && (
                           <span className="text-[10px] text-mute">· 정보 부족</span>
@@ -123,6 +110,8 @@ function SleepGuideListPage() {
             </>
           )}
         </main>
+
+        <FloatingButton onClick={() => navigate('/sleep-guides/new')} />
       </div>
     </div>
   )
