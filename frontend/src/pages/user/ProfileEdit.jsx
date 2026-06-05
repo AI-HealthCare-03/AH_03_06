@@ -87,6 +87,15 @@ function ProfileEdit() {
           alcohol_status: drinking === '음주' ? 1 : drinking === '비음주' ? 0 : null,
         })
       })
+      await apiFetch('/users/me/health-goals', {
+        method: 'PUT',
+        body: JSON.stringify({
+          goals: GOALS.map((name, idx) => ({
+            goal_type_id: idx + 1,
+            is_active: goals.includes(name),
+          }))
+        })
+      })
       navigate(-1)
     } catch (err) {
       setError(err.message)

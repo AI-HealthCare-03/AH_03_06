@@ -40,9 +40,6 @@ import HealthCheckList from "./pages/health-checkup/HealthCheckList.jsx"
 import HealthCheckInput from "./pages/health-checkup/HealthCheckInput.jsx"
 import HealthCheckResults from "./pages/health-checkup/HealthCheckResults.jsx"
 import MedicationPage from './pages/medication/MedicationPage.jsx'
-
-
-
 import MedicationRecordPage from './pages/medication/MedicationRecordPage.jsx'
 import MedicationFormPage from './pages/medication/MedicationFormPage.jsx'
 import MedicationDashboardPage from './pages/medication/MedicationDashboardPage.jsx';
@@ -121,6 +118,7 @@ function App() {
         <Route path="/medication/form" element={<PrivateRoute auth={auth}><MedicationFormPage /></PrivateRoute>} />
         <Route path="/medication/history" element={<PrivateRoute auth={auth}><MedicationHistoryPage /></PrivateRoute>} />
         <Route path="/chat/:sessionId" element={<PrivateRoute auth={auth}><ChatPage /></PrivateRoute>} />
+        <Route path="/medication/history" element={<PrivateRoute auth={auth}><MedicationHistoryPage /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   )

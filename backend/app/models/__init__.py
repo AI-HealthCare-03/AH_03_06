@@ -33,3 +33,7 @@ from app.models.user import CaffeineDrinkType
 from app.models.clinical_guideline import ClinicalGuideline
 from app.models.sleep_survey import SleepSurveyResponse, SleepSurveyCaffeine
 from app.models.sleep_guide import SleepGuide, SleepGuideGuideline
+
+from app.models.sleep_guide import SleepGuide, SleepGuideGuideline
+from app.models.attendance import Attendance, AttendanceStreak
+from app.models.point import UserPoint, PointHistory
