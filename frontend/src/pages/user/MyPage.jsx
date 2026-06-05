@@ -4,6 +4,7 @@ import { getAccessToken, getRefreshToken } from '../../utils/token.js'
 import { logout } from '../../App.jsx'
 import Header from '../../components/Header.jsx'
 import BottomNav from '../../components/BottomNav.jsx'
+import MobileFrame from '../../components/MobileFrame.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faChevronRight,
@@ -75,11 +76,10 @@ function MyPage() {
   const initial = nickname.charAt(0)
 
   return (
-    <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
-      <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 pb-24">
-
-        <Header variant="default" title="마이페이지" />
-
+    <MobileFrame
+      header={<Header variant="default" title="마이페이지" />}
+      bottomNav={<BottomNav />}
+    >
         <div className="px-5 pt-5 pb-6 space-y-6">
 
           {loading && (
@@ -176,10 +176,7 @@ function MyPage() {
             </>
           )}
         </div>
-
-        <BottomNav />
-      </div>
-    </div>
+    </MobileFrame>
   )
 }
 
