@@ -99,7 +99,12 @@ function MedicationGuidePreview() {
     [drugList, drugName],
   )
   // 처방 카드 등에서 item_seq 를 직접 넘긴 경우(약명 정확 일치 불필요) 그 값을 우선 사용.
-  const resolvedItemSeq = matchedDrug?.item_seq || (searchParams.get('item_seq') ?? '')
+  // 단 URL 의 item_seq 는 약명을 그대로 둔 동안만 유효 — 약명을 바꾸면 stale item_seq 를 버린다
+  // (다른 약명 입력 시 이전 약의 item_seq 가 재사용돼 엉뚱한 약 데이터가 그 이름표로 나오는 것 방지).
+  const urlDrugName = searchParams.get('drug_name') ?? DEFAULT_DRUG_NAME
+  const resolvedItemSeq =
+    matchedDrug?.item_seq ||
+    (drugName.trim() === urlDrugName.trim() ? (searchParams.get('item_seq') ?? '') : '')
 
   const handleSubmit = async () => {
     if (!drugName.trim()) return
