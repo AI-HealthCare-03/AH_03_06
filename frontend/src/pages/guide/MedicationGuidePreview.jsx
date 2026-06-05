@@ -3,17 +3,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import Header from '../../components/Header.jsx'
-import FoldableMarkdown from '../../components/FoldableMarkdown.jsx'
+import GuideGeneratingSteps from '../../components/GuideGeneratingSteps.jsx'
+import { MEDICATION_GENERATING } from '../../components/guideGeneratingPresets.js'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faWandMagicSparkles,
   faCircleInfo,
   faTriangleExclamation,
   faBan,
+  faLightbulb,
 } from '@fortawesome/free-solid-svg-icons'
 import {
   previewMedicationGuide,
-  previewMedicationGuideStream,
   fetchDrugSuggest,
 } from '../../api/medicationGuides.js'
 
@@ -27,6 +28,17 @@ const QUERY_PRESETS = [
   { label: '복용법', value: '복용법을 알려주세요' },
   { label: '보관법', value: '보관법을 알려주세요' },
 ]
+
+// scope 가 '전체'류면 칩 생략(약 전체 적용은 굳이 표시 안 함), 특정 환자군일 때만 파랑 칩
+const isAllScope = (s) => !s || ['전체', '이 약 전체', '약 전체'].includes(s.trim())
+
+// 칩은 '임부·소아·간질환자' 같은 짧은 환자군 라벨일 때만.
+// 모델이 scope에 상황 문구("투여 중지 후 …사용 시")를 넣으면 길어져 제목을 잘라먹으므로 숨김.
+const SCOPE_SITUATIONAL = /사용|복용|투여|경우/
+const showScopeChip = (s) => {
+  const v = (s || '').trim()
+  return !!v && !isAllScope(v) && v.length <= 10 && !SCOPE_SITUATIONAL.test(v)
+}
 
 function MedicationGuidePreview() {
   const [searchParams] = useSearchParams()
@@ -95,22 +107,12 @@ function MedicationGuidePreview() {
     setError('')
     setGuide(null)
     try {
-      await previewMedicationGuideStream(
-        {
-          item_seq: resolvedItemSeq,
-          drug_name: drugName.trim(),
-          user_query: userQuery.trim() || null,
-        },
-        {
-          // meta 첫 도착 — safety_block 등 즉시 표시, main_content 빈 카드로 마운트
-          onMeta: (m) => setGuide({ ...m, main_content: '' }),
-          // 청크마다 누적
-          onToken: (t) =>
-            setGuide((prev) =>
-              prev ? { ...prev, main_content: (prev.main_content ?? '') + t } : prev,
-            ),
-        },
-      )
+      const data = await previewMedicationGuide({
+        item_seq: resolvedItemSeq,
+        drug_name: drugName.trim(),
+        user_query: userQuery.trim() || null,
+      })
+      setGuide(data)
     } catch (err) {
       setError(err?.message ?? '가이드 생성에 실패했어요.')
     } finally {
@@ -216,11 +218,11 @@ function MedicationGuidePreview() {
             </button>
           </section>
 
-          {/* 로딩 — meta 도착 전까지만. 메타 도착 후엔 빈 가이드 카드가 점진 채워짐. */}
-          {loading && !guide && (
-            <p className="text-[13px] text-mute text-center py-10">
-              AI가 복약 안내를 생성하고 있어요…
-            </p>
+          {/* 생성 중(블로킹 5~10초) — 식단·수면과 동일 단계 대기화면 */}
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-12">
+              <GuideGeneratingSteps {...MEDICATION_GENERATING} />
+            </div>
           )}
 
           {/* 호출 자체 실패 (서버 5xx, 네트워크 끊김 등) — fallback 과 구분 */}
@@ -228,9 +230,8 @@ function MedicationGuidePreview() {
             <p className="text-[13px] text-error text-center py-10">{error}</p>
           )}
 
-          {/* 가이드 결과 — stream 중에도 guide 가 set 되면 즉시 렌더 (loading 무관).
-              loading 동안 main_content 가 비어있는 구간은 카드 내부에서 "작성 중" 분기로 처리. */}
-          {!error && guide && (
+          {/* 가이드 결과 (블로킹 완료 후) */}
+          {!loading && !error && guide && (
             <>
               {/* drug_name 본문 상단 제목 (고정 Header 아님 — 디자인 규칙) */}
               {guide.drug_name && (
@@ -270,18 +271,14 @@ function MedicationGuidePreview() {
                 </section>
               )}
 
-              {/* 본문: fallback 분기 — 빨강(error) 금지, primarySoft 톤으로 차분하게 */}
+              {/* 본문 — fallback 이면 안내 카드, 아니면 구조화 섹션 카드 (MedicationGuidePage 와 동일) */}
               {guide.is_fallback ? (
                 <section className="bg-primarySoft border border-primary/20 rounded-[10px] p-5">
                   <div className="flex items-center gap-2 mb-3">
                     <FontAwesomeIcon icon={faCircleInfo} className="text-primary text-[16px]" />
-                    <h2 className="text-[14px] font-[700] text-primary">
-                      안내드릴 정보가 부족해요
-                    </h2>
+                    <h2 className="text-[14px] font-[700] text-primary">안내드릴 정보가 부족해요</h2>
                   </div>
-                  <p className="text-[13px] text-textBody leading-relaxed">
-                    {guide.main_content}
-                  </p>
+                  <p className="text-[13px] text-textBody leading-relaxed">{guide.fallback_message}</p>
                 </section>
               ) : (
                 <section className="bg-white border border-borderHairline rounded-[10px] shadow-soft overflow-hidden">
@@ -297,42 +294,53 @@ function MedicationGuidePreview() {
                   </div>
 
                   <div className="divide-y divide-borderHairline">
-
-                    {/* 복약 안내 본문 — 마크다운 렌더 (발췌 blockquote, 📚/💡/ⓘ 섹션 헤더 포함).
-                        stream 중 main_content 가 비어있는 구간 (meta 도착 ~ 첫 토큰) 동안엔
-                        "작성 중" 안내로 빈 카드 인상 방지. */}
-                    <div className="px-5 py-4">
-                      <h3 className="text-[11px] font-[700] text-mute mb-2 tracking-wider uppercase">
-                        복약 안내
-                      </h3>
-                      <div>
-                        {guide.main_content ? (
-                          <FoldableMarkdown content={guide.main_content} foldEnabled={!loading} />
-                        ) : (
-                          <p className="text-[13px] text-mute italic">
-                            AI가 답변을 작성 중이에요…
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 안전 권고 (조건부) */}
-                    {guide.safety_recommendations && (
+                    {guide.key_point && (
                       <div className="px-5 py-4">
-                        <h3 className="text-[11px] font-[700] text-mute mb-2 tracking-wider uppercase">
-                          안전 권고
-                        </h3>
-                        <p className="text-[12px] text-subtext leading-relaxed">
-                          {guide.safety_recommendations}
-                        </p>
+                        <div className="flex items-center gap-2 mb-2">
+                          <FontAwesomeIcon icon={faLightbulb} className="text-primary text-[13px]" />
+                          <h3 className="text-[13px] font-[700] text-textHeading">지금 가장 중요한 포인트</h3>
+                        </div>
+                        <p className="text-[15px] font-[500] text-textBody leading-[1.7]">{guide.key_point}</p>
                       </div>
                     )}
 
+                    {guide.sections?.map((s, i) => (
+                      <div key={i} className="px-5 py-4">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          {/* 섹션 아이콘 제거: 매 섹션 반복되던 파란 ⓘ가 본문 파랑 노이즈였음. 검은 굵은 제목만 유지(수면과 동일 닻) */}
+                          <h3 className="min-w-0 text-[13px] font-[700] text-textHeading truncate">{s.title}</h3>
+                          {/* scope 칩: 짧은 환자군 라벨일 때만 제목 줄 오른쪽에 표시(전체·상황문구는 숨김) */}
+                          {showScopeChip(s.scope) && (
+                            <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-[600] bg-primarySoft text-primary">
+                              {s.scope}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[14px] text-textBody leading-[1.7]">{s.gloss}</p>
+                        {s.quote_display && (
+                          <details className="mt-2 border-t border-borderHairline pt-2">
+                            <summary className="cursor-pointer text-[12px] font-[600] text-mute hover:text-textBody transition-colors marker:content-none">근거 보기</summary>
+                            <blockquote className="mt-2 border-l-[3px] border-borderHairline bg-bgSubtle rounded-r-[8px] px-3 py-2 text-[12.5px] text-textBody leading-relaxed not-italic">
+                              "{s.quote_display}"
+                            </blockquote>
+                            {s.source && <p className="text-[11px] text-mute mt-1">{s.source}</p>}
+                          </details>
+                        )}
+                      </div>
+                    ))}
+
+                    {guide.safety_note && (
+                      <div className="px-5 py-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FontAwesomeIcon icon={faLightbulb} className="text-primary text-[13px]" />
+                          <h3 className="text-[13px] font-[700] text-textHeading">안전사용 안내</h3>
+                        </div>
+                        <p className="text-[13px] text-subtext leading-relaxed">{guide.safety_note}</p>
+                      </div>
+                    )}
                   </div>
                 </section>
               )}
-
-              {/* (예약) "함께 복용 시 주의" — 다약 상호작용(DUR) 섹션 슬롯. 현재 데이터 없음. */}
 
               {/* 참고 자료 — 검색된 출처 목록 (수면 가이드와 동일 형식) */}
               {guide.references && guide.references.length > 0 && (

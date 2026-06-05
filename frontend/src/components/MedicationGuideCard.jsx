@@ -59,7 +59,9 @@ function MedicationGuideCard({ guide, onDelete }) {
   const [showMenu, setShowMenu] = useState(false)
 
   const title = guide.drug_name || '약품 미식별'
-  const preview = (guide.main_content || '').replace(/\s+/g, ' ').trim().slice(0, 80)
+  // 구조화 가이드는 key_point, fallback 은 fallback_message 를 미리보기로 (레거시 main_content 폴백)
+  const preview = (guide.key_point || guide.fallback_message || guide.main_content || '')
+    .replace(/\s+/g, ' ').trim().slice(0, 80)
 
   return (
     <article className="bg-white rounded-[12px] border border-borderHairline relative">
