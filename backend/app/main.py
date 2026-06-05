@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.api.v1 import auth, users, medications, medical_records, health_checkups, guides, medication_guides, dashboard, ocr, push, medication_histories, sleep_guides, chat, attendance
+from app.api.v1 import auth, users, medications, medical_records, health_checkups, guides, medication_guides, dashboard, ocr, push, medication_histories, sleep_guides, chat, attendance, point
 from app.database import engine, Base
 from app.models import (
     MedicationGuide,
@@ -67,6 +67,7 @@ app.include_router(ocr.router, prefix="/api/v1/ocr", tags=["OCR"])
 app.include_router(push.router, prefix="/api/v1/push", tags=["Push"])
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat"])
 app.include_router(attendance.router, prefix="/api/v1/attendance", tags=["Attendance"])
+app.include_router(point.router, prefix="/api/v1/point", tags=["Point"])
 
 # 정적 파일 서빙 (firebase-messaging-sw.js)
 app.mount("/", StaticFiles(directory="app/static"), name="static")

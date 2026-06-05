@@ -48,7 +48,10 @@ class User(Base):
 
     attendances = relationship("Attendance", back_populates="user")
     attendance_streak = relationship("AttendanceStreak", back_populates="user", uselist=False)
-    
+
+    point = relationship("UserPoint", back_populates="user", uselist=False)
+    point_history = relationship("PointHistory", back_populates="user_point")
+
     fcm_tokens = relationship("FcmToken", back_populates="user")
 
 class UserProfile(Base):
