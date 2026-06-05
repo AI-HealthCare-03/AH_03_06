@@ -27,6 +27,10 @@ DISCLAIMER = (
     "대체하지 않습니다. 실제 복약 결정은 반드시 의사·약사와 상담하시기 바랍니다."
 )
 
+# 진료기록 자동 가이드는 사용자 질문이 없어 검색이 소집단(소아)·동물실험 청크로 쏠릴 수 있다.
+# 핵심(효능·복용법·경고·중대 주의)으로 검색을 유도하는 기본 질의.
+_DEFAULT_GUIDE_QUERY = "이 약의 주요 효능, 복용법, 경고 및 중대한 주의사항은 무엇인가요?"
+
 
 def _decode_references(raw: str | None) -> list[str]:
     """references Text 컬럼(JSON 문자열) → list[str]. 빈값·비JSON 레거시는 빈 목록."""
@@ -121,6 +125,7 @@ async def request_guide_generation(
     payload = await generate_guide_for_drug_async(
         item_seq=item_seq,
         drug_name=drug_name,
+        user_query=_DEFAULT_GUIDE_QUERY,
     )
 
     structured = {
