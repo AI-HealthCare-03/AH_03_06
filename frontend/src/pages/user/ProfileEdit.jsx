@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getAccessToken } from '../../utils/token.js'
+import Header from '../../components/Header.jsx'
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
@@ -108,15 +109,7 @@ function ProfileEdit() {
       <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 pb-24">
 
         {/* 헤더 */}
-        <header className="sticky top-0 z-50 bg-white h-14 px-5 flex items-center justify-between border-b border-[#F4F4F5]">
-          <button onClick={() => navigate(-1)} className="w-11 h-11 -ml-2 flex items-center justify-center">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#18181B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 18l-6-6 6-6"/>
-            </svg>
-          </button>
-          <h1 className="text-[17px] font-bold text-[#18181B]">프로필 수정</h1>
-          <div className="w-11" />
-        </header>
+        <Header variant="back" title="프로필 수정" />
 
         <div className="px-5 py-6 space-y-8 pb-32">
 
