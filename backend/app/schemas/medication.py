@@ -98,6 +98,8 @@ class MedicationScheduleRequest(BaseModel):
     notification_type: Optional[str] = "PUSH"
     days:              Optional[List[str]] = []
     is_custom:         Optional[bool] = False
+    start_date:        Optional[date] = None
+    end_date:          Optional[date] = None
 
 
 class MedicationScheduleResponse(BaseModel):
@@ -110,6 +112,8 @@ class MedicationScheduleResponse(BaseModel):
     is_active:         bool
     is_custom:         bool
     days:              List[str]
+    start_date:        Optional[date] = None
+    end_date:          Optional[date] = None
 
     class Config:
         from_attributes = True
@@ -194,3 +198,12 @@ class MedicationDashboardResponse(BaseModel):
     overall_rate: float
     daily:        List[DailyMedicationRate]
     medications:  List[MedicationRate]
+
+class MedicationCheckRequest(BaseModel):
+    medicationId: int
+    mealTime:     Optional[str] = None
+    takenAt:      Optional[str] = None
+    isChecked:    bool
+
+class MedicationCheckResponse(BaseModel):
+    detail: str

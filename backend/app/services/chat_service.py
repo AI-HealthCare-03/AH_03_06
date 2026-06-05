@@ -9,9 +9,11 @@ from app.models.health_checkup import HealthCheckup
 from app.models.prescription import Prescription
 from app.models.diet import DietGuide, NutrientStandard
 from app.models.medical_record import MedicalRecord
+from app.models.sleep_guide import SleepGuide
 from app.prompts.diet_prompts import get_diet_prompt
 from app.prompts.health_prompts import get_health_prompt
 from app.prompts.prescription_prompts import get_prescription_prompt
+from app.prompts.sleep_prompts import get_sleep_prompt
 
 llm    = ChatOpenAI(model='gpt-4o-mini', temperature=0.3)
 client = OpenAI()
@@ -28,6 +30,9 @@ MEAL_PLAN_KO = {
 }
 
 CONVENIENCE_STORE_KEYWORDS = ['편의점', 'gs25', 'cu', '세븐일레븐', '이마트24', 'GS25', 'CU', '세븐']
+
+CLASS_LABEL = {0: '정상', 1: '주의', 2: '위험'}
+OVERALL_LABEL = {0: '양호', 1: '주의', 2: '위험'}
 
 
 def _needs_web_search(message: str) -> bool:
@@ -101,6 +106,40 @@ LDL: {checkup.ldl}
 권장 식품: {guide.recommended_foods}
 제한 식품: {guide.restricted_foods}"""
 
+    elif context_type == 'SLEEP_GUIDE':
+        query = db.query(SleepGuide).filter(SleepGuide.user_id == user_id)
+        if context_id:
+            guide = query.filter(SleepGuide.id == context_id).first()
+            if not guide:
+                guide = query.order_by(SleepGuide.created_at.desc()).first()
+        else:
+            guide = query.order_by(SleepGuide.created_at.desc()).first()
+        if not guide:
+            raise HTTPException(status_code=404, detail='sleep_guide_not_found')
+
+        consultation_reasons_str = (
+            ', '.join(guide.consultation_reasons) if guide.consultation_reasons else '없음'
+        )
+
+        return f"""[수면 가이드 데이터]
+평균 수면 시간: {guide.sleep_hours_avg}시간 ({CLASS_LABEL.get(guide.sleep_hours_class, '알 수 없음')})
+사회적 시차 (리듬 차이): {guide.rhythm_diff_hours}시간 ({CLASS_LABEL.get(guide.rhythm_diff_class, '알 수 없음')})
+카페인 일일 섭취량: {guide.caffeine_mg_daily if guide.caffeine_mg_daily is not None else '미입력'}mg
+간이설문 점수: {guide.brief_survey_total}점 ({CLASS_LABEL.get(guide.brief_survey_class, '알 수 없음')})
+ESS 점수 (주간 졸음): {guide.ess_score if guide.ess_score is not None else '미입력'} ({CLASS_LABEL.get(guide.ess_class, '알 수 없음') if guide.ess_class is not None else '미입력'})
+전반적 수면 상태: {OVERALL_LABEL.get(guide.overall_status, '알 수 없음')}
+전문 상담 필요: {'예' if guide.consultation_required else '아니오'}
+상담 사유: {consultation_reasons_str}
+
+[가이드 내용]
+가장 중요한 포인트: {guide.key_point or ''}
+오늘의 실천 행동: {guide.today_actions or ''}
+주간 목표: {guide.weekly_goal or ''}
+대처 전략: {guide.coping_strategy or ''}
+생활습관 조정: {guide.lifestyle_adjustment or ''}
+상담 권장 메시지: {guide.consultation_recommendation or ''}
+다음 점검 안내: {guide.next_checkup_guide or ''}"""
+
     return ''
 
 
@@ -111,9 +150,11 @@ def _build_and_invoke(session_id: int, session: ChatSession, user_id: int,
     if session.context_type == 'DIET_GUIDE':
         system_prompt = get_diet_prompt(category or '', message, context_data)
     elif session.context_type == 'HEALTH_CHECKUP':
-        system_prompt = get_health_prompt(category or '', context_data)
+        system_prompt = get_health_prompt(category or '', message, context_data)
     elif session.context_type == 'PRESCRIPTION':
-        system_prompt = get_prescription_prompt(category or '', context_data)
+        system_prompt = get_prescription_prompt(category or '', message, context_data)
+    elif session.context_type == 'SLEEP_GUIDE':
+        system_prompt = get_sleep_prompt(category or '', message, context_data)
     else:
         system_prompt = context_data
 

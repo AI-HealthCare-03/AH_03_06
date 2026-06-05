@@ -12,10 +12,10 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 
 // TODO: 각 가이드의 한 줄 요약(desc)은 추후 '오늘의 가이드' 응답에서 받아 채움.
-//       path는 각 가이드 상세 화면 경로 (식단/운동/수면 상세는 아직 미구현 — 라우트 추가 필요)
+//       path는 각 가이드 진입 경로
 const guides = [
   { title: '식단 가이드', desc: '혈압 관리 저염식 권장', icon: faUtensils, path: '/diet-guides' },
-  { title: '운동 가이드', desc: '중간 강도 유산소 30분', icon: faPersonRunning, path: '/guide/exercise' },
+  { title: '운동 가이드', desc: '중간 강도 유산소 30분', icon: faPersonRunning, path: '/exercise-guides' },
   { title: '수면 가이드', desc: '내 수면 패턴 AI 분석·코칭', icon: faMoon, path: '/sleep-guides' },
   { title: '복약 가이드', desc: '내 처방약별 AI 복약 안내', icon: faPills, path: '/medication-guides' },
 ]

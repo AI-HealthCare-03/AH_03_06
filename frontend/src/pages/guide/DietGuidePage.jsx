@@ -7,9 +7,9 @@ import { DIET_GENERATING } from '../../components/guideGeneratingPresets.js'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faWandMagicSparkles, faCircleInfo, faChevronDown,
-  faRotateRight, faComments,
+  faRotateRight, faComments, faEllipsisVertical,
 } from '@fortawesome/free-solid-svg-icons'
-import { getDietGuideByDate, regenerateDietGuide } from '../../api/dietGuides.js'
+import { getDietGuideByDate, regenerateDietGuide, deleteDietGuide } from '../../api/dietGuides.js'
 import { listHealthCheckups } from '../../api/healthCheckup.js'
 
 const MEAL_PLAN_KO = {
@@ -79,6 +79,7 @@ function DietGuidePage() {
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState('')
   const [regenerating, setRegenerating] = useState(false)
+  const [showMenu,     setShowMenu]     = useState(false)
 
   useEffect(() => {
     if (!date) return
@@ -102,7 +103,6 @@ function DietGuidePage() {
       }
       setRegenerating(true)
       await regenerateDietGuide(checkups[0].id, date)
-      // 폴링으로 새 가이드 대기
       const poll = setInterval(async () => {
         try {
           const newGuide = await getDietGuideByDate(date)
@@ -116,6 +116,17 @@ function DietGuidePage() {
     } catch (err) {
       setRegenerating(false)
       window.alert(err?.message ?? '가이드 재생성 요청에 실패했어요.')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!window.confirm('이 날짜의 식단 가이드를 삭제할까요?')) return
+    setShowMenu(false)
+    try {
+      await deleteDietGuide(date)
+      navigate(-1)
+    } catch (err) {
+      window.alert(err?.message ?? '삭제에 실패했어요.')
     }
   }
 
@@ -133,7 +144,35 @@ function DietGuidePage() {
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
       <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 pb-10">
 
-        <Header variant="back" title="식단 가이드" />
+        <Header
+          variant="back"
+          title="식단 가이드"
+          rightAction={
+            guide ? (
+              <div className="relative">
+                <button
+                  onClick={() => setShowMenu(v => !v)}
+                  className="w-10 h-10 flex items-center justify-center text-textHeading"
+                >
+                  <FontAwesomeIcon icon={faEllipsisVertical} className="text-[16px]" />
+                </button>
+                {showMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+                    <div className="absolute right-0 top-10 z-50 bg-white rounded-[10px] shadow-lg border border-borderHairline overflow-hidden w-[140px]">
+                      <button
+                        onClick={handleDelete}
+                        className="w-full px-5 py-3 text-[14px] font-[500] text-error text-left hover:bg-bgSubtle"
+                      >
+                        가이드 삭제
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : null
+          }
+        />
 
         <main className="px-5 pt-5 pb-2 space-y-4">
 
@@ -145,7 +184,6 @@ function DietGuidePage() {
             <p className="text-[13px] text-error text-center py-10">{error}</p>
           )}
 
-          {/* 재생성 중 */}
           {regenerating && (
             <div className="flex flex-col items-center justify-center py-16">
               <GuideGeneratingSteps {...DIET_GENERATING} />

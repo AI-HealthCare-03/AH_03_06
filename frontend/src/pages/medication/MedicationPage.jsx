@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getMedications, getTodayMedication, deleteMedication, checkMedication } from '../../api/medication.js'
+import { getMedications, getTodayMedication, deleteMedication, checkMedication, deleteSchedule} from '../../api/medication.js'
 
 export default function MedicationPage() {
   const [view, setView] = useState('list')
@@ -14,21 +14,16 @@ export default function MedicationPage() {
 // [Image 1] 복약 관리 목록
 // ────────────────────────────────────────────────────────────
 
-// MedicationPage.jsx - MedicationList 함수 수정본
-// 변경된 부분:
-// 1. openMenuId state 추가 (어떤 카드의 메뉴가 열려있는지 추적)
-// 2. ⋮ 버튼 → 드롭다운 메뉴 (수정 / 종료 처리)로 교체
-// 3. 메뉴 외부 클릭 시 닫힘 처리
-
 function MedicationList({ onTodayClick, navigate }) {
-  const [activeTab, setActiveTab]         = useState('복약 중')
-  const [keyword, setKeyword]             = useState('')
-  const [sortBy, setSortBy]               = useState('latest')
+  const [activeTab, setActiveTab]           = useState('복약 중')
+  const [keyword, setKeyword]               = useState('')
+  const [sortBy, setSortBy]                 = useState('latest')
   const [categoryFilter, setCategoryFilter] = useState('전체')
   const [allMedications, setAllMedications] = useState([])
-  const [isLoading, setIsLoading]         = useState(false)
-  const [error, setError]                 = useState(null)
-  const [openMenuId, setOpenMenuId]       = useState(null)  // ← 추가
+  const [isLoading, setIsLoading]           = useState(false)
+  const [error, setError]                   = useState(null)
+  const [openMenuId, setOpenMenuId]         = useState(null)
+  const [isNearBottom, setIsNearBottom] = useState(false)
 
   useEffect(() => {
     const fetch = async () => {
@@ -47,7 +42,6 @@ function MedicationList({ onTodayClick, navigate }) {
     fetch()
   }, [])
 
-  // 메뉴 외부 클릭 시 닫힘 처리  ← 추가
   useEffect(() => {
     if (!openMenuId) return
     const close = () => setOpenMenuId(null)
@@ -55,16 +49,34 @@ function MedicationList({ onTodayClick, navigate }) {
     return () => document.removeEventListener('click', close)
   }, [openMenuId])
 
+  useEffect(() => {
+    const scrollEl = document.querySelector('.overflow-y-auto')
+    if (!scrollEl) return
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = scrollEl
+      setIsNearBottom(scrollHeight - scrollTop - clientHeight < 150)
+    }
+    scrollEl.addEventListener('scroll', handleScroll)
+    return () => scrollEl.removeEventListener('scroll', handleScroll)
+  }, [])
+
+
   const handleDelete = async (id) => {
     if (!window.confirm('복약을 종료 처리할까요?')) return
-    await deleteMedication(id)
+
+    const med = allMedications.find(m => m.id === id)
+    if (med?.source === 'custom') {
+      await deleteSchedule(id)
+    } else {
+      await deleteMedication(id)
+    }
+
     const res = await getMedications()
     if (res.success) setAllMedications(res.data)
   }
 
-  // ⋮ 버튼 클릭 핸들러  ← 추가
   const handleMenuToggle = (e, id) => {
-    e.stopPropagation()  // 외부 클릭 이벤트 버블링 방지
+    e.stopPropagation()
     setOpenMenuId((prev) => (prev === id ? null : id))
   }
 
@@ -83,8 +95,8 @@ function MedicationList({ onTodayClick, navigate }) {
     <div className="bg-[#FAFAFA] w-full min-h-[100dvh] flex justify-center">
       <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px]">
 
-        {/* 헤더 */}
-        <div className="flex items-center justify-center px-5 pt-5 pb-3 relative bg-white">
+        {/* 헤더 - sticky 고정 */}
+        <div className="sticky top-0 z-10 flex items-center justify-center px-5 pt-5 pb-3 relative bg-white">
           <button onClick={() => navigate(-1)} className="absolute left-5 text-[#09090B]">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 18l-6-6 6-6" />
@@ -93,8 +105,8 @@ function MedicationList({ onTodayClick, navigate }) {
           <h1 className="text-[17px] font-[700] text-[#09090B]">복약 관리</h1>
         </div>
 
-        {/* 탭 */}
-        <div className="flex border-b border-[#F4F4F5] bg-white">
+        {/* 탭 - sticky 고정 */}
+        <div className="sticky top-[60px] z-10 flex border-b border-[#F4F4F5] bg-white">
           {['복약 중', '복약 종료'].map((tab) => (
             <button
               key={tab}
@@ -201,9 +213,8 @@ function MedicationList({ onTodayClick, navigate }) {
                 </div>
 
                 {/* ── ⋮ 버튼 + 드롭다운 메뉴 (복약 중 탭에서만) ── */}
-                {activeTab === '복약 중' && med.source !== 'custom' && (
+                {activeTab === '복약 중' && (
                   <div className="relative shrink-0">
-                    {/* ⋮ 버튼 */}
                     <button
                       onClick={(e) => handleMenuToggle(e, med.id)}
                       className="p-1 text-[#A1A1AA] hover:text-[#52525B]"
@@ -215,19 +226,16 @@ function MedicationList({ onTodayClick, navigate }) {
                       </svg>
                     </button>
 
-                    {/* 드롭다운 메뉴 */}
                     {openMenuId === med.id && (
                       <div
                         onClick={(e) => e.stopPropagation()}
                         className="absolute right-0 top-7 z-20 w-32 bg-white border border-[#E4E4E7] rounded-[10px] shadow-lg overflow-hidden"
                       >
-                        {/* 수정 */}
                         <button
                           onClick={() => {
                             setOpenMenuId(null)
                             navigate(`/medication/form?mode=edit&id=${med.id}`)
-                            }
-                          }
+                          }}
                           className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-[#09090B] font-[500] hover:bg-[#F4F4F5] transition-colors"
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -237,10 +245,8 @@ function MedicationList({ onTodayClick, navigate }) {
                           수정
                         </button>
 
-                        {/* 구분선 */}
                         <div className="border-t border-[#F4F4F5]" />
 
-                        {/* 종료 처리 */}
                         <button
                           onClick={() => {
                             setOpenMenuId(null)
@@ -260,7 +266,6 @@ function MedicationList({ onTodayClick, navigate }) {
                     )}
                   </div>
                 )}
-                {/* ── 드롭다운 끝 ── */}
 
               </div>
             </div>
@@ -279,52 +284,54 @@ function MedicationList({ onTodayClick, navigate }) {
           )}
         </div>
 
-        {/* 플로팅 버튼 */}
-        <div className="fixed bottom-20 right-4 md:right-[calc(50%-220px)] flex flex-col items-end gap-3">
-          <button
-            onClick={() => navigate('/medication/record')}
-            className="bg-white border border-[#E4E4E7] shadow-md rounded-full px-4 py-2 text-[13px] font-[600] text-[#09090B] flex items-center gap-1.5"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
-              <line x1="8" y1="14" x2="16" y2="14"/>
-              <line x1="8" y1="18" x2="12" y2="18"/>
-            </svg>
-            복약 기록
-          </button>
+        {/* 플로팅 버튼 - 드롭다운 열려있을 때 숨김 */}
+          <div className={`fixed right-4 md:right-[calc(50%-220px)] flex flex-col items-end gap-3 transition-all duration-300
+            ${isNearBottom ? 'bottom-60' : 'bottom-20'}`}>
+            <button
+              onClick={() => navigate('/medication/record')}
+              className="bg-white border border-[#E4E4E7] shadow-md rounded-full px-4 py-2 text-[13px] font-[600] text-[#09090B] flex items-center gap-1.5"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+                <line x1="8" y1="14" x2="16" y2="14"/>
+                <line x1="8" y1="18" x2="12" y2="18"/>
+              </svg>
+              복약 기록
+            </button>
 
-          <button
-            onClick={() => navigate('/medication/history')}
-            className="bg-white border border-[#E4E4E7] shadow-md rounded-full px-4 py-2 text-[13px] font-[600] text-[#09090B] flex items-center gap-1.5"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-            복약 이력
-          </button>
+            <button
+              onClick={() => navigate('/medication/history')}
+              className="bg-white border border-[#E4E4E7] shadow-md rounded-full px-4 py-2 text-[13px] font-[600] text-[#09090B] flex items-center gap-1.5"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              복약 이력
+            </button>
 
-          <button
-            onClick={onTodayClick}
-            className="bg-white border border-[#E4E4E7] shadow-md rounded-full px-4 py-2 text-[13px] font-[600] text-[#2563EB] flex items-center gap-1.5"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-            </svg>
-            오늘의 복약
-          </button>
-          <button
-            onClick={() => navigate('/medication/form')}
-            className="w-14 h-14 bg-[#2563EB] rounded-full flex items-center justify-center shadow-lg"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          </button>
-        </div>
+            <button
+              onClick={onTodayClick}
+              className="bg-white border border-[#E4E4E7] shadow-md rounded-full px-4 py-2 text-[13px] font-[600] text-[#2563EB] flex items-center gap-1.5"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+              </svg>
+              오늘의 복약
+            </button>
+
+            <button
+              onClick={() => navigate('/medication/form')}
+              className="w-14 h-14 bg-[#2563EB] rounded-full flex items-center justify-center shadow-lg"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
+          </div>
 
       </div>
     </div>
@@ -433,7 +440,6 @@ function TodayMedication({ onBack }) {
             {/* 시간대별 그룹 */}
             {todayMedication.groups.map((group) => (
               <div key={group.mealTime}>
-                {/* 그룹 헤더 */}
                 <div className="flex items-center justify-between px-1 py-2">
                   <div className="flex items-center gap-1.5">
                     {mealIcon[group.mealTime]}
@@ -457,7 +463,6 @@ function TodayMedication({ onBack }) {
                   )}
                 </div>
 
-                {/* 약 카드들 */}
                 <div className="space-y-2">
                   {group.entries.map((entry) => (
                     <button
@@ -465,7 +470,6 @@ function TodayMedication({ onBack }) {
                       onClick={() => handleCheck(entry.medicationId, group.mealTime, entry.completionStatus)}
                       className="w-full bg-white border border-[#E4E4E7] rounded-[14px] px-4 py-3.5 flex items-center gap-3 shadow-sm text-left"
                     >
-                      {/* 체크 원 */}
                       <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 transition-all
                         ${entry.completionStatus === '완료' ? 'bg-[#2563EB] border-[#2563EB]' : 'bg-white border-[#D4D4D8]'}`}>
                         {entry.completionStatus === '완료' && (
@@ -475,7 +479,6 @@ function TodayMedication({ onBack }) {
                         )}
                       </div>
 
-                      {/* 약 아이콘 */}
                       <div className="w-9 h-9 rounded-[8px] bg-[#F4F4F5] flex items-center justify-center shrink-0">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M10.5 20H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H20a2 2 0 0 1 2 2v3"/>
@@ -483,7 +486,6 @@ function TodayMedication({ onBack }) {
                         </svg>
                       </div>
 
-                      {/* 약 정보 */}
                       <div>
                         <p className={`text-[14px] font-[600] leading-tight
                           ${entry.completionStatus === '완료' ? 'text-[#A1A1AA] line-through' : 'text-[#09090B]'}`}>

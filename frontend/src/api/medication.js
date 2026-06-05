@@ -195,7 +195,17 @@ const toTodayView = (res) => {
   for (const s of schedules) {
     const clockTime = String(s.intake_time).slice(0, 5);
     if (!groupMap.has(clockTime)) {
-      groupMap.set(clockTime, { mealTime: mealLabelOf(clockTime), clockTime, timing: '', entries: [] });
+      groupMap.set(clockTime, {
+        mealTime: mealLabelOf(clockTime),
+        clockTime,
+        timing: '',
+        entries: [],
+        id:          clockTime,
+        label:       mealLabelOf(clockTime),
+        time:        clockTime,
+        icon:        timeToIcon(clockTime),
+        medications: [],
+      });
     }
     groupMap.get(clockTime).entries.push({
       medicationId:     s.schedule_id,
@@ -205,20 +215,39 @@ const toTodayView = (res) => {
       categoryLabel:    '처방약',
       completionStatus: s.is_taken ? '완료' : '예정',
     });
+    groupMap.get(clockTime).medications.push({
+      id:     s.schedule_id,
+      name:   s.drug_name,
+      dosage: s.dosage_message ?? '',
+      timing: s.dosage_message ?? '',
+      type:   'prescription',
+      status: s.is_taken ? 'done' : 'pending',
+    });
   }
+
+  const [y, m, d] = String(res.date).split('-');
 
   const groups = [...groupMap.values()].map((g) => ({
     ...g,
     completionStatus: g.entries.every((e) => e.completionStatus === '완료') ? '완료' : '예정',
   }));
 
-  const [y, m, d] = String(res.date).split('-');
+  const timeSlots = [...groupMap.values()].map((g) => ({
+    id:          g.id,
+    label:       g.label,
+    time:        g.time,
+    icon:        g.icon,
+    medications: g.medications,
+  }));
+
   return {
     dateLabel:      `${y}년 ${Number(m)}월 ${Number(d)}일`,
     totalCount:     total,
     completedCount: completed,
+    doneCount:      completed,
     completionRate: total ? Math.round((completed / total) * 100) : 0,
     groups,
+    timeSlots,
   };
 };
 
@@ -239,12 +268,21 @@ const RealService = {
   getMedicationById:      (id)                     => apiClient.get(`/prescriptions/${id}`),
   addMedication:          (req)                    => apiClient.post('/prescriptions', req),
   deleteMedication:       (id)                     => apiClient.delete(`/prescriptions/${id}`),
+  deleteSchedule:         (id)                     => apiClient.delete(`/schedules/${id}`),
   checkMedication:        (req)                    => apiClient.patch('/check', req),
 
   fetchCalendar:          (year, month)            => apiClient.get(`/calendar?year=${year}&month=${month}`),
   fetchAnalysis:          ()                       => apiClient.get('/analysis'),
-  takeMedication:         (dateStr, medicationId)  => apiClient.post('/take', { date: dateStr, medicationId }),
-  undoTakeMedication:     (dateStr, medicationId)  => apiClient.delete(`/take?date=${dateStr}&medicationId=${medicationId}`),
+  takeMedication: (dateStr, medicationId) => apiClient.patch('/check', {
+    medicationId,
+    takenAt: new Date().toISOString(),
+    isChecked: true,
+  }),
+  undoTakeMedication: (dateStr, medicationId) => apiClient.patch('/check', {
+    medicationId,
+    takenAt: new Date().toISOString(),
+    isChecked: false,
+  }),
 
   createSchedule: async (medicationId, req) => {
     const payload = {
@@ -281,6 +319,7 @@ export const getMedications         = (filter = {}) => Service.getMedications(fi
 export const getMedicationById      = (id)          => Service.getMedicationById(id);
 export const addDirectMedication    = (req)         => (Service.addDirectMedication ?? Service.addMedication)(req);
 export const deleteMedication       = (id)          => Service.deleteMedication(id);
+export const deleteSchedule = (id) => Service.deleteSchedule(id)
 export const getTodayMedication     = ()            => Service.getTodayMedication();
 export const checkMedication        = (req)         => Service.checkMedication(req);
 

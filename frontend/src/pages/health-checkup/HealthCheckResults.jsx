@@ -89,9 +89,9 @@ function classifyBmi(height, weight) {
 
 function HealthCheckResults() {
   const navigate = useNavigate()
-  const { year } = useParams()
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const { year }  = useParams()
+  const [data,     setData]     = useState(null)
+  const [loading,  setLoading]  = useState(true)
   const [showMenu, setShowMenu] = useState(false)
 
   useEffect(() => {
@@ -119,10 +119,10 @@ function HealthCheckResults() {
   const bmiResult = data?.height && data?.weight
     ? classifyBmi(data.height, data.weight) : null
 
-  const statuses = [bpStatus, glucoseStatus, cholesterolStatus, bmiResult?.status].filter(Boolean)
-  const normalCount = statuses.filter(s => s === '정상').length
+  const statuses     = [bpStatus, glucoseStatus, cholesterolStatus, bmiResult?.status].filter(Boolean)
+  const normalCount  = statuses.filter(s => s === '정상').length
   const cautionCount = statuses.filter(s => s === '주의').length
-  const dangerCount = statuses.filter(s => s === '위험').length
+  const dangerCount  = statuses.filter(s => s === '위험').length
 
   const handleDelete = () => {
     fetch(`${base}/health-checkups/year/${year}`, {
@@ -136,7 +136,7 @@ function HealthCheckResults() {
   const handleChat = async () => {
     try {
       const session = await createChatSession('HEALTH_CHECKUP', data?.id ? Number(data.id) : null)
-      navigate(`/chat/${session.id}?context_type=HEALTH_CHECKUP`)
+      navigate(`/chat/${session.id}?context_type=HEALTH_CHECKUP&checkup_year=${year}`)
     } catch {
       window.alert('채팅 세션 생성에 실패했어요.')
     }

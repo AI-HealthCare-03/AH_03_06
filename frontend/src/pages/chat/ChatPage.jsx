@@ -5,7 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faWandMagicSparkles, faPaperPlane, faChevronLeft,
   faRotateRight, faTrash, faPenToSquare, faChevronDown, faChevronUp,
-  faEllipsisVertical, faUtensils,
+  faEllipsisVertical, faUtensils, faHeartPulse, faMoon,
 } from '@fortawesome/free-solid-svg-icons'
 import {
   sendChatMessage, getChatHistory,
@@ -13,6 +13,7 @@ import {
   clearChatMessages, deleteChatSession,
 } from '../../api/chat.js'
 import { getDietGuideByDate } from '../../api/dietGuides.js'
+import { getHealthCheckupByYear } from '../../api/healthCheckup.js'
 
 const CATEGORIES = {
   DIET_GUIDE: [
@@ -100,6 +101,41 @@ const CATEGORIES = {
       ],
     },
   ],
+  SLEEP_GUIDE: [
+    {
+      label: '수면 상태가 궁금해요',
+      questions: [
+        { text: '내 수면 시간이 적절한가요?',     prefill: false },
+        { text: '수면 리듬이 불규칙한가요?',      prefill: false },
+        { text: '전반적인 수면 상태는 어떤가요?', prefill: false },
+      ],
+    },
+    {
+      label: '수면 개선 방법이 궁금해요',
+      questions: [
+        { text: '오늘 당장 실천할 수 있는 방법은?',  prefill: false },
+        { text: '주간 목표를 어떻게 실천하나요?',    prefill: false },
+        { text: '카페인이 수면에 영향을 주나요?',    prefill: false },
+        { text: '생활 습관을 어떻게 바꿔야 하나요?', prefill: false },
+      ],
+    },
+    {
+      label: '졸음/피로가 걱정돼요',
+      questions: [
+        { text: '낮에 졸린 게 심각한가요?',         prefill: false },
+        { text: '수면 부족으로 인한 위험이 있나요?', prefill: false },
+        { text: '잠이 안 올 때 어떻게 해야 하나요?', prefill: false },
+      ],
+    },
+    {
+      label: '전문 상담이 필요한가요',
+      questions: [
+        { text: '병원에 가야 하나요?',              prefill: false },
+        { text: '수면 장애 가능성이 있나요?',        prefill: false },
+        { text: '다음 수면 점검은 언제 해야 하나요?', prefill: false },
+      ],
+    },
+  ],
 }
 
 const MEAL_PLAN_KO = {
@@ -117,12 +153,14 @@ const WELCOME_MESSAGE = {
   DIET_GUIDE:     '안녕하세요! AI 식단 상담사입니다.\n식단 플랜, 영양소, 제한 식품 등 궁금한 것을 자유롭게 물어보세요.\n아래 예시 질문을 참고하셔도 좋습니다.',
   HEALTH_CHECKUP: '안녕하세요! AI 건강검진 상담사입니다.\n혈압, 혈당, 건강 상태 등 궁금한 것을 자유롭게 물어보세요.\n아래 예시 질문을 참고하셔도 좋습니다.',
   PRESCRIPTION:   '안녕하세요! AI 처방약 상담사입니다.\n복용 방법, 부작용, 약 조합 등 궁금한 것을 자유롭게 물어보세요.\n아래 예시 질문을 참고하셔도 좋습니다.',
+  SLEEP_GUIDE:    '안녕하세요! AI 수면 상담사입니다.\n수면 시간, 수면 리듬, 개선 방법 등 궁금한 것을 자유롭게 물어보세요.\n아래 예시 질문을 참고하셔도 좋습니다.',
 }
 
 const CONTEXT_TITLE = {
   DIET_GUIDE:     'AI 식단 상담',
   HEALTH_CHECKUP: 'AI 건강검진 상담',
   PRESCRIPTION:   'AI 처방약 상담',
+  SLEEP_GUIDE:    'AI 수면 상담',
 }
 
 function formatTime(iso) {
@@ -147,7 +185,6 @@ function TypingDots() {
 function DietGuidePanel({ guide }) {
   const [expanded, setExpanded] = useState(false)
   if (!guide) return null
-
   return (
     <div className="border-b border-borderHairline bg-primarySoft">
       <button
@@ -161,53 +198,28 @@ function DietGuidePanel({ guide }) {
           </span>
           <span className="text-[11px] text-primary/60">{guide.guide_date}</span>
         </div>
-        <FontAwesomeIcon
-          icon={expanded ? faChevronUp : faChevronDown}
-          className="text-primary text-[10px]"
-        />
+        <FontAwesomeIcon icon={expanded ? faChevronUp : faChevronDown} className="text-primary text-[10px]" />
       </button>
-
       {expanded && (
         <div className="px-4 pb-3 space-y-2">
           <div className="grid grid-cols-4 gap-2">
-            <div className="bg-white rounded-[8px] px-2 py-1.5 text-center">
-              <p className="text-[10px] text-mute mb-0.5">칼로리</p>
-              <p className="text-[12px] font-[700] text-textHeading">
-                {guide.nutrient_standard?.recommended_calories}
-                <span className="text-[10px] font-[400] text-mute ml-0.5">kcal</span>
-              </p>
-            </div>
-            <div className="bg-white rounded-[8px] px-2 py-1.5 text-center">
-              <p className="text-[10px] text-mute mb-0.5">탄수화물</p>
-              <p className="text-[12px] font-[700] text-textHeading">
-                {guide.nutrient_standard?.recommended_carbs}
-                <span className="text-[10px] font-[400] text-mute ml-0.5">g</span>
-              </p>
-            </div>
-            <div className="bg-white rounded-[8px] px-2 py-1.5 text-center">
-              <p className="text-[10px] text-mute mb-0.5">단백질</p>
-              <p className="text-[12px] font-[700] text-textHeading">
-                {guide.nutrient_standard?.recommended_protein}
-                <span className="text-[10px] font-[400] text-mute ml-0.5">g</span>
-              </p>
-            </div>
-            <div className="bg-white rounded-[8px] px-2 py-1.5 text-center">
-              <p className="text-[10px] text-mute mb-0.5">지방</p>
-              <p className="text-[12px] font-[700] text-textHeading">
-                {guide.nutrient_standard?.recommended_fat}
-                <span className="text-[10px] font-[400] text-mute ml-0.5">g</span>
-              </p>
-            </div>
+            {[
+              { label: '칼로리',   value: guide.nutrient_standard?.recommended_calories, unit: 'kcal' },
+              { label: '탄수화물', value: guide.nutrient_standard?.recommended_carbs,    unit: 'g' },
+              { label: '단백질',   value: guide.nutrient_standard?.recommended_protein,  unit: 'g' },
+              { label: '지방',     value: guide.nutrient_standard?.recommended_fat,      unit: 'g' },
+            ].map(({ label, value, unit }) => (
+              <div key={label} className="bg-white rounded-[8px] px-2 py-1.5 text-center">
+                <p className="text-[10px] text-mute mb-0.5">{label}</p>
+                <p className="text-[12px] font-[700] text-textHeading">
+                  {value}<span className="text-[10px] font-[400] text-mute ml-0.5">{unit}</span>
+                </p>
+              </div>
+            ))}
           </div>
           {[['아침', guide.breakfast], ['점심', guide.lunch], ['저녁', guide.dinner]].map(([label, content]) => {
             if (!content) return null
-            const summary = content
-              .replace(/^[-•]\s*/gm, '')
-              .trim()
-              .split('\n')
-              .filter(Boolean)
-              .slice(0, 3)
-              .join(', ')
+            const summary = content.replace(/^[-•]\s*/gm, '').trim().split('\n').filter(Boolean).slice(0, 3).join(', ')
             return (
               <div key={label} className="flex gap-2">
                 <span className="text-[11px] font-[700] text-primary w-6 shrink-0 leading-[1.6]">{label}</span>
@@ -221,12 +233,113 @@ function DietGuidePanel({ guide }) {
   )
 }
 
+function HealthCheckupPanel({ checkup }) {
+  const [expanded, setExpanded] = useState(false)
+  if (!checkup) return null
+
+  const bmi = checkup.height && checkup.weight
+    ? (checkup.weight / ((checkup.height / 100) ** 2)).toFixed(1)
+    : null
+
+  const items = [
+    { label: '수축기혈압',   value: checkup.bp_systolic,        unit: 'mmHg' },
+    { label: '이완기혈압',   value: checkup.bp_diastolic,       unit: 'mmHg' },
+    { label: '공복혈당',     value: checkup.fasting_glucose,    unit: 'mg/dL' },
+    { label: '총콜레스테롤', value: checkup.total_cholesterol,  unit: 'mg/dL' },
+    { label: 'HDL',         value: checkup.hdl,                unit: 'mg/dL' },
+    { label: 'LDL',         value: checkup.ldl,                unit: 'mg/dL' },
+    { label: '중성지방',     value: checkup.triglyceride,       unit: 'mg/dL' },
+    { label: 'BMI',         value: bmi,                        unit: 'kg/m²' },
+  ].filter(item => item.value !== null && item.value !== undefined)
+
+  return (
+    <div className="border-b border-borderHairline bg-primarySoft">
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-2.5"
+      >
+        <div className="flex items-center gap-2">
+          <FontAwesomeIcon icon={faHeartPulse} className="text-primary text-[11px]" />
+          <span className="text-[12px] font-[700] text-primary">{checkup.checkup_year}년 건강검진</span>
+        </div>
+        <FontAwesomeIcon icon={expanded ? faChevronUp : faChevronDown} className="text-primary text-[10px]" />
+      </button>
+      {expanded && (
+        <div className="px-4 pb-3">
+          <div className="grid grid-cols-4 gap-2">
+            {items.map(({ label, value, unit }) => (
+              <div key={label} className="bg-white rounded-[8px] px-2 py-1.5 text-center">
+                <p className="text-[10px] text-mute mb-0.5">{label}</p>
+                <p className="text-[12px] font-[700] text-textHeading">
+                  {value}<span className="text-[10px] font-[400] text-mute ml-0.5">{unit}</span>
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SleepGuidePanel({ guideId }) {
+  const [expanded, setExpanded] = useState(false)
+  const [guide, setGuide] = useState(null)
+
+  useEffect(() => {
+    if (!guideId) return
+    import('../../api/sleepGuides.js').then(({ getSleepGuide }) => {
+      getSleepGuide(guideId)
+        .then(data => setGuide(data))
+        .catch(() => {})
+    })
+  }, [guideId])
+
+  if (!guide) return null
+
+  const STATUS_LABEL = { 0: '정상', 1: '주의', 2: '위험' }
+
+  return (
+    <div className="border-b border-borderHairline bg-primarySoft">
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-2.5"
+      >
+        <div className="flex items-center gap-2">
+          <FontAwesomeIcon icon={faMoon} className="text-primary text-[11px]" />
+          <span className="text-[12px] font-[700] text-primary">수면 분석</span>
+          <span className="text-[11px] text-primary/60">{STATUS_LABEL[guide.overall_status] ?? ''} 단계</span>
+        </div>
+        <FontAwesomeIcon icon={expanded ? faChevronUp : faChevronDown} className="text-primary text-[10px]" />
+      </button>
+      {expanded && (
+        <div className="px-4 pb-3">
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: '평균 수면', value: guide.sleep_hours_avg ? `${guide.sleep_hours_avg}h` : '—' },
+              { label: '주말 시차', value: guide.rhythm_diff_hours ? `${guide.rhythm_diff_hours}h` : '—' },
+              { label: '카페인',   value: guide.caffeine_mg_daily != null ? `${guide.caffeine_mg_daily}mg` : '—' },
+            ].map(({ label, value }) => (
+              <div key={label} className="bg-white rounded-[8px] px-2 py-1.5 text-center">
+                <p className="text-[10px] text-mute mb-0.5">{label}</p>
+                <p className="text-[12px] font-[700] text-textHeading">{value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ChatPage() {
   const navigate              = useNavigate()
   const { sessionId }         = useParams()
   const [searchParams]        = useSearchParams()
   const contextType           = searchParams.get('context_type') ?? 'DIET_GUIDE'
   const guideDate             = searchParams.get('guide_date') ?? null
+  const checkupYear           = searchParams.get('checkup_year') ?? null
+  const guideId               = searchParams.get('guide_id') ?? null
   const [messages,         setMessages]         = useState([])
   const [input,            setInput]            = useState('')
   const [loading,          setLoading]          = useState(false)
@@ -237,11 +350,12 @@ function ChatPage() {
   const [editInput,        setEditInput]        = useState('')
   const [showMenu,         setShowMenu]         = useState(false)
   const [dietGuide,        setDietGuide]        = useState(null)
+  const [checkupData,      setCheckupData]      = useState(null)
   const bottomRef = useRef(null)
   const inputRef  = useRef(null)
 
-  const categories = CATEGORIES[contextType] ?? CATEGORIES.DIET_GUIDE
-  const welcomeMsg = WELCOME_MESSAGE[contextType] ?? WELCOME_MESSAGE.DIET_GUIDE
+  const categories = CATEGORIES[contextType] ?? []
+  const welcomeMsg = WELCOME_MESSAGE[contextType] ?? ''
 
   useEffect(() => {
     if (!sessionId) return
@@ -256,6 +370,13 @@ function ChatPage() {
       .then(data => setDietGuide(data))
       .catch(() => {})
   }, [contextType, guideDate])
+
+  useEffect(() => {
+    if (contextType !== 'HEALTH_CHECKUP' || !checkupYear) return
+    getHealthCheckupByYear(checkupYear)
+      .then(data => setCheckupData(data))
+      .catch(() => {})
+  }, [contextType, checkupYear])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -435,9 +556,16 @@ function ChatPage() {
           }
         />
 
-        {/* 식단 고정 패널 */}
         {contextType === 'DIET_GUIDE' && (
           <DietGuidePanel guide={dietGuide} />
+        )}
+
+        {contextType === 'HEALTH_CHECKUP' && (
+          <HealthCheckupPanel checkup={checkupData} />
+        )}
+
+        {contextType === 'SLEEP_GUIDE' && (
+          <SleepGuidePanel guideId={guideId} />
         )}
 
         <main className="flex-1 overflow-y-auto px-5 pt-4 pb-2 space-y-4">

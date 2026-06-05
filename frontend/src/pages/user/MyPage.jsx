@@ -1,11 +1,20 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getAccessToken, getRefreshToken, clearTokens } from '../../utils/token.js'
+import { getAccessToken, getRefreshToken } from '../../utils/token.js'
 import { logout } from '../../App.jsx'
 import Header from '../../components/Header.jsx'
 import BottomNav from '../../components/BottomNav.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faChevronRight } from '@fortawesome/free-solid-svg-icons'
+import {
+  faChevronRight,
+  faUserPen,
+  faBullseye,
+  faNotesMedical,
+  faBell,
+  faLink,
+  faArrowRightFromBracket,
+  faUserXmark,
+} from '@fortawesome/free-solid-svg-icons'
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
@@ -61,6 +70,9 @@ function MyPage() {
     }
   }
 
+  // 라우트·화면 미구현 메뉴 — 빈 화면 대신 안내 (구현되면 navigate 로 교체)
+  const comingSoon = () => window.alert('준비 중인 기능이에요. 곧 만나요!')
+
   const nickname = user?.nickname ?? '...'
   const email = user?.email ?? '...'
   const initial = nickname.charAt(0)
@@ -111,15 +123,30 @@ function MyPage() {
                 <h3 className="text-[11px] font-bold text-[#A1A1AA] mb-2 px-1 tracking-wider uppercase">계정 관리</h3>
                 <div className="bg-white rounded-[10px] border border-[#E4E4E7] overflow-hidden">
                   <button onClick={() => navigate('/user/profile/edit')} className="w-full h-14 px-4 flex items-center justify-between border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
-                    <span className="text-[14px] font-medium text-[#09090B]">프로필 수정</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">
+                        <FontAwesomeIcon icon={faUserPen} className="text-primary text-[14px]" />
+                      </div>
+                      <span className="text-[14px] font-medium text-[#09090B]">프로필 수정</span>
+                    </div>
                     <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[12px]" />
                   </button>
-                  <button onClick={() => navigate('/user/health-goals')} className="w-full h-14 px-4 flex items-center justify-between border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
-                    <span className="text-[14px] font-medium text-[#09090B]">건강 목표 설정</span>
+                  <button onClick={() => navigate('/user/profile/edit')} className="w-full h-14 px-4 flex items-center justify-between border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">
+                        <FontAwesomeIcon icon={faBullseye} className="text-primary text-[14px]" />
+                      </div>
+                      <span className="text-[14px] font-medium text-[#09090B]">건강 목표 설정</span>
+                    </div>
                     <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[12px]" />
                   </button>
                   <button onClick={() => navigate('/health-checkup')} className="w-full h-14 px-4 flex items-center justify-between active:bg-[#FAFAFA] transition-colors">
-                    <span className="text-[14px] font-medium text-[#09090B]">건강검진 입력</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">
+                        <FontAwesomeIcon icon={faNotesMedical} className="text-primary text-[14px]" />
+                      </div>
+                      <span className="text-[14px] font-medium text-[#09090B]">건강검진 입력</span>
+                    </div>
                     <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[12px]" />
                   </button>
                 </div>
@@ -129,9 +156,14 @@ function MyPage() {
               <section>
                 <h3 className="text-[11px] font-bold text-[#A1A1AA] mb-2 px-1 tracking-wider uppercase">알림</h3>
                 <div className="bg-white rounded-[10px] border border-[#E4E4E7] overflow-hidden">
-                  <button onClick={() => navigate('/user/notifications')} className="w-full h-14 px-4 flex items-center justify-between active:bg-[#FAFAFA] transition-colors">
-                    <span className="text-[14px] font-medium text-[#09090B]">알림 설정</span>
-                    <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[12px]" />
+                  <button onClick={comingSoon} className="w-full h-14 px-4 flex items-center justify-between active:bg-[#FAFAFA] transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">
+                        <FontAwesomeIcon icon={faBell} className="text-primary text-[14px]" />
+                      </div>
+                      <span className="text-[14px] font-medium text-[#09090B]">알림 설정</span>
+                    </div>
+                    <span className="text-[11px] font-medium text-[#A1A1AA] bg-[#F4F4F5] px-2 py-1 rounded-full">준비 중</span>
                   </button>
                 </div>
               </section>
@@ -140,15 +172,30 @@ function MyPage() {
               <section>
                 <h3 className="text-[11px] font-bold text-[#A1A1AA] mb-2 px-1 tracking-wider uppercase">계정</h3>
                 <div className="bg-white rounded-[10px] border border-[#E4E4E7] overflow-hidden">
-                  <button onClick={() => navigate('/user/social')} className="w-full h-14 px-4 flex items-center justify-between border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
-                    <span className="text-[14px] font-medium text-[#09090B]">소셜 로그인 연동</span>
-                    <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[12px]" />
+                  <button onClick={comingSoon} className="w-full h-14 px-4 flex items-center justify-between border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">
+                        <FontAwesomeIcon icon={faLink} className="text-primary text-[14px]" />
+                      </div>
+                      <span className="text-[14px] font-medium text-[#09090B]">소셜 로그인 연동</span>
+                    </div>
+                    <span className="text-[11px] font-medium text-[#A1A1AA] bg-[#F4F4F5] px-2 py-1 rounded-full">준비 중</span>
                   </button>
                   <button onClick={handleLogout} className="w-full h-14 px-4 flex items-center justify-start border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
-                    <span className="text-[14px] font-medium text-[#09090B]">로그아웃</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">
+                        <FontAwesomeIcon icon={faArrowRightFromBracket} className="text-primary text-[14px]" />
+                      </div>
+                      <span className="text-[14px] font-medium text-[#09090B]">로그아웃</span>
+                    </div>
                   </button>
                   <button onClick={handleDeleteAccount} className="w-full h-14 px-4 flex items-center justify-start active:bg-[#FAFAFA] transition-colors">
-                    <span className="text-[14px] font-medium text-red-500">회원 탈퇴</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
+                        <FontAwesomeIcon icon={faUserXmark} className="text-red-500 text-[14px]" />
+                      </div>
+                      <span className="text-[14px] font-medium text-red-500">회원 탈퇴</span>
+                    </div>
                   </button>
                 </div>
               </section>

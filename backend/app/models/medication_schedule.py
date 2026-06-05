@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, Boolean, Time, DateTime, ForeignKey
+from sqlalchemy import Column, BigInteger, String, Boolean, Time, DateTime, Date, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -18,6 +18,8 @@ class MedicationSchedule(Base):
     notification_type      = Column(String(10), nullable=False, default="PUSH")
     is_active              = Column(Boolean, nullable=False, default=True)
     is_custom              = Column(Boolean, nullable=False, default=False)
+    start_date             = Column(Date, nullable=True)
+    end_date               = Column(Date, nullable=True)
     created_at             = Column(DateTime, nullable=False, default=func.now())
 
     # 관계 정의

@@ -19,6 +19,7 @@ from app.schemas.medication import (
     MedicationAlarmUpdateRequest,
     MedicationAlarmUpdateResponse,
     MedicationDashboardResponse,
+    MedicationCheckRequest,
     TodayMedicationResponse,
     DateMedicationResponse,
 )
@@ -156,3 +157,11 @@ def get_medication_history(
     current_user=Depends(get_current_user)
 ):
     return medication_service.get_medication_history(current_user.id, start_date, end_date, drug_name, page, size, db)
+
+@router.patch("/check")
+def check_medication(
+    request: MedicationCheckRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.check_medication(current_user.id, request, db)

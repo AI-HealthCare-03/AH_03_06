@@ -132,7 +132,7 @@ class DietService:
             persist_directory=os.getenv('CHROMA_DB_PATH', './data/chroma_db'),
             embedding_function=self.embeddings,
         )
-        self.llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.3)
+        self.llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.7)
 
     def get_checkup_by_id(self, db: Session, checkup_id: int, user_id: int):
         checkup = db.query(HealthCheckup).filter(
@@ -252,14 +252,22 @@ class DietService:
 
         recent_menu_text = ''
         if recent_menus:
-            recent_menu_text = '\n[최근 식단 이력 - 아래 메뉴와 중복되지 않도록 구성하세요]\n'
+            recent_menu_text = '\n[최근 식단 이력 - 아래에 등장한 식품은 절대 반복하지 마세요]\n'
             recent_menu_text += '\n'.join(recent_menus)
+            recent_menu_text += '\n위 식단과 완전히 다른 식재료, 조리법, 국물 요리로 구성하세요.\n'
 
         prompt = f"""당신은 한국인 영양사입니다. 아래 정보를 바탕으로 개인 맞춤형 식단 가이드를 작성해주세요.
 
 반드시 한국인이 일상적으로 먹는 식재료와 음식으로만 구성하세요.
 예: 현미밥, 된장국, 나물, 생선구이, 두부조림, 잡곡밥, 김치, 미역국 등
 퀴노아, 아보카도, 연어 스테이크 등 비일상적인 서양식 식재료는 절대 사용하지 마세요.
+
+[다양성 규칙 - 반드시 준수하세요]
+- 아침/점심/저녁 각 끼니마다 서로 다른 단백질 식품을 사용하세요. (예: 아침-두부, 점심-생선, 저녁-달걀)
+- 국/찌개류는 끼니마다 다르게 구성하세요. (예: 아침-된장국, 점심-미역국, 저녁-김칫국)
+- 나물/채소류도 끼니마다 다른 종류를 사용하세요.
+- 최근 식단 이력에 등장한 식품은 절대 반복하지 마세요.
+- 밥 종류도 현미밥/잡곡밥/보리밥/흑미밥 등으로 다양하게 구성하세요.
 
 [사용자 정보]
 나이: {checkup['age']}세 / 성별: {'남성' if checkup.get('gender', 1) == 1 else '여성'}
@@ -381,3 +389,7 @@ class DietService:
             )
 
         return results
+
+    def delete_diet_guide(self, db: Session, guide_date: date, user_id: int) -> None:
+        DietGuideRepository.delete_by_date(db, user_id, guide_date)
+        db.commit()
