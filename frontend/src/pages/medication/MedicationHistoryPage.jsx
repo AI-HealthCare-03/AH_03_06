@@ -50,8 +50,9 @@ const fmtTime = (isoStr) => {
 const groupByDate = (records) => {
   const map = {};
   for (const r of records) {
-    if (!map[r.date]) map[r.date] = [];
-    map[r.date].push(r);
+    const dateKey = r.created_at?.slice(0, 10) ?? 'unknown'
+    if (!map[dateKey]) map[dateKey] = [];
+    map[dateKey].push(r);
   }
   // 날짜 내림차순
   return Object.entries(map).sort((a, b) => b[0].localeCompare(a[0]));
@@ -68,34 +69,31 @@ function StatusBadge({ status }) {
   );
 }
 
+// HistoryRecord 컴포넌트 수정
 function HistoryRecord({ record }) {
-  const meta = STATUS_META[record.status] ?? STATUS_META.pending;
   return (
     <div className="flex items-center gap-3 py-3 border-b border-[#F4F4F5] last:border-0">
-      {/* 상태 점 */}
-      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${meta.dot}`} />
-
-      {/* 약 정보 */}
+      <span className="w-2 h-2 rounded-full flex-shrink-0 bg-[#2563EB]" />
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-medium text-[#09090B] truncate">{record.medication_name}</p>
-        <p className="text-[11px] text-[#A1A1AA] mt-0.5">{record.slot}</p>
+        <p className="text-[13px] font-medium text-[#09090B] truncate">{record.drug_name}</p>
+        <p className="text-[11px] text-[#A1A1AA] mt-0.5">
+          {record.dosage ?? ''} {record.frequency ? `${record.frequency}회/일` : ''}
+        </p>
       </div>
-
-      {/* 복용 시간 or 뱃지 */}
       <div className="text-right flex-shrink-0">
-        {record.taken_at && (
-          <p className="text-[11px] text-[#71717A] mb-1">{fmtTime(record.taken_at)}</p>
-        )}
-        <StatusBadge status={record.status} />
+        <p className="text-[11px] text-[#71717A]">{fmtTime(record.created_at)}</p>
+        <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-[#EFF6FF] text-[#2563EB]">
+          완료
+        </span>
       </div>
     </div>
-  );
+  )
 }
 
 function DateSection({ dateStr, records }) {
-  const taken  = records.filter(r => r.status === 'taken').length;
+  const taken  = records.length;
   const total  = records.length;
-  const rate   = total > 0 ? Math.round((taken / total) * 100) : 0;
+  const rate   = total > 0 ? 100 : 0;
 
   const rateColor =
     rate >= 80 ? 'text-[#2563EB] bg-[#EFF6FF]' :
@@ -125,10 +123,10 @@ function DateSection({ dateStr, records }) {
 
 // ── 통계 요약 카드 ────────────────────────────────────────────
 function SummaryCard({ records }) {
-  const taken  = records.filter(r => r.status === 'taken').length;
+  const taken  = records.length;
   const missed = records.filter(r => r.status === 'missed').length;
   const total  = records.length;
-  const rate   = total > 0 ? Math.round((taken / total) * 100) : 0;
+  const rate   = 100;
 
   return (
     <div className="bg-white rounded-2xl px-5 py-4 shadow-sm mb-3">
@@ -207,7 +205,7 @@ export default function MedicationHistoryPage() {
       setLoading(true);
       const res = await fetchScheduleHistory(startDate, endDate);
       const data = res.data ?? res;
-      setRecords(data.records ?? []);
+      setRecords(data.items ?? []);
     } catch (e) {
       console.error(e);
       setError('이력을 불러오지 못했어요. 다시 시도해 주세요.');

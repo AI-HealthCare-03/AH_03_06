@@ -36,7 +36,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Viva API", version="1.0.0", lifespan=lifespan)
 
 # DB 테이블 생성
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"[startup] create_all 건너뜀: {e}")
 
 # CORS 설정
 app.add_middleware(

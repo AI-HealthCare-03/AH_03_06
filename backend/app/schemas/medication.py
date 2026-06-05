@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 
 class PrescriptionCreateRequest(BaseModel):
-    medical_record_id: int
+    medical_record_id: Optional[int] = None
     drug_id:           Optional[int] = None
     drug_name:         str
     dosage:            Optional[str] = None
@@ -31,6 +31,19 @@ class PrescriptionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class MedicationCardItem(BaseModel):
+    id:            int
+    source:        str            # 'prescription' | 'custom'
+    drug_name:     str
+    dosage:        Optional[str] = None
+    frequency:     Optional[str] = None
+    start_date:    Optional[date] = None
+    end_date:      Optional[date] = None
+    is_active:     bool
+
+class MedicationListResponse(BaseModel):
+    medications: List[MedicationCardItem]
 
 
 class PrescriptionDeleteResponse(BaseModel):
@@ -85,6 +98,8 @@ class MedicationScheduleRequest(BaseModel):
     notification_type: Optional[str] = "PUSH"
     days:              Optional[List[str]] = []
     is_custom:         Optional[bool] = False
+    start_date:        Optional[date] = None
+    end_date:          Optional[date] = None
 
 
 class MedicationScheduleResponse(BaseModel):
@@ -97,6 +112,8 @@ class MedicationScheduleResponse(BaseModel):
     is_active:         bool
     is_custom:         bool
     days:              List[str]
+    start_date:        Optional[date] = None
+    end_date:          Optional[date] = None
 
     class Config:
         from_attributes = True
@@ -181,3 +198,12 @@ class MedicationDashboardResponse(BaseModel):
     overall_rate: float
     daily:        List[DailyMedicationRate]
     medications:  List[MedicationRate]
+
+class MedicationCheckRequest(BaseModel):
+    medicationId: int
+    mealTime:     Optional[str] = None
+    takenAt:      Optional[str] = None
+    isChecked:    bool
+
+class MedicationCheckResponse(BaseModel):
+    detail: str

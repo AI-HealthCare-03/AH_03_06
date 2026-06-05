@@ -16,6 +16,8 @@ from app.schemas.medication import (
     PrescriptionDeleteResponse,
     PrescriptionListResponse,
     PrescriptionListItem,
+    MedicationCardItem,
+    MedicationListResponse,
     MedicationScheduleRequest,
     MedicationScheduleResponse,
     MedicationScheduleListResponse,
@@ -63,6 +65,8 @@ def _schedule_to_response(schedule: MedicationSchedule) -> MedicationScheduleRes
         is_active=schedule.is_active,
         is_custom=schedule.is_custom,
         days=days,
+        start_date=schedule.start_date,
+        end_date=schedule.end_date,
     )
 
 
@@ -75,6 +79,8 @@ def _create_default_schedule(prescription: Prescription, user_id: int, db: Sessi
         notification_type="PUSH",
         is_active=True,
         is_custom=False,
+        start_date=prescription.start_date,
+        end_date=prescription.end_date,
     )
     db.add(schedule)
     db.flush()
@@ -100,8 +106,11 @@ def create_prescription(user_id: int, request: PrescriptionCreateRequest, db: Se
         dosage=request.dosage,
         frequency=request.frequency,
         duration_days=request.duration_days,
-        start_date=request.start_date,
-        end_date=request.end_date,
+        start_date=medical_record.visit_date,
+        end_date=(
+            medical_record.visit_date + timedelta(days=request.duration_days)
+            if request.duration_days else None
+        ),
         is_active=request.is_active if request.is_active is not None else True,
     )
     db.add(prescription)
@@ -145,6 +154,54 @@ def get_prescriptions(user_id: int, db: Session) -> PrescriptionListResponse:
         prescriptions=[PrescriptionListItem.model_validate(p) for p in prescriptions]
     )
 
+def get_medication_list(user_id: int, db: Session) -> MedicationListResponse:
+    """복약관리 목록 - 처방약 + 직접등록(custom)을 한 목록으로 반환"""
+    cards = []
+
+    # 처방전 기반 (진료기록에 연결된 약)
+    prescriptions = (
+        db.query(Prescription)
+        .join(MedicalRecord)
+        .filter(
+            MedicalRecord.user_id == user_id,
+            MedicalRecord.is_deleted == 0,
+            Prescription.is_active == True,
+        )
+        .order_by(Prescription.created_at.desc())
+        .all()
+    )
+    for p in prescriptions:
+        cards.append(MedicationCardItem(
+            id=p.id, source="prescription", drug_name=p.drug_name,
+            dosage=p.dosage, frequency=p.frequency,
+            start_date=p.start_date, end_date=p.end_date, is_active=p.is_active,
+        ))
+
+    # 직접등록 (처방전 없는 custom 일정) - 같은 약은 하나로 묶음
+    customs = (
+        db.query(MedicationSchedule)
+        .filter(
+            MedicationSchedule.user_id == user_id,
+            MedicationSchedule.prescribed_medicine_id.is_(None),
+            MedicationSchedule.is_active == True,
+        )
+        .order_by(MedicationSchedule.created_at.desc())
+        .all()
+    )
+    seen = set()
+    for s in customs:
+        if s.drug_name in seen:
+            continue
+        seen.add(s.drug_name)
+        cards.append(MedicationCardItem(
+            id=s.schedule_id, source="custom", drug_name=s.drug_name,
+            dosage=None, frequency=None,
+            start_date=s.start_date,
+            end_date=s.end_date,
+            is_active=s.is_active,
+        ))
+
+    return MedicationListResponse(medications=cards)
 
 def get_today_medications(user_id: int, db: Session) -> TodayMedicationResponse:
     return get_medications_by_date(user_id, date.today(), db)
@@ -161,6 +218,10 @@ def get_medications_by_date(user_id: int, target_date: date, db: Session) -> Dat
         .filter(
             MedicationSchedule.is_active == True,
             ScheduleDay.day_of_week == day_of_week,
+            # start_date가 없거나 target_date 이후인 경우만
+            (MedicationSchedule.start_date == None) | (MedicationSchedule.start_date <= target_date),
+            # end_date가 없거나 target_date 이전인 경우만
+            (MedicationSchedule.end_date == None) | (MedicationSchedule.end_date >= target_date),
         )
         .filter(
             (MedicalRecord.user_id == user_id) |
@@ -227,6 +288,8 @@ def create_schedule(user_id: int, medication_id: Optional[int], request: Medicat
         notification_type=request.notification_type or "PUSH",
         is_active=True,
         is_custom=request.is_custom or False,
+        start_date=request.start_date,
+        end_date=request.end_date,
     )
     db.add(schedule)
     db.flush()
@@ -431,14 +494,44 @@ def get_medication_history(user_id: int, start_date: date, end_date: date, drug_
     items = [
         MedicationHistoryItem(
             id=log.log_id,
-            prescription_id=log.schedule.prescribed_medicine_id if log.schedule else None,
-            drug_name=log.schedule.drug_name if log.schedule else '',
-            dosage=log.schedule.prescription.dosage if log.schedule and log.schedule.prescription else None,
-            frequency=log.schedule.prescription.frequency if log.schedule and log.schedule.prescription else None,
-            start_date=log.schedule.prescription.start_date if log.schedule and log.schedule.prescription else None,
-            end_date=log.schedule.prescription.end_date if log.schedule and log.schedule.prescription else None,
+            prescription_id=log.medication_schedule.prescribed_medicine_id if log.medication_schedule else None,
+            drug_name=log.medication_schedule.drug_name if log.medication_schedule else '',
+            dosage=log.medication_schedule.prescription.dosage if log.medication_schedule and log.medication_schedule.prescription else None,
+            frequency=log.medication_schedule.prescription.frequency if log.medication_schedule and log.medication_schedule.prescription else None,
+            start_date=log.medication_schedule.prescription.start_date if log.medication_schedule and log.medication_schedule.prescription else None,
+            end_date=log.medication_schedule.prescription.end_date if log.medication_schedule and log.medication_schedule.prescription else None,
             created_at=log.created_at,
         )
         for log in logs
     ]
     return MedicationHistoryResponse(total=total, page=page, size=size, items=items)
+
+def check_medication(user_id: int, request, db: Session):
+    from datetime import datetime
+    from app.models.medication_log import MedicationLog
+
+    schedule_id = request.medicationId
+    today = date.today()
+
+    existing_log = db.query(MedicationLog).filter(
+        MedicationLog.user_id == user_id,
+        MedicationLog.schedule_id == schedule_id,
+        MedicationLog.intake_date == today,
+    ).first()
+
+    if request.isChecked:
+        if not existing_log:
+            log = MedicationLog(
+                user_id=user_id,
+                schedule_id=schedule_id,
+                intake_date=today,
+                status='TAKEN',
+                checked_at=datetime.now(),
+            )
+            db.add(log)
+    else:
+        if existing_log:
+            db.delete(existing_log)
+
+    db.commit()
+    return {"detail": "ok"}

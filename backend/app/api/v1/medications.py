@@ -12,12 +12,14 @@ from app.schemas.medication import (
     PrescriptionResponse,
     PrescriptionDeleteResponse,
     PrescriptionListResponse,
+    MedicationListResponse,
     MedicationScheduleRequest,
     MedicationScheduleResponse,
     MedicationScheduleListResponse,
     MedicationAlarmUpdateRequest,
     MedicationAlarmUpdateResponse,
     MedicationDashboardResponse,
+    MedicationCheckRequest,
     TodayMedicationResponse,
     DateMedicationResponse,
 )
@@ -53,6 +55,13 @@ def get_prescriptions(
 ):
     return medication_service.get_prescriptions(current_user.id, db)
 
+# GET /api/v1/medications/list - 복약관리 목록 (처방약 + 직접등록)
+@router.get("/list", response_model=MedicationListResponse)
+def get_medication_list(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.get_medication_list(current_user.id, db)
 
 # GET /api/v1/medications/today - 오늘의 복약
 @router.get("/today", response_model=TodayMedicationResponse)
@@ -148,3 +157,11 @@ def get_medication_history(
     current_user=Depends(get_current_user)
 ):
     return medication_service.get_medication_history(current_user.id, start_date, end_date, drug_name, page, size, db)
+
+@router.patch("/check")
+def check_medication(
+    request: MedicationCheckRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.check_medication(current_user.id, request, db)

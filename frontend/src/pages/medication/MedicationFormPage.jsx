@@ -5,10 +5,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  addMedication,
+  addDirectMedication,
   deleteMedication,
   getMedicationById,
-  createSchedule,
   updateSchedule,
   getSchedules,
   updateAlarm,          // ✅ 신규
@@ -22,6 +21,8 @@ const UNITS        = ['정', 'mg', 'ml', '캡슐', '포', '개'];
 const PURPOSES     = ['혈압', '당뇨', '고지혈증', '통증', '소화', '수면', '기타'];
 const QUICK_DAYS   = [7, 14, 30, 90];
 const WEEK_DAYS    = ['월', '화', '수', '목', '금', '토', '일'];
+const DAY_TO_EN    = { 월: 'MON', 화: 'TUE', 수: 'WED', 목: 'THU', 금: 'FRI', 토: 'SAT', 일: 'SUN' };
+const ALL_DAYS_EN  = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -34,7 +35,13 @@ const defaultForm = () => ({
   startDate:      today(),
   endDate:        '',
   ongoing:        false,
-  mealTimes:      ['아침'],
+  mealTimes:      ['아침'], 
+  mealTimeTimes:      {
+    '아침': '08:00',
+    '점심': '12:00',
+    '저녁': '18:00',
+    '취침 전': '22:00',
+  },
   timing:         '식후',
   timingMinutes:  30,
   isAsNeeded:     false,
@@ -155,21 +162,33 @@ export default function MedicationFormPage() {
     try {
       setLoading(true);
 
-      if (mode === 'create') {
-        // 1️⃣ 약 등록
-        const res = await addMedication({
-          name:          form.name.trim(),
-          dosage_amount: form.dosageAmount,
-          dosage_unit:   form.dosageUnit,
-          purpose:       form.purpose || null,
-          start_date:    form.startDate,
-          end_date:      form.ongoing ? null : form.endDate || null,
-        });
-        const newId = res.data?.id ?? res.id;
-        console.log('[등록] prescriptionId:', newId, 'schedulePayload:', schedulePayload);
+        if (mode === 'create') {
+          const days = form.cycleType === 'weekdays'
+            ? form.weekDays.map(d => DAY_TO_EN[d])
+            : ALL_DAYS_EN;
 
-        // 2️⃣ 일정 등록
-        await createSchedule(newId, schedulePayload);
+          // 시간대별 기본 시간 매핑
+          const mealTimeMap = {
+            '아침': '08:00',
+            '점심': '12:00',
+            '저녁': '18:00',
+            '취침 전': '22:00',
+          };
+
+          // 선택한 복용 시간대마다 각각 스케줄 등록
+          for (const mealTime of form.mealTimes) {
+            const intakeTime = form.mealTimeTimes[mealTime] || '08:00';
+            await addDirectMedication({
+              intake_time:       intakeTime,
+              drug_name:         form.name.trim(),
+              dosage_message:    `${form.dosageAmount}${form.dosageUnit}`,
+              notification_type: 'PUSH',
+              days,
+              is_custom:         true,
+              start_date:        form.startDate || null,
+              end_date:          form.ongoing ? null : (form.endDate || null),
+            });
+          }
 
       } else {
         // 1️⃣ 일정 수정
@@ -287,25 +306,31 @@ export default function MedicationFormPage() {
 
         {/* ── 투약 기간 ── */}
         <Section title="투약 기간">
-          <div className="flex gap-3">
-            <div className="flex-1">
+          <Toggle
+            label="진행 중 (종료일 없음)"
+            checked={form.ongoing}
+            onChange={v => set('ongoing', v)}
+          />
+
+          <div className="mt-3 flex flex-col gap-3">
+            <div>
               <Label>시작일</Label>
               <input
                 type="date"
                 value={form.startDate}
                 onChange={e => set('startDate', e.target.value)}
-                className="w-full border border-[#E4E4E7] rounded-xl px-3 py-3 text-sm text-[#09090B] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+                className="w-full border border-[#E4E4E7] rounded-xl px-3 py-3 text-sm text-[#09090B] focus:outline-none focus:ring-2 focus:ring-[#2563EB] bg-white"
               />
             </div>
             {!form.ongoing && (
-              <div className="flex-1">
+              <div>
                 <Label>종료일</Label>
                 <input
                   type="date"
                   value={form.endDate}
                   min={form.startDate}
                   onChange={e => set('endDate', e.target.value)}
-                  className="w-full border border-[#E4E4E7] rounded-xl px-3 py-3 text-sm text-[#09090B] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+                  className="w-full border border-[#E4E4E7] rounded-xl px-3 py-3 text-sm text-[#09090B] focus:outline-none focus:ring-2 focus:ring-[#2563EB] bg-white"
                 />
               </div>
             )}
@@ -313,29 +338,27 @@ export default function MedicationFormPage() {
 
           {/* 빠른 기간 선택 */}
           {!form.ongoing && (
-            <div className="flex gap-2 mt-2 flex-wrap">
-              {QUICK_DAYS.map(d => (
-                <button
-                  key={d}
-                  onClick={() => {
-                    const end = new Date(form.startDate);
-                    end.setDate(end.getDate() + d - 1);
-                    set('endDate', end.toISOString().slice(0, 10));
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-[#EFF6FF] text-[#2563EB] text-xs font-medium"
-                >
-                  {d}일
-                </button>
-              ))}
+            <div className="flex gap-2 mt-3 flex-wrap">
+              {QUICK_DAYS.map(d => {
+                const end = new Date(form.startDate);
+                end.setDate(end.getDate() + d - 1);
+                const endStr = end.toISOString().slice(0, 10);
+                const isActive = form.endDate === endStr;
+                return (
+                  <button
+                    key={d}
+                    onClick={() => set('endDate', endStr)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
+                      ${isActive
+                        ? 'bg-[#2563EB] text-white'
+                        : 'bg-[#EFF6FF] text-[#2563EB]'}`}
+                  >
+                    {d}일
+                  </button>
+                );
+              })}
             </div>
           )}
-
-          <Toggle
-            mt
-            label="진행 중 (종료일 없음)"
-            checked={form.ongoing}
-            onChange={v => set('ongoing', v)}
-          />
         </Section>
 
         {/* ── 복용 시간 ── */}
@@ -454,9 +477,8 @@ export default function MedicationFormPage() {
           )}
         </Section>
 
-        {/* ── 복약 알림 ── (수정 모드: updateAlarm PATCH 호출) */}
+        {/* ── 복약 알림 ── */}
         <Section title="복약 알림">
-          {/* 수정 모드 뱃지 */}
           {mode === 'edit' && (
             <div className="mb-3 flex items-center gap-2 px-3 py-2 bg-[#EFF6FF] rounded-xl">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -475,18 +497,27 @@ export default function MedicationFormPage() {
           />
 
           {form.alarmEnabled && (
-            <div className="mt-3">
-              <Label>알림 시간</Label>
-              <input
-                type="time"
-                value={form.alarmTime}
-                onChange={e => set('alarmTime', e.target.value)}
-                className="border border-[#E4E4E7] rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
-              />
+            <div className="mt-3 p-3 bg-[#F4F4F5] rounded-xl">
+              <p className="text-[12px] text-[#71717A] mb-2">복용 시간대별 알림 시간을 설정해요</p>
+              <div className="flex flex-col gap-2">
+                {form.mealTimes.map(mealTime => (
+                  <div key={mealTime} className="flex items-center justify-between">
+                    <span className="text-[13px] text-[#52525B] font-medium">{mealTime}</span>
+                    <input
+                      type="time"
+                      value={form.mealTimeTimes[mealTime]}
+                      onChange={e => set('mealTimeTimes', {
+                        ...form.mealTimeTimes,
+                        [mealTime]: e.target.value
+                      })}
+                      className="border border-[#E4E4E7] rounded-lg px-2 py-1.5 text-sm text-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB] bg-white"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* 수정 모드: 알람 ID 표시 (디버그용) */}
           {mode === 'edit' && import.meta.env.DEV && (
             <p className="mt-2 text-[10px] text-[#A1A1AA]">
               alarm_id: {form.alarmId ?? '(서버 응답 대기중)'}

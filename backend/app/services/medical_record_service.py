@@ -1,7 +1,7 @@
 # app/services/medical_record_service.py
 # 진료기록 관련 비즈니스 로직
 
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional
 
 from fastapi import HTTPException
@@ -22,6 +22,7 @@ from app.schemas.medical_record import (
 )
 from app.schemas.safety import SafetyCheckResponse
 from app.services import dur_service
+from app.services.medication_service import _create_default_schedule
 
 
 # ── 내부 헬퍼 ─────────────────────────────────────────────
@@ -94,9 +95,18 @@ def create_medical_record(
             dosage=p.dosage,
             frequency=p.frequency,
             duration_days=p.duration_days,
+            start_date=record.visit_date,
+            end_date=(
+                record.visit_date + timedelta(days=p.duration_days)
+                if p.duration_days else None
+            ),
         )
         db.add(prescription)
         prescriptions.append(prescription)
+    db.flush()
+
+    for prescription in prescriptions:
+        _create_default_schedule(prescription, user_id, db)
 
     db.commit()
     db.refresh(record)
