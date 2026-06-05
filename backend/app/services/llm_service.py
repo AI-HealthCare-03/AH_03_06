@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from typing import Any
 
@@ -18,6 +19,8 @@ from app.database import SessionLocal
 from app.models.drug_info import DrugInfo
 from app.utils.quote_fidelity import chunk_texts, validate_sections
 from app.utils.rag import prepare_rag_context_async
+
+logger = logging.getLogger(__name__)
 
 
 def is_retrieval_empty(ctx: dict[str, Any]) -> bool:
@@ -309,7 +312,7 @@ async def generate_guide_for_drug_async(
     safety_block = _lookup_recall_warning(str(item_seq)) if item_seq else None
 
     if is_retrieval_empty(ctx):
-        print(f"[TIMING] item_seq={item_seq} drug_name={drug_name[:30]} retrieve-only fallback", flush=True)
+        logger.info(f"[TIMING] item_seq={item_seq} drug_name={drug_name[:30]} retrieve-only fallback")
         return _fallback_payload(drug_name, references, safety_block)
 
     chunks = chunk_texts(ctx)
@@ -317,17 +320,17 @@ async def generate_guide_for_drug_async(
     res = validate_sections(data.get("sections"), chunks)
     if res["hard_fail"]:
         # 재서술·주어첨가·비substring 인용 발견 → 그 목록 실어 1회 재생성
-        print(f"[QUOTE-FAIL] item_seq={item_seq} invalid={len(res['invalid'])} → 재생성 1회", flush=True)
+        logger.info(f"[QUOTE-FAIL] item_seq={item_seq} invalid={len(res['invalid'])} → 재생성 1회")
         data2 = await generate_structured_async(ctx, correction=_build_correction(res["invalid"]))
         res2 = validate_sections(data2.get("sections"), chunks)
         if len(res2["kept"]) >= len(res["kept"]):
             data, res = data2, res2   # 재생성이 같거나 더 많은 유효 섹션 → 채택
         else:
-            print(f"[QUOTE-KEEP1] item_seq={item_seq} 재생성 유효섹션({len(res2['kept'])})<1차({len(res['kept'])}) → 1차 유효섹션 유지", flush=True)
+            logger.info(f"[QUOTE-KEEP1] item_seq={item_seq} 재생성 유효섹션({len(res2['kept'])})<1차({len(res['kept'])}) → 1차 유효섹션 유지")
         if res["invalid"]:
-            print(f"[QUOTE-DROP] item_seq={item_seq} 잔존 invalid={len(res['invalid'])} 섹션 제거", flush=True)
+            logger.info(f"[QUOTE-DROP] item_seq={item_seq} 잔존 invalid={len(res['invalid'])} 섹션 제거")
     for f in res["flags"]:
-        print(f"[QUOTE-FLAG] {f['title']}: {f['kind']}", flush=True)
+        logger.debug(f"[QUOTE-FLAG] {f['title']}: {f['kind']}")
 
     sections = res["kept"]
     if not sections:
@@ -337,10 +340,9 @@ async def generate_guide_for_drug_async(
         return fb
 
     t_total = time.perf_counter() - t0
-    print(
+    logger.info(
         f"[TIMING] item_seq={item_seq} drug_name={drug_name[:30]} "
-        f"sections={len(sections)} total={t_total:.2f}s",
-        flush=True,
+        f"sections={len(sections)} total={t_total:.2f}s"
     )
 
     return {
