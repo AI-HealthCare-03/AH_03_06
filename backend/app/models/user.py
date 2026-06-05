@@ -46,7 +46,11 @@ class User(Base):
     medication_logs = relationship("MedicationLog", back_populates="user")
     medication_schedules = relationship("MedicationSchedule", back_populates="user")
 
+    attendances = relationship("Attendance", back_populates="user")
+    attendance_streak = relationship("AttendanceStreak", back_populates="user", uselist=False)
+    
     fcm_tokens = relationship("FcmToken", back_populates="user")
+
 class UserProfile(Base):
     """사용자 기본 프로필 테이블 (생년월일, 성별)"""
     __tablename__ = "user_profile"
