@@ -1,8 +1,8 @@
 # app/services/dur_service.py
 # 복약 안전점검(DUR) — 진료기록 처방 묶음에 대한 안전성 검증.
 #
-# 안전점검 결과 dict의 카테고리 키는 llm_service.format_safety_alerts 와 공유하는 인터페이스라
-# 임의로 바꾸지 말 것 (바꾸려면 format_safety_alerts 도 같이).
+# 안전점검 결과 dict의 카테고리 키는 safety-check 응답 스키마(프론트 SafetyCheckSection 소비)와
+# 공유하는 인터페이스라 임의로 바꾸지 말 것.
 # 키: duplicates_ingredient / duplicates_efficacy / elderly_cautions / dose_exceeded / recall_warnings / contraindications
 
 # 데이터 근거 (라이브 RDS 검증):

@@ -126,31 +126,6 @@ GUIDE_JSON_SCHEMA: dict[str, Any] = {
 }
 
 
-def format_safety_alerts(safety: dict[str, Any] | None) -> str:
-    """safety dict → 알림 텍스트 (BLOCK·WARN·INFO 우선순위 순)."""
-    if not safety:
-        return ""
-    parts: list[str] = []
-
-    if safety.get("duplicates_ingredient"):
-        for a in safety["duplicates_ingredient"]:
-            parts.append(f"🚫 동일 성분 중복: {a.get('message', '')}")
-    if safety.get("recall_warnings"):
-        for a in safety["recall_warnings"]:
-            parts.append(f"🚫 회수약 알림: {a.get('message', '')}")
-    if safety.get("dose_exceeded"):
-        for a in safety["dose_exceeded"]:
-            parts.append(f"⚠️ 1일 최대량 초과: {a.get('message', '')}")
-    if safety.get("duplicates_efficacy"):
-        for a in safety["duplicates_efficacy"]:
-            parts.append(f"⚠️ 효능군 중복: {a.get('message', '')}")
-    if safety.get("elderly_cautions"):
-        for a in safety["elderly_cautions"]:
-            parts.append(f"ⓘ 노인주의: {a.get('message', '')}")
-
-    return "\n".join(parts)
-
-
 def _collect_references(ctx: dict[str, Any]) -> list[str]:
     """검색 hit 의 metadata['source'] 만 모아 순서 보존 dedupe → 출처 목록.
 
@@ -306,9 +281,6 @@ def _fallback_payload(drug_name: str, references: list[str], safety_block: str |
         "references": references,
         "disclaimer": DISCLAIMER,
         "safety_block": safety_block,
-        "safety_warn": None,
-        "safety_info": None,
-        "safety_recommendations": None,
     }
 
 
@@ -381,7 +353,4 @@ async def generate_guide_for_drug_async(
         "references": references,
         "disclaimer": DISCLAIMER,
         "safety_block": safety_block,
-        "safety_warn": None,
-        "safety_info": None,
-        "safety_recommendations": None,
     }

@@ -94,9 +94,6 @@ class GuidePreviewResponse(BaseModel):
     disclaimer: str
     references: list[str] = []
     safety_block: str | None = None
-    safety_warn: str | None = None
-    safety_info: str | None = None
-    safety_recommendations: str | None = None
 
 
 class DrugSuggestItem(BaseModel):
