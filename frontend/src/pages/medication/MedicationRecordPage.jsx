@@ -1,11 +1,9 @@
 // src/pages/medication/MedicationRecordPage.jsx
-// 수정: 복용하기 버튼 클릭 시 상태 즉시 반영되도록 수정
-// (기존: takeMedication 후 fetchMedicationsByDate 재호출 → Mock에서 상태 반영 안 됨)
-// (수정: 로컬 상태를 직접 업데이트해서 즉시 UI 반영)
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header.jsx';
+import MobileFrame from '../../components/MobileFrame.jsx';
 import {
   fetchCalendar,
   fetchAnalysis,
@@ -81,7 +79,7 @@ function MedCard({ med, onTake, onUndo }) {
   const isMissed  = med.status === 'missed';
 
   return (
-    <div className={`flex items-center gap-3 bg-white rounded-2xl px-4 py-3.5 mb-2 shadow-sm
+    <div className={`flex items-center gap-3 bg-white border border-borderHairline rounded-2xl px-4 py-3.5 mb-2 shadow-sm
       ${isPending ? 'border border-[#DBEAFE]' : ''}`}
     >
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0
@@ -139,7 +137,7 @@ function AnalysisBanner({ periodLabel, achievementRate, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 bg-white rounded-2xl px-4 py-3.5 shadow-sm text-left"
+      className="w-full flex items-center gap-3 bg-white border border-borderHairline rounded-2xl px-4 py-3.5 shadow-sm text-left"
     >
       <div className="w-9 h-9 rounded-xl bg-[#EFF6FF] flex items-center justify-center flex-shrink-0">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -228,7 +226,7 @@ export default function MedicationRecordPage() {
       return { ...updated, doneCount };
     });
 
-    // 백엔드 호출 (Mock에서는 상태 유지용)
+    // 백엔드 반영(영속화)
     try {
       const dateStr = toDateStr(year, month, selected);
       await takeMedication(dateStr, medId);
@@ -269,16 +267,14 @@ export default function MedicationRecordPage() {
   const missedDays = new Set(calData?.missedDays ?? []);
 
   return (
-    <div className="bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
-      <div className="w-full bg-[#F4F4F5] flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8">
-
-        {/* 헤더 — 공용 Header 컴포넌트로 통일 */}
-        <Header variant="back" title="복약 기록" />
-
+    <MobileFrame
+      contentBg="white"
+      header={<Header variant="back" title="복약 기록" />}
+    >
         <div className="px-4 py-4 space-y-3">
 
         {/* 달력 카드 */}
-        <div className="bg-white rounded-2xl px-4 py-4 shadow-sm">
+        <div className="bg-white border border-borderHairline rounded-2xl px-4 py-4 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-[#F4F4F5]"><ChevronLeft /></button>
             <span className="text-[15px] font-semibold text-[#09090B]">{year}년 {MONTH_KO(month)}</span>
@@ -396,7 +392,6 @@ export default function MedicationRecordPage() {
         )}
         <div className="h-6" />
         </div>
-      </div>
-    </div>
+    </MobileFrame>
   );
 }

@@ -1,8 +1,5 @@
 // src/api/medication.js
 import { getAccessToken as getToken } from '../utils/token';
-import * as MockService from '../utils/mockMedicationService';
-
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 // ── 실제 API 클라이언트 ─────────────────────────────────────
 const BASE = `${import.meta.env.VITE_API_BASE_URL ?? '/api/v1'}/medications`;
@@ -174,7 +171,9 @@ const toMedicationCard = (p) => ({
   name:        p.drug_name,
   status:      p.is_active ? '진행 중' : '종료',
   category:    p.source === 'custom' ? '일반의약품' : '처방약',
-  description: p.frequency || p.dosage || '',
+  description: p.dosage_text || p.frequency || p.dosage || '',
+  times:       p.times || [],
+  isAsNeeded:  p.is_as_needed || false,
   startDate:   p.start_date,
   endDate:     p.end_date,
 });
@@ -265,7 +264,8 @@ const RealService = {
   },
 
   // 기존 그대로
-  getMedicationById:      (id)                     => apiClient.get(`/prescriptions/${id}`),
+  getMedicationById:      (id, source)             => apiClient.get(`/${id}?source=${source ?? 'prescription'}`),
+  updateMedication:       (id, source, req)        => apiClient.put(`/${id}?source=${source ?? 'prescription'}`, req),
   addMedication:          (req)                    => apiClient.post('/prescriptions', req),
   deleteMedication:       (id)                     => apiClient.delete(`/prescriptions/${id}`),
   deleteSchedule:         (id)                     => apiClient.delete(`/schedules/${id}`),
@@ -311,12 +311,12 @@ const RealService = {
   fetchScheduleHistory:   (startDate, endDate)     => apiClient.get(`/schedules?start_date=${startDate}&end_date=${endDate}`),
 };
 
-// ── 서비스 선택 ─────────────────────────────────────────────
-const Service = USE_MOCK ? MockService : RealService;
+const Service = RealService;
 
 // ── export ───────────────────────────────────────────────────
 export const getMedications         = (filter = {}) => Service.getMedications(filter);
-export const getMedicationById      = (id)          => Service.getMedicationById(id);
+export const getMedicationById      = (id, source) => Service.getMedicationById(id, source);
+export const updateMedication       = (id, source, req) => Service.updateMedication(id, source, req);
 export const addDirectMedication    = (req)         => (Service.addDirectMedication ?? Service.addMedication)(req);
 export const deleteMedication       = (id)          => Service.deleteMedication(id);
 export const deleteSchedule = (id) => Service.deleteSchedule(id)
@@ -336,7 +336,3 @@ export const getSchedules           = (medicationId)         => Service.getSched
 export const updateAlarm            = (alarmId, req)         => Service.updateAlarm(alarmId, req);
 export const fetchDashboard         = (period)               => Service.fetchDashboard(period);
 export const fetchScheduleHistory   = (startDate, endDate)   => Service.fetchScheduleHistory(startDate, endDate);
-
-if (import.meta.env.DEV) {
-  console.log(`[medication.js] 모드: ${USE_MOCK ? '🟡 Mock' : '🟢 Real API'}`);
-}

@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import Header from '../../components/Header.jsx'
+import MobileFrame from '../../components/MobileFrame.jsx'
 import { getMedications, getTodayMedication, deleteMedication, checkMedication, deleteSchedule} from '../../api/medication.js'
 
 export default function MedicationPage() {
-  const [view, setView] = useState('list')
+  const [params] = useSearchParams()
+  const [view, setView] = useState(params.get('view') === 'today' ? 'today' : 'list')
   const navigate = useNavigate()
 
   if (view === 'today') return <TodayMedication onBack={() => setView('list')} />
@@ -23,7 +26,7 @@ function MedicationList({ onTodayClick, navigate }) {
   const [isLoading, setIsLoading]           = useState(false)
   const [error, setError]                   = useState(null)
   const [openMenuId, setOpenMenuId]         = useState(null)
-  const [isNearBottom, setIsNearBottom] = useState(false)
+  const [fabOpen, setFabOpen]               = useState(false)
 
   useEffect(() => {
     const fetch = async () => {
@@ -48,18 +51,6 @@ function MedicationList({ onTodayClick, navigate }) {
     document.addEventListener('click', close)
     return () => document.removeEventListener('click', close)
   }, [openMenuId])
-
-  useEffect(() => {
-    const scrollEl = document.querySelector('.overflow-y-auto')
-    if (!scrollEl) return
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = scrollEl
-      setIsNearBottom(scrollHeight - scrollTop - clientHeight < 150)
-    }
-    scrollEl.addEventListener('scroll', handleScroll)
-    return () => scrollEl.removeEventListener('scroll', handleScroll)
-  }, [])
-
 
   const handleDelete = async (id) => {
     if (!window.confirm('복약을 종료 처리할까요?')) return
@@ -92,21 +83,13 @@ function MedicationList({ onTodayClick, navigate }) {
       : a.name.localeCompare(b.name, 'ko'))
 
   return (
-    <div className="bg-[#FAFAFA] w-full min-h-[100dvh] flex justify-center">
-      <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px]">
+    <MobileFrame
+      contentBg="white"
+      header={<Header variant="back" title="복약 관리" />}
+    >
 
-        {/* 헤더 - sticky 고정 */}
-        <div className="sticky top-0 z-10 flex items-center justify-center px-5 pt-5 pb-3 relative bg-white">
-          <button onClick={() => navigate(-1)} className="absolute left-5 text-[#09090B]">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
-          <h1 className="text-[17px] font-[700] text-[#09090B]">복약 관리</h1>
-        </div>
-
-        {/* 탭 - sticky 고정 */}
-        <div className="sticky top-[60px] z-10 flex border-b border-[#F4F4F5] bg-white">
+        {/* 탭 */}
+        <div className="sticky top-[72px] z-10 flex border-b border-[#F4F4F5] bg-white">
           {['복약 중', '복약 종료'].map((tab) => (
             <button
               key={tab}
@@ -122,7 +105,7 @@ function MedicationList({ onTodayClick, navigate }) {
           ))}
         </div>
 
-        <div className="flex-1 px-4 pt-4 pb-28 space-y-3 overflow-y-auto">
+        <div className="px-4 pt-4 pb-28 space-y-3">
 
           {/* 검색창 */}
           <div className="relative">
@@ -169,47 +152,32 @@ function MedicationList({ onTodayClick, navigate }) {
 
           {/* 약 카드 목록 */}
           {!isLoading && !error && filtered.map((med) => (
-            <div key={med.id} className="bg-white border border-[#E4E4E7] rounded-[14px] px-4 py-4 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3 flex-1">
-                  {/* 약 아이콘 */}
-                  <div className="w-10 h-10 rounded-[10px] bg-[#F4F4F5] flex items-center justify-center shrink-0 mt-0.5">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M10.5 20H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H20a2 2 0 0 1 2 2v3" />
-                      <circle cx="18" cy="18" r="3" /><path d="M22 22l-1.5-1.5" />
+            <div key={med.id} className="bg-white border border-borderHairline rounded-[14px] px-4 py-4 shadow-sm">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  {/* 카테고리 뱃지 */}
+                  <span className={`inline-block text-[11px] font-[600] px-1.5 py-0.5 rounded-[4px] mb-1.5
+                    ${med.category === '처방약' ? 'bg-primarySoft text-primary' : 'bg-borderLight text-subtext'}`}>
+                    {med.category}
+                  </span>
+
+                  <h3 className="text-[16px] font-[700] text-textHeading leading-tight">{med.name}</h3>
+
+                  {/* 용량 · 복용 시간 (한 줄로 병합) */}
+                  <div className="flex items-center gap-1.5 mt-1.5 text-[12px] text-subtext">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-mute">
+                      <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                     </svg>
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    {/* 카테고리 뱃지 */}
-                    <span className={`inline-block text-[11px] font-[600] px-1.5 py-0.5 rounded-[4px] mb-1
-                      ${med.category === '처방약' ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F4F4F5] text-[#52525B]'}`}>
-                      {med.category}
+                    <span className="truncate">
+                      {[med.description, med.isAsNeeded ? '필요시 복용' : (med.times?.length > 0 ? `매일 ${med.times.join(' · ')}` : null)]
+                        .filter(Boolean).join(' · ')}
                     </span>
-
-                    <h3 className="text-[15px] font-[700] text-[#09090B] leading-tight">{med.name}</h3>
-                    <p className="text-[13px] text-[#71717A] mt-0.5">{med.description}</p>
-
-                    {/* 복약 스케줄 */}
-                    {med.schedule?.slots?.map((slot, i) => (
-                      <div key={i} className="flex items-center gap-1.5 mt-2">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-                        </svg>
-                        <span className="text-[12px] text-[#71717A]">
-                          {slot.dosageAmount}{slot.dosageUnit} ·{' '}
-                          {med.schedule?.isAsNeeded
-                            ? `필요시 (저녁 ${slot.clockTime})`
-                            : `매일 ${slot.mealTime} ${slot.timing}${slot.timingMinutes ? ` ${slot.timingMinutes}분` : ''}`}
-                        </span>
-                      </div>
-                    ))}
-
-                    <p className="text-[11px] text-[#A1A1AA] mt-1.5">
-                      {med.startDate?.replace(/-/g, '.')}
-                      {med.endDate ? ` ~ ${med.endDate?.replace(/-/g, '.')}` : ' ~ 진행 중'}
-                    </p>
                   </div>
+
+                  <p className="text-[11px] text-mute mt-2">
+                    {med.startDate?.replace(/-/g, '.')}
+                    {med.endDate ? ` ~ ${med.endDate?.replace(/-/g, '.')}` : ' ~ 진행 중'}
+                  </p>
                 </div>
 
                 {/* ── ⋮ 버튼 + 드롭다운 메뉴 (복약 중 탭에서만) ── */}
@@ -234,7 +202,7 @@ function MedicationList({ onTodayClick, navigate }) {
                         <button
                           onClick={() => {
                             setOpenMenuId(null)
-                            navigate(`/medication/form?mode=edit&id=${med.id}`)
+                            navigate(`/medication/form?mode=edit&id=${med.id}&source=${med.source}`)
                           }}
                           className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-[#09090B] font-[500] hover:bg-[#F4F4F5] transition-colors"
                         >
@@ -284,57 +252,82 @@ function MedicationList({ onTodayClick, navigate }) {
           )}
         </div>
 
-        {/* 플로팅 버튼 - 드롭다운 열려있을 때 숨김 */}
-          <div className={`fixed right-4 md:right-[calc(50%-220px)] flex flex-col items-end gap-3 transition-all duration-300
-            ${isNearBottom ? 'bottom-60' : 'bottom-20'}`}>
-            <button
-              onClick={() => navigate('/medication/record')}
-              className="bg-white border border-[#E4E4E7] shadow-md rounded-full px-4 py-2 text-[13px] font-[600] text-[#09090B] flex items-center gap-1.5"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-                <line x1="8" y1="14" x2="16" y2="14"/>
-                <line x1="8" y1="18" x2="12" y2="18"/>
-              </svg>
-              복약 기록
-            </button>
+        {/* 바깥 탭으로 닫기 위한 스크림 (열림 시 살짝 어둡게) */}
+        {fabOpen && (
+          <div
+            className="fixed inset-0 z-10 bg-[#18181B]/20 transition-opacity"
+            onClick={() => setFabOpen(false)}
+          />
+        )}
 
-            <button
-              onClick={() => navigate('/medication/history')}
-              className="bg-white border border-[#E4E4E7] shadow-md rounded-full px-4 py-2 text-[13px] font-[600] text-[#09090B] flex items-center gap-1.5"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-              복약 이력
-            </button>
+        {/* 플로팅 액션 — + 하나만 떠 있고, 탭하면 메뉴가 펼쳐짐 */}
+        <div className="fixed right-5 md:right-[calc((100vw_-_480px)/2_+_20px)] flex flex-col items-end gap-3 bottom-24 z-20">
+          {fabOpen && (
+            <>
+              <button
+                onClick={() => { setFabOpen(false); navigate('/medication/record') }}
+                className="bg-white border border-borderHairline shadow-md rounded-full px-4 py-2 text-[13px] font-[600] text-textHeading flex items-center gap-1.5 transition-colors hover:bg-primary hover:border-primary hover:text-white"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                  <line x1="8" y1="14" x2="16" y2="14"/>
+                  <line x1="8" y1="18" x2="12" y2="18"/>
+                </svg>
+                복약 기록
+              </button>
 
-            <button
-              onClick={onTodayClick}
-              className="bg-white border border-[#E4E4E7] shadow-md rounded-full px-4 py-2 text-[13px] font-[600] text-[#2563EB] flex items-center gap-1.5"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-              </svg>
-              오늘의 복약
-            </button>
+              <button
+                onClick={() => { setFabOpen(false); navigate('/medication/history') }}
+                className="bg-white border border-borderHairline shadow-md rounded-full px-4 py-2 text-[13px] font-[600] text-textHeading flex items-center gap-1.5 transition-colors hover:bg-primary hover:border-primary hover:text-white"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                복약 이력
+              </button>
 
-            <button
-              onClick={() => navigate('/medication/form')}
-              className="w-14 h-14 bg-[#2563EB] rounded-full flex items-center justify-center shadow-lg"
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </button>
-          </div>
+              <button
+                onClick={() => { setFabOpen(false); onTodayClick() }}
+                className="bg-white border border-borderHairline shadow-md rounded-full px-4 py-2 text-[13px] font-[600] text-textHeading flex items-center gap-1.5 transition-colors hover:bg-primary hover:border-primary hover:text-white"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                </svg>
+                오늘의 복약
+              </button>
 
-      </div>
-    </div>
+              <button
+                onClick={() => { setFabOpen(false); navigate('/medication/form') }}
+                className="bg-white border border-borderHairline shadow-md rounded-full px-4 py-2 text-[13px] font-[600] text-textHeading flex items-center gap-1.5 transition-colors hover:bg-primary hover:border-primary hover:text-white"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.5 20H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H20a2 2 0 0 1 2 2v3"/>
+                  <circle cx="18" cy="18" r="3"/><path d="M22 22l-1.5-1.5"/>
+                </svg>
+                복용 약 등록
+              </button>
+            </>
+          )}
+
+          <button
+            onClick={() => setFabOpen((o) => !o)}
+            aria-label={fabOpen ? '메뉴 닫기' : '메뉴 열기'}
+            className="w-14 h-14 bg-primary rounded-full flex items-center justify-center shadow-lg"
+          >
+            <svg
+              width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"
+              className={`transition-transform duration-200 ${fabOpen ? 'rotate-45' : ''}`}
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
+        </div>
+
+    </MobileFrame>
   )
 }
 
@@ -393,18 +386,10 @@ function TodayMedication({ onBack }) {
   }
 
   return (
-    <div className="bg-[#FAFAFA] w-full min-h-[100dvh] flex justify-center">
-      <div className="w-full bg-[#FAFAFA] relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] pb-10">
-
-        {/* 헤더 */}
-        <div className="flex items-center justify-center px-5 pt-5 pb-3 relative bg-[#FAFAFA]">
-          <button onClick={onBack} className="absolute left-5 text-[#09090B]">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
-          <h1 className="text-[17px] font-[700] text-[#09090B]">오늘의 복약</h1>
-        </div>
+    <MobileFrame
+      contentBg="white"
+      header={<Header variant="back" title="오늘의 복약" onBack={onBack} />}
+    >
 
         {isLoading && (
           <div className="flex justify-center py-20">
@@ -518,7 +503,6 @@ function TodayMedication({ onBack }) {
 
           </div>
         )}
-      </div>
-    </div>
+    </MobileFrame>
   )
 }

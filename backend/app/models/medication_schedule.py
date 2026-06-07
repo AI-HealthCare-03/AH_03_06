@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, Boolean, Time, DateTime, Date, ForeignKey
+from sqlalchemy import Column, BigInteger, Integer, String, Boolean, Time, DateTime, Date, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -20,6 +20,10 @@ class MedicationSchedule(Base):
     is_custom              = Column(Boolean, nullable=False, default=False)
     start_date             = Column(Date, nullable=True)
     end_date               = Column(Date, nullable=True)
+    interval_days          = Column(Integer, nullable=True)   # N일마다 복용(격일=2·주1회=7·4주=28). NULL/1=매일(요일 기반)
+    is_as_needed           = Column(Boolean, nullable=False, default=False)   # 필요시 복용(PRN) — 정해진 시간 없음
+    meal_basis             = Column(String(10), nullable=True)   # 식사 기준: 식전·식후·식간·상관없음. NULL=미지정
+    timing_offset_min      = Column(Integer, nullable=True)   # 식사 기준 오프셋(분). 식후 30분=30
     created_at             = Column(DateTime, nullable=False, default=func.now())
 
     # 관계 정의

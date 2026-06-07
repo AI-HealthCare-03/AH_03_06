@@ -41,9 +41,43 @@ class MedicationCardItem(BaseModel):
     start_date:    Optional[date] = None
     end_date:      Optional[date] = None
     is_active:     bool
+    dosage_text:   Optional[str] = None   # 표시용 용량 (custom은 스케줄 dosage_message)
+    times:         List[str] = []         # 복용 시간대 ["08:00", ...] (정렬)
+    is_as_needed:  bool = False           # 필요시 복용(PRN)
 
 class MedicationListResponse(BaseModel):
     medications: List[MedicationCardItem]
+
+
+class MedicationDetailResponse(BaseModel):
+    """수정 폼 로드용 — 처방약/직접등록 공용 단건 상세."""
+    id:             int
+    source:         str                      # 'prescription' | 'custom'
+    drug_name:      str
+    dosage_message: Optional[str] = None     # 표시/파싱용 용량 ("1정" 등)
+    start_date:     Optional[date] = None
+    end_date:       Optional[date] = None
+    times:          List[str] = []           # 복용 시간 ["08:00", ...]
+    days:           List[str] = []           # ["MON", ...] (빈 값=매일)
+    interval_days:  Optional[int] = None     # N일마다(격일=2·주1회=7·4주=28). None=매일/요일기반
+    is_as_needed:   bool = False             # 필요시 복용(PRN)
+    meal_basis:        Optional[str] = None  # 식사 기준(식전·식후·식간·상관없음)
+    timing_offset_min: Optional[int] = None  # 식사 기준 오프셋(분)
+
+
+class MedicationUpdateRequest(BaseModel):
+    """수정 저장용 — 스케줄 재생성 기준."""
+    drug_name:         str
+    dosage_message:    Optional[str] = None   # "1정"
+    start_date:        Optional[date] = None
+    end_date:          Optional[date] = None
+    times:             List[str] = []         # 복용 시간 ["08:00", ...] (1개 이상)
+    days:              List[str] = []         # ["MON", ...] (빈 값=매일)
+    interval_days:     Optional[int] = None   # N일마다(격일=2·주1회=7·4주=28). None=매일/요일기반
+    is_as_needed:      Optional[bool] = False # 필요시 복용(PRN)
+    meal_basis:        Optional[str] = None   # 식사 기준(식전·식후·식간·상관없음)
+    timing_offset_min: Optional[int] = None   # 식사 기준 오프셋(분)
+    notification_type: Optional[str] = "PUSH"
 
 
 class PrescriptionDeleteResponse(BaseModel):
@@ -76,6 +110,8 @@ class TodayMedicationScheduleItem(BaseModel):
     dosage_message: Optional[str] = None
     is_taken:       bool
     log_id:         Optional[int] = None
+    meal_basis:        Optional[str] = None
+    timing_offset_min: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -100,6 +136,10 @@ class MedicationScheduleRequest(BaseModel):
     is_custom:         Optional[bool] = False
     start_date:        Optional[date] = None
     end_date:          Optional[date] = None
+    interval_days:     Optional[int] = None
+    is_as_needed:      Optional[bool] = False
+    meal_basis:        Optional[str] = None
+    timing_offset_min: Optional[int] = None
 
 
 class MedicationScheduleResponse(BaseModel):
@@ -107,7 +147,8 @@ class MedicationScheduleResponse(BaseModel):
     medication_id:     Optional[int] = None
     intake_time:       str
     dosage_message:    Optional[str] = None
-    is_after_meal:     Optional[bool] = None
+    meal_basis:        Optional[str] = None
+    timing_offset_min: Optional[int] = None
     notification_type: str
     is_active:         bool
     is_custom:         bool
@@ -164,6 +205,7 @@ class MedicationHistoryItem(BaseModel):
     notes:           Optional[str] = None
     alarm:           Optional[AlarmResponse] = None
     created_at:      datetime
+    checked_at:      Optional[datetime] = None  # 실제 복용 시각(체크 시점). 표시는 checked_at 우선
 
     class Config:
         from_attributes = True
@@ -207,3 +249,15 @@ class MedicationCheckRequest(BaseModel):
 
 class MedicationCheckResponse(BaseModel):
     detail: str
+
+
+class MedicationCalendarResponse(BaseModel):
+    """복약 기록 달력 — 해당 월의 성실/누락 '일(day)' 숫자 배열."""
+    doneDays:   List[int] = []   # TAKEN 로그가 있는 날
+    missedDays: List[int] = []   # 예정 복용일(오늘 이전) 중 TAKEN 없는 날
+
+
+class MedicationAnalysisResponse(BaseModel):
+    """복약 기록 분석 배너 — 최근 기간 달성률."""
+    periodLabel:     str   # "최근 7일"
+    achievementRate: int   # 예정 대비 TAKEN 비율(정수 %)

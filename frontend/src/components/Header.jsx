@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faBell, faChevronLeft } from '@fortawesome/free-solid-svg-icons'
 
-function Header({ variant = 'default', title, nickname, showDivider = true, rightAction }) {
+function Header({ variant = 'default', title, nickname, showDivider = true, rightAction, onBack }) {
   const navigate = useNavigate()
 
   if (variant === 'home') {
@@ -23,7 +23,7 @@ function Header({ variant = 'default', title, nickname, showDivider = true, righ
   if (variant === 'back') {
     return (
       <header className={`sticky top-0 z-40 bg-white ${showDivider ? 'border-b border-[#F4F4F5]' : ''} px-5 h-[72px] flex items-center justify-between`}>
-        <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-start">
+        <button onClick={onBack || (() => navigate(-1))} className="w-10 h-10 flex items-center justify-start">
           <FontAwesomeIcon icon={faChevronLeft} className="text-[#18181B] text-[18px]" />
         </button>
         <h1 className="text-[16px] font-[700] text-[#18181B] tracking-tight">{title}</h1>
