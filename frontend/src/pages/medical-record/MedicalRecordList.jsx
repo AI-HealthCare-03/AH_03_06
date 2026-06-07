@@ -213,7 +213,7 @@ export default function MedicalRecordList() {
   const hasFilters = !!keyword || activeFilterCount > 0
 
   return (
-    <MobileFrame header={<Header variant="back" title="진료기록" showDivider={false} />}>
+    <MobileFrame header={<Header variant="back" title="진료기록" />}>
 
       {/* 검색바 */}
       <div className="px-5 pt-1 pb-3">

@@ -82,7 +82,7 @@ function HealthCheckList() {
     <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
       <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 pb-24">
 
-        <Header variant="back" title="건강검진" showDivider={false} />
+        <Header variant="back" title="건강검진" />
 
         <div className="sticky top-[72px] z-30 bg-white border-b border-[#F4F4F5] px-5 py-3 flex items-center justify-between">
           <span className="text-[14px] font-[500] text-[#71717A]">총 {filtered.length}건</span>
