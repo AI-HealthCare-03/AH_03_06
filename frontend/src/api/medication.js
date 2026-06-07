@@ -165,6 +165,14 @@ function transformSchedules(raw) {
 // ── 응답 변환 (실제 API → 프론트 기대 모양) ──────────────────
 const ok = (data) => ({ success: true, data });
 
+// 식사 기준(식전/식후/식간) + 오프셋(분) → "식후 30분". '상관없음'·미지정은 빈 값.
+const fmtMealTiming = (basis, offMin) => {
+  if (!basis || basis === '상관없음') return '';
+  if (!offMin) return basis;
+  const off = offMin >= 60 ? `${offMin / 60}시간` : `${offMin}분`;
+  return `${basis} ${off}`;
+};
+
 const toMedicationCard = (p) => ({
   id:          p.id,
   source:      p.source,
@@ -174,6 +182,7 @@ const toMedicationCard = (p) => ({
   description: p.dosage_text || p.frequency || p.dosage || '',
   times:       p.times || [],
   isAsNeeded:  p.is_as_needed || false,
+  mealTiming:  fmtMealTiming(p.meal_basis, p.timing_offset_min),
   startDate:   p.start_date,
   endDate:     p.end_date,
 });
@@ -212,6 +221,7 @@ const toTodayView = (res) => {
       dosageAmount:     s.dosage ?? '',
       dosageUnit:       '',
       categoryLabel:    '처방약',
+      mealTiming:       fmtMealTiming(s.meal_basis, s.timing_offset_min),
       completionStatus: s.is_taken ? '완료' : '예정',
     });
     groupMap.get(clockTime).medications.push({

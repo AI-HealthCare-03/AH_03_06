@@ -47,11 +47,20 @@ const fmtTime = (isoStr) => {
   return `${ampm} ${h % 12 || 12}:${m}`;
 };
 
-// 날짜별로 records 그룹화
+// ISO(UTC+Z) → 로컬(KST) 'YYYY-MM-DD'. 시각 표시와 같은 기준으로 묶어 새벽 복용이 전날로 새지 않게.
+const kstDateKey = (iso) => {
+  if (!iso) return 'unknown';
+  const d = new Date(iso);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+};
+
+// 날짜별로 records 그룹화 (KST 기준, 완료 시각 우선)
 const groupByDate = (records) => {
   const map = {};
   for (const r of records) {
-    const dateKey = r.created_at?.slice(0, 10) ?? 'unknown'
+    const dateKey = kstDateKey(r.checked_at ?? r.created_at);
     if (!map[dateKey]) map[dateKey] = [];
     map[dateKey].push(r);
   }

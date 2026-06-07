@@ -169,7 +169,7 @@ function MedicationList({ onTodayClick, navigate }) {
                       <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                     </svg>
                     <span className="truncate">
-                      {[med.description, med.isAsNeeded ? '필요시 복용' : (med.times?.length > 0 ? `매일 ${med.times.join(' · ')}` : null)]
+                      {[med.description, med.mealTiming, med.isAsNeeded ? '필요시 복용' : (med.times?.length > 0 ? `매일 ${med.times.join(' · ')}` : null)]
                         .filter(Boolean).join(' · ')}
                     </span>
                   </div>
@@ -477,7 +477,7 @@ function TodayMedication({ onBack }) {
                           {entry.medicationName}
                         </p>
                         <p className="text-[12px] text-[#A1A1AA] mt-0.5">
-                          {entry.dosageAmount}{entry.dosageUnit} · {entry.categoryLabel}
+                          {entry.dosageAmount}{entry.dosageUnit} · {entry.categoryLabel}{entry.mealTiming ? ` · ${entry.mealTiming}` : ''}
                         </p>
                       </div>
                     </button>

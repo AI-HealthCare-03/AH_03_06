@@ -44,6 +44,8 @@ class MedicationCardItem(BaseModel):
     dosage_text:   Optional[str] = None   # 표시용 용량 (custom은 스케줄 dosage_message)
     times:         List[str] = []         # 복용 시간대 ["08:00", ...] (정렬)
     is_as_needed:  bool = False           # 필요시 복용(PRN)
+    meal_basis:        Optional[str] = None  # 식사 기준(식전·식후·식간·상관없음)
+    timing_offset_min: Optional[int] = None  # 식사 기준 오프셋(분)
 
 class MedicationListResponse(BaseModel):
     medications: List[MedicationCardItem]
@@ -204,8 +206,8 @@ class MedicationHistoryItem(BaseModel):
     meal_timing:     Optional[str] = None
     notes:           Optional[str] = None
     alarm:           Optional[AlarmResponse] = None
-    created_at:      datetime
-    checked_at:      Optional[datetime] = None  # 실제 복용 시각(체크 시점). 표시는 checked_at 우선
+    created_at:      str                        # ISO+Z (UTC 명시 → JS가 로컬 KST로 변환)
+    checked_at:      Optional[str] = None        # 실제 복용 시각(체크 시점, ISO+Z). 표시는 checked_at 우선
 
     class Config:
         from_attributes = True

@@ -247,6 +247,8 @@ def get_medication_list(user_id: int, db: Session) -> MedicationListResponse:
             start_date=p.start_date, end_date=p.end_date,
             is_active=p.is_active and (p.end_date is None or p.end_date >= today),
             dosage_text=p.dosage, times=times, is_as_needed=prn,
+            meal_basis=next((s.meal_basis for s in active if s.meal_basis), None),
+            timing_offset_min=next((s.timing_offset_min for s in active if s.timing_offset_min is not None), None),
         ))
 
     # 직접등록 (처방전 없는 custom 일정) - 같은 약은 하나로 묶고 복용시간 모음
@@ -276,6 +278,7 @@ def get_medication_list(user_id: int, db: Session) -> MedicationListResponse:
             start_date=s.start_date, end_date=s.end_date,
             is_active=s.is_active and (s.end_date is None or s.end_date >= today),
             dosage_text=g["dosage"], times=([] if g["prn"] else sorted(g["times"])), is_as_needed=g["prn"],
+            meal_basis=s.meal_basis, timing_offset_min=s.timing_offset_min,
         ))
 
     return MedicationListResponse(medications=cards)
@@ -881,8 +884,8 @@ def get_medication_history(user_id: int, start_date: date, end_date: date, drug_
             frequency=log.medication_schedule.prescription.frequency if log.medication_schedule and log.medication_schedule.prescription else None,
             start_date=log.medication_schedule.prescription.start_date if log.medication_schedule and log.medication_schedule.prescription else None,
             end_date=log.medication_schedule.prescription.end_date if log.medication_schedule and log.medication_schedule.prescription else None,
-            created_at=log.created_at,
-            checked_at=log.checked_at,
+            created_at=log.created_at.isoformat(timespec="seconds") + "Z",   # naive UTC → Z 명시
+            checked_at=(log.checked_at.isoformat(timespec="seconds") + "Z") if log.checked_at else None,
         )
         for log in logs
     ]
