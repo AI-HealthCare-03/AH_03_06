@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getAccessToken } from '../../utils/token.js'
+import { getTodayMedication } from '../../api/medication.js'
+import { listMedicalRecords } from '../../api/medicalRecord'
+import { listHealthCheckups, getHealthCheckupByYear } from '../../api/healthCheckup.js'
 import { logout } from '../../App.jsx'
 import BottomNav from '../../components/BottomNav.jsx'
 import Header from '../../components/Header.jsx'
@@ -19,8 +23,30 @@ import {
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
+const DEPT_MAP = {
+  1: '내과', 2: '외과', 3: '정형외과', 4: '치과', 5: '안과', 6: '이비인후과',
+  7: '피부과', 8: '산부인과', 9: '소아청소년과', 10: '신경과', 11: '정신건강의학과', 12: '비뇨기과',
+}
+
+// 건강검진 상태 분류 (HealthCheckResults와 동일 기준)
+const HEALTH_STATUS_COLOR = {
+  '정상': 'text-green-600 border-green-200',
+  '주의': 'text-yellow-500 border-yellow-200',
+  '위험': 'text-red-500 border-red-200',
+}
+const classifyBp = (s, d) => (s <= 120 && d <= 80) ? '정상' : (s < 130 && d < 80) ? '주의' : '위험'
+const classifyGlucose = (v) => v < 100 ? '정상' : v < 126 ? '주의' : '위험'
+const classifyBmi = (h, w) => {
+  const bmi = (w / ((h / 100) ** 2)).toFixed(1)
+  return { bmi, status: bmi < 23 ? '정상' : bmi < 25 ? '주의' : '위험' }
+}
+
 function Home() {
+  const navigate = useNavigate()
   const [user, setUser] = useState(null)
+  const [today, setToday] = useState(null)
+  const [recentRecord, setRecentRecord] = useState(null)
+  const [checkup, setCheckup] = useState(null)
 
   useEffect(() => {
     fetch(`${base}/users/me`, {
@@ -34,10 +60,48 @@ function Home() {
         return res.json()
       })
       .then(data => data && setUser(data))
-      .catch(err => console.log('error:', err))
+      .catch(err => console.error('error:', err))
+
+    getTodayMedication()
+      .then(res => setToday(res?.data ?? res))
+      .catch(() => {})
+
+    listMedicalRecords({ sort: 'latest' })
+      .then(d => setRecentRecord((d?.medical_records ?? [])[0] ?? null))
+      .catch(() => {})
+
+    listHealthCheckups()
+      .then(d => {
+        const latest = (d?.checkups ?? []).slice().sort((a, b) => b.checkup_year - a.checkup_year)[0]
+        if (latest) return getHealthCheckupByYear(latest.checkup_year)
+      })
+      .then(detail => detail && setCheckup(detail))
+      .catch(() => {})
   }, [])
 
   const nickname = user?.nickname ?? '...'
+
+  // 오늘의 복약 요약 (실데이터)
+  const medTotal = today?.totalCount ?? 0
+  const medDone = today?.completedCount ?? 0
+  const medRate = today?.completionRate ?? 0
+  const nextPending = (today?.groups || []).find(g => g.entries?.some(e => e.completionStatus !== '완료'))
+  const nextRemain = nextPending ? nextPending.entries.filter(e => e.completionStatus !== '완료').length : 0
+  const medHint = medTotal === 0 ? '오늘 예정된 복약이 없어요'
+    : medDone >= medTotal ? '오늘 복약 다 했어요 👏'
+    : nextPending ? `${nextPending.mealTime} 약 ${nextRemain}개 남았어요`
+    : `${medTotal - medDone}개 남았어요`
+
+  // 최근 건강 수치 (실데이터 — 최신 검진)
+  const bpStatus = (checkup?.bp_systolic != null && checkup?.bp_diastolic != null) ? classifyBp(checkup.bp_systolic, checkup.bp_diastolic) : null
+  const glucoseStatus = checkup?.fasting_glucose != null ? classifyGlucose(checkup.fasting_glucose) : null
+  const bmiResult = (checkup?.height && checkup?.weight) ? classifyBmi(checkup.height, checkup.weight) : null
+  const healthMetrics = checkup ? [
+    { label: '수축기 혈압', value: checkup.bp_systolic ?? '-', unit: 'mmHg', status: bpStatus },
+    { label: '이완기 혈압', value: checkup.bp_diastolic ?? '-', unit: 'mmHg', status: bpStatus },
+    { label: '공복혈당', value: checkup.fasting_glucose ?? '-', unit: 'mg/dL', status: glucoseStatus },
+    { label: 'BMI', value: bmiResult?.bmi ?? '-', unit: '', status: bmiResult?.status },
+  ] : []
 
   return (
     <MobileFrame
@@ -47,7 +111,7 @@ function Home() {
         <main className="px-5 pt-5 pb-2 space-y-4">
 
           {/* 오늘의 복약 */}
-          <button className="w-full text-left bg-white border border-[#E4E4E7] rounded-[10px] shadow-sm p-5">
+          <button onClick={() => navigate('/medication?view=today')} className="w-full text-left bg-white border border-[#E4E4E7] rounded-[10px] shadow-sm p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-[8px] bg-[#EFF6FF] flex items-center justify-center">
@@ -58,34 +122,30 @@ function Home() {
               <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[11px]" />
             </div>
             <div className="flex items-end gap-2 mb-3">
-              <span className="text-[30px] font-[700] text-[#09090B] leading-none tracking-tight">3 / 4</span>
-              <span className="text-[13px] text-[#52525B] font-[500] mb-1">75%</span>
+              <span className="text-[30px] font-[700] text-[#09090B] leading-none tracking-tight">{medDone} / {medTotal}</span>
+              <span className="text-[13px] text-[#52525B] font-[500] mb-1">{medRate}%</span>
             </div>
             <div className="w-full h-1.5 bg-[#F4F4F5] rounded-full overflow-hidden mb-3">
-              <div className="h-full bg-primary rounded-full" style={{width: '75%'}}></div>
+              <div className="h-full bg-primary rounded-full transition-all" style={{width: `${medRate}%`}}></div>
             </div>
-            <p className="text-[12px] text-[#52525B] font-[500]">저녁 약 1개 남았어요</p>
+            <p className="text-[12px] text-[#52525B] font-[500]">{medHint}</p>
           </button>
 
           {/* 최근 건강 수치 */}
           <section className="bg-white border border-[#E4E4E7] rounded-[10px] shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#F4F4F5]">
               <h2 className="text-[14px] font-[700] text-[#18181B]">최근 건강 수치</h2>
-              <span className="text-[12px] text-primary font-[700] cursor-pointer flex items-center gap-1">
+              <button onClick={() => navigate('/health-checkup')} className="text-[12px] text-primary font-[700] cursor-pointer flex items-center gap-1">
                 전체 보기 <FontAwesomeIcon icon={faChevronRight} className="text-[#2563EB] text-[10px]" />
-              </span>
+              </button>
             </div>
+            {healthMetrics.length > 0 ? (
             <div className="grid grid-cols-2 divide-x divide-y divide-[#F4F4F5]">
-              {[
-                { label: '수축기 혈압', value: '120', unit: 'mmHg', status: '주의', statusColor: 'text-yellow-500 border-yellow-200' },
-                { label: '이완기 혈압', value: '80', unit: 'mmHg', status: '주의', statusColor: 'text-yellow-500 border-yellow-200' },
-                { label: '공복혈당', value: '95', unit: 'mg/dL', status: '정상', statusColor: 'text-green-600 border-green-200' },
-                { label: 'BMI', value: '23.5', unit: '', status: '주의', statusColor: 'text-yellow-500 border-yellow-200' },
-              ].map(({ label, value, unit, status, statusColor }) => (
+              {healthMetrics.map(({ label, value, unit, status }) => (
                 <div key={label} className="p-4">
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-[11px] text-[#52525B] font-[500] tracking-tight">{label}</span>
-                    <span className={`px-1.5 py-0.5 bg-white text-[10px] font-[700] rounded border ${statusColor}`}>{status}</span>
+                    {status && <span className={`px-1.5 py-0.5 bg-white text-[10px] font-[700] rounded border ${HEALTH_STATUS_COLOR[status]}`}>{status}</span>}
                   </div>
                   <div className="flex items-baseline gap-1">
                     <span className="text-[20px] font-[700] text-[#09090B] leading-tight">{value}</span>
@@ -94,6 +154,9 @@ function Home() {
                 </div>
               ))}
             </div>
+            ) : (
+              <p className="px-5 py-6 text-[13px] text-[#A1A1AA] text-center">건강검진 기록이 없어요</p>
+            )}
           </section>
 
           {/* 오늘의 AI 가이드 */}
@@ -107,11 +170,11 @@ function Home() {
             </div>
             <div className="space-y-2">
               {[
-                { icon: faUtensils,      title: '식단 가이드', desc: '혈압 관리 저염식 권장' },
-                { icon: faPersonRunning, title: '운동 가이드', desc: '중간 강도 유산소 30분' },
-                { icon: faMoon,          title: '수면 가이드', desc: '취침 전 카페인 회피' },
-              ].map(({ icon, title, desc }) => (
-                <button key={title} className="w-full text-left bg-white border border-[#E4E4E7] rounded-[10px] shadow-sm p-4 flex items-center justify-between">
+                { icon: faUtensils,      title: '식단 가이드', desc: '혈압 관리 저염식 권장', path: '/diet-guides' },
+                { icon: faPersonRunning, title: '운동 가이드', desc: '중간 강도 유산소 30분', path: '/exercise-guides' },
+                { icon: faMoon,          title: '수면 가이드', desc: '취침 전 카페인 회피', path: '/sleep-guides' },
+              ].map(({ icon, title, desc, path }) => (
+                <button key={title} onClick={() => navigate(path)} className="w-full text-left bg-white border border-[#E4E4E7] rounded-[10px] shadow-sm p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-[8px] bg-white border border-[#E4E4E7] flex items-center justify-center">
                       <FontAwesomeIcon icon={icon} className="text-[#2563EB] text-sm" />
@@ -134,18 +197,22 @@ function Home() {
                 <FontAwesomeIcon icon={faStethoscope} className="text-[#2563EB] text-sm" />
                 <h2 className="text-[14px] font-[700] text-[#18181B]">최근 진료기록</h2>
               </div>
-              <span className="text-[12px] text-primary font-[700] cursor-pointer flex items-center gap-1">
+              <button onClick={() => navigate('/medical-records')} className="text-[12px] text-primary font-[700] cursor-pointer flex items-center gap-1">
                 전체 보기 <FontAwesomeIcon icon={faChevronRight} className="text-[#2563EB] text-[10px]" />
-              </span>
+              </button>
             </div>
-            <button className="w-full text-left px-5 py-4">
-              <p className="text-[11px] text-[#A1A1AA] font-[500] mb-1 tracking-tight">2026.05.02 (목)</p>
-              <h3 className="text-[15px] font-[700] text-[#09090B] mb-1.5">감기·몸살</h3>
-              <p className="text-[12px] text-[#52525B] font-[500] flex items-center gap-1.5">
-                <FontAwesomeIcon icon={faHospital} className="text-[#52525B] text-[11px]" />
-                서울내과의원 · 내과
-              </p>
-            </button>
+            {recentRecord ? (
+              <button onClick={() => navigate(`/medical-records/${recentRecord.id}`)} className="w-full text-left px-5 py-4">
+                <p className="text-[11px] text-[#A1A1AA] font-[500] mb-1 tracking-tight">{(recentRecord.visit_date ?? '').replace(/-/g, '.')}</p>
+                <h3 className="text-[15px] font-[700] text-[#09090B] mb-1.5">{recentRecord.diagnosis_name}</h3>
+                <p className="text-[12px] text-[#52525B] font-[500] flex items-center gap-1.5">
+                  <FontAwesomeIcon icon={faHospital} className="text-[#52525B] text-[11px]" />
+                  {[recentRecord.hospital_name, DEPT_MAP[recentRecord.department_id]].filter(Boolean).join(' · ')}
+                </p>
+              </button>
+            ) : (
+              <p className="px-5 py-6 text-[13px] text-[#A1A1AA] text-center">최근 진료기록이 없어요</p>
+            )}
           </section>
 
           <p className="text-[11px] text-[#A1A1AA] py-2 text-center">
