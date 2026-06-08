@@ -23,6 +23,7 @@ from app.schemas.sleep_guide import (
 )
 from app.services import sleep_classifier as sc
 from app.services import sleep_llm_service as llm
+from app.services import point_service
 
 
 DISCLAIMER = "본 가이드는 일반적인 건강 정보 제공이며, 의학적 진단·처방·치료를 대체하지 않습니다."
@@ -47,7 +48,7 @@ def _build_user_info(db: Session, user_id: int) -> dict:
         exact = today.year - profile.birthday.year - (
             (today.month, today.day) < (profile.birthday.month, profile.birthday.day)
         )
-        age = (exact // 10) * 10  # 30대 등 연령대
+        age = (exact // 10) * 10
         gender_label = "남" if str(profile.gender).upper().startswith("M") else "여"
 
     smoking_status = smoking.smoking_status if smoking else 0
@@ -69,7 +70,6 @@ def _build_user_info(db: Session, user_id: int) -> dict:
     }
 
 
-# source label(RAG metadata) ↔ CLINICAL_GUIDELINE 키워드 매칭 (best-effort 정션 기록)
 _SOURCE_KEYWORDS = ["CBT-I", "일주기", "약물", "한국판"]
 
 
@@ -122,7 +122,7 @@ async def generate_sleep_guide(
         ess_q5=request.ess_q5, ess_q6=request.ess_q6, ess_q7=request.ess_q7, ess_q8=request.ess_q8,
     )
     db.add(survey)
-    db.flush()  # survey.id 확보
+    db.flush()
 
     # 2. 카페인 정션 저장 + mg 환산용 tuple/label
     caffeine_tuples: list[tuple[int, int]] = []
@@ -193,7 +193,7 @@ async def generate_sleep_guide(
         is_fallback=sections.get("is_fallback", False),
     )
     db.add(guide)
-    db.flush()  # guide.id
+    db.flush()
 
     # 7. SLEEP_GUIDE_GUIDELINE 정션 (best-effort 매칭)
     linked_ids: set[int] = set()
@@ -205,6 +205,10 @@ async def generate_sleep_guide(
 
     db.commit()
     db.refresh(guide)
+
+    # 포인트 적립
+    point_service.earn(user_id, "sleep_guide", db)
+    db.commit()
 
     return SleepGenerateResponse(detail="sleep_guide_created", guide_id=guide.id)
 
@@ -293,6 +297,6 @@ def delete_sleep_guide(guide_id: int, user_id: int, db: Session) -> DeleteSleepG
     ).first()
     if not guide:
         raise HTTPException(status_code=404, detail="sleep_guide_not_found")
-    db.delete(guide)  # SleepGuideGuideline 은 cascade 로 함께 삭제
+    db.delete(guide)
     db.commit()
     return DeleteSleepGuideResponse(detail="sleep_guide_deleted")

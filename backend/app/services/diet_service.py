@@ -9,6 +9,7 @@ from app.repositories.diet_repository import NutrientStandardRepository, DietGui
 from app.models.diet import NutrientStandard, DietGuide
 from app.models.health_checkup import HealthCheckup
 from app.models.user import UserProfile
+from app.services import point_service
 
 
 GROUP_TO_MEAL_PLAN = {
@@ -345,6 +346,11 @@ class DietService:
 
         diet_guide = self._generate_single(db, user_id, checkup, target_date, recent_menus)
         db.commit()
+
+        # 포인트 적립
+        point_service.earn(user_id, "diet_guide", db)
+        db.commit()
+
         return diet_guide
 
     def regenerate_diet_guide(self, db: Session, user_id: int, checkup: dict,
@@ -362,6 +368,11 @@ class DietService:
 
         diet_guide = self._generate_single(db, user_id, checkup, target_date, recent_menus)
         db.commit()
+
+        # 포인트 적립
+        point_service.earn(user_id, "diet_guide", db)
+        db.commit()
+
         return diet_guide
 
     def generate_course(self, db: Session, user_id: int, checkup: dict,
@@ -381,6 +392,10 @@ class DietService:
                 continue
 
             diet_guide = self._generate_single(db, user_id, checkup, target_date, recent_menus)
+            db.commit()
+
+            # 포인트 적립
+            point_service.earn(user_id, "diet_guide", db)
             db.commit()
 
             results.append(diet_guide)
