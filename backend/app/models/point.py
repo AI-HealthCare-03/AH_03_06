@@ -13,7 +13,9 @@ class UserPoint(Base):
     updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="point")
-    history = relationship("PointHistory", back_populates="user_point")
+    history = relationship("PointHistory", back_populates="user_point",
+                           primaryjoin="UserPoint.user_id == PointHistory.user_id",
+                           foreign_keys="PointHistory.user_id")
 
 
 class PointHistory(Base):
@@ -22,12 +24,14 @@ class PointHistory(Base):
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("user.id"), nullable=False)
-    event_type = Column(String(50), nullable=False)   # attendance, medication_log 등
-    amount = Column(Integer, nullable=False)           # 양수: 적립 / 음수: 차감
-    balance_snapshot = Column(Integer, nullable=False) # 적립/차감 후 잔액
+    event_type = Column(String(50), nullable=False)
+    amount = Column(Integer, nullable=False)
+    balance_snapshot = Column(Integer, nullable=False)
     description = Column(String(100), nullable=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
 
+    user = relationship("User", back_populates="point_history",
+                        foreign_keys=[user_id])
     user_point = relationship("UserPoint", back_populates="history",
                               primaryjoin="PointHistory.user_id == UserPoint.user_id",
                               foreign_keys="PointHistory.user_id")
