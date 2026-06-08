@@ -4,19 +4,20 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import Header from '../../components/Header.jsx';
+import MobileFrame from '../../components/MobileFrame.jsx';
 import {
   addDirectMedication,
   deleteMedication,
   getMedicationById,
-  updateSchedule,
-  getSchedules,
-  updateAlarm,          // ✅ 신규
+  updateMedication,
 } from '../../api/medication';
 
 // ── 상수 ──────────────────────────────────────────────────────
 const MEAL_TIMES   = ['아침', '점심', '저녁', '취침 전'];
-const TIMINGS      = ['식전', '식후', '상관없음'];
-const TIMING_MINS  = [15, 30];
+const TIMINGS      = ['식전', '식후', '식간', '상관없음'];
+const TIMING_MINS  = [15, 30, 60, 120];
+const fmtMin       = (m) => (m >= 60 ? `${m / 60}시간` : `${m}분`);
 const UNITS        = ['정', 'mg', 'ml', '캡슐', '포', '개'];
 const PURPOSES     = ['혈압', '당뇨', '고지혈증', '통증', '소화', '수면', '기타'];
 const QUICK_DAYS   = [7, 14, 30, 90];
@@ -25,6 +26,17 @@ const DAY_TO_EN    = { 월: 'MON', 화: 'TUE', 수: 'WED', 목: 'THU', 금: 'FRI
 const ALL_DAYS_EN  = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+// 복용 시간 ↔ 시간대 매핑 (수정 폼 로드용)
+const TIME_TO_MEAL = { '08:00': '아침', '13:00': '점심', '18:00': '저녁', '22:00': '취침 전' };
+const DAY_TO_KO = { MON: '월', TUE: '화', WED: '수', THU: '목', FRI: '금', SAT: '토', SUN: '일' };
+
+// "1정" → { amount: 1, unit: '정' }
+function parseDosage(msg) {
+  const m = String(msg ?? '').match(/^\s*([\d.]+)\s*(.*)$/);
+  if (!m) return { amount: 1, unit: '정' };
+  return { amount: parseFloat(m[1]) || 1, unit: (m[2] || '정').trim() || '정' };
+}
 
 // ── 초기 폼 상태 ───────────────────────────────────────────────
 const defaultForm = () => ({
@@ -38,7 +50,7 @@ const defaultForm = () => ({
   mealTimes:      ['아침'], 
   mealTimeTimes:      {
     '아침': '08:00',
-    '점심': '12:00',
+    '점심': '13:00',
     '저녁': '18:00',
     '취침 전': '22:00',
   },
@@ -62,6 +74,7 @@ export default function MedicationFormPage() {
   const params    = new URLSearchParams(location.search);
   const mode      = params.get('mode') || 'create';   // 'create' | 'edit'
   const medId     = params.get('id');                  // edit 모드일 때 medication id
+  const source    = params.get('source') || 'prescription';   // 'prescription' | 'custom'
 
   const [form,       setForm]       = useState(defaultForm());
   const [loading,    setLoading]    = useState(false);
@@ -73,34 +86,40 @@ export default function MedicationFormPage() {
     (async () => {
       try {
         setLoading(true);
-        const [medRes, schedRes] = await Promise.all([
-          getMedicationById(medId),
-          getSchedules(medId),
-        ]);
-        const med   = medRes.data  ?? medRes;
-        const sched = schedRes.data ?? schedRes;
+        const res = await getMedicationById(medId, source);
+        const med = res.data ?? res;
+
+        // 복용 시간 → 시간대/직접시간 분리
+        const mealTimes = [];
+        const clockTimes = [];
+        const mealTimeTimes = { '아침': '08:00', '점심': '13:00', '저녁': '18:00', '취침 전': '22:00' };
+        for (const t of (med.times ?? [])) {
+          const meal = TIME_TO_MEAL[t];
+          if (meal) { mealTimes.push(meal); mealTimeTimes[meal] = t; }
+          else clockTimes.push(t);
+        }
+        const { amount, unit } = parseDosage(med.dosage_message);
+        const days = med.days ?? [];
+        const isWeekdays = days.length > 0 && days.length < 7;
 
         setForm(prev => ({
           ...prev,
-          name:          med.name           ?? '',
-          dosageAmount:  med.dosage_amount   ?? 1,
-          dosageUnit:    med.dosage_unit     ?? '정',
-          purpose:       med.purpose         ?? '',
-          startDate:     med.start_date?.slice(0,10) ?? today(),
-          endDate:       med.end_date?.slice(0,10)   ?? '',
+          name:          med.drug_name ?? '',
+          dosageAmount:  amount,
+          dosageUnit:    unit,
+          startDate:     med.start_date?.slice(0, 10) ?? today(),
+          endDate:       med.end_date?.slice(0, 10) ?? '',
           ongoing:       !med.end_date,
-          mealTimes:     sched.meal_times    ?? ['아침'],
-          timing:        sched.timing        ?? '식후',
-          timingMinutes: sched.timing_minutes ?? 30,
-          isAsNeeded:    sched.is_as_needed  ?? false,
-          cycleType:     sched.cycle_type    ?? 'daily',
-          intervalDays:  sched.interval_days ?? 2,
-          weekDays:      sched.week_days     ?? [],
-          clockTimes:    sched.clock_times   ?? [],
-          alarmEnabled:  sched.alarm_enabled ?? false,
-          alarmTime:     sched.alarm_time    ?? '08:00',
-          alarmId:       sched.alarm_id      ?? null,
-          scheduleId:    sched.id            ?? null,
+          mealTimes:     mealTimes.length ? mealTimes : (clockTimes.length ? [] : ['아침']),
+          mealTimeTimes,
+          clockTimes,
+          cycleType:     med.interval_days ? 'interval' : (isWeekdays ? 'weekdays' : 'daily'),
+          intervalDays:  med.interval_days ?? 2,
+          weekDays:      isWeekdays ? days.map(d => DAY_TO_KO[d]).filter(Boolean) : [],
+          isAsNeeded:    med.is_as_needed ?? false,
+          timing:        med.meal_basis ?? prev.timing,
+          timingMinutes: med.timing_offset_min ?? prev.timingMinutes,
+          alarmEnabled:  true,
         }));
       } catch (e) {
         setFetchError('약 정보를 불러오지 못했어요.');
@@ -109,7 +128,7 @@ export default function MedicationFormPage() {
         setLoading(false);
       }
     })();
-  }, [mode, medId]);
+  }, [mode, medId, source]);
 
   // ── 폼 헬퍼 ──────────────────────────────────────────────────
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
@@ -141,70 +160,62 @@ export default function MedicationFormPage() {
   const handleSubmit = async () => {
     if (!form.name.trim()) { alert('약 이름을 입력해 주세요.'); return; }
 
-    const schedulePayload = {
-      meal_times:      form.mealTimes,
-      timing:          form.timing,
-      timing_minutes:  form.timingMinutes,
-      is_as_needed:    form.isAsNeeded,
-      cycle_type:      form.cycleType,
-      interval_days:   form.cycleType === 'interval' ? form.intervalDays : null,
-      week_days:       form.cycleType === 'weekdays' ? form.weekDays : null,
-      clock_times:     form.clockTimes,
-      alarm_enabled:   form.alarmEnabled,
-      alarm_time:      form.alarmEnabled ? form.alarmTime : null,
-    };
+    const mealTimeMap = { '아침': '08:00', '점심': '13:00', '저녁': '18:00', '취침 전': '22:00' };
+    const prn = form.isAsNeeded;
+    const days = form.cycleType === 'weekdays'
+      ? form.weekDays.map(d => DAY_TO_EN[d])
+      : ALL_DAYS_EN;
+    const intervalDays = (!prn && form.cycleType === 'interval') ? (parseInt(form.intervalDays) || null) : null;
+    // 식사 기준(식전/식후/식간/상관없음) + 오프셋(분). '상관없음'이면 오프셋 없음
+    const mealBasis = form.timing || null;
+    const timingOffsetMin = (form.timing && form.timing !== '상관없음') ? form.timingMinutes : null;
+    // PRN(필요시)이면 명목상 1개(08:00 — 화면엔 '필요시'로 표시), 아니면 시간대+직접시간
+    const times = prn ? ['08:00'] : [...new Set([
+      ...form.mealTimes.map(m => form.mealTimeTimes[m] || mealTimeMap[m] || '08:00'),
+      ...form.clockTimes,
+    ].filter(Boolean))];
 
-    const alarmPayload = {
-      enabled:    form.alarmEnabled,
-      alarm_time: form.alarmEnabled ? form.alarmTime : null,
-    };
+    if (!prn && times.length === 0) {
+      alert('복용 시간을 한 개 이상 선택해 주세요.');
+      return;
+    }
 
     try {
       setLoading(true);
 
-        if (mode === 'create') {
-          const days = form.cycleType === 'weekdays'
-            ? form.weekDays.map(d => DAY_TO_EN[d])
-            : ALL_DAYS_EN;
-
-          // 시간대별 기본 시간 매핑
-          const mealTimeMap = {
-            '아침': '08:00',
-            '점심': '12:00',
-            '저녁': '18:00',
-            '취침 전': '22:00',
-          };
-
-          // 선택한 복용 시간대마다 각각 스케줄 등록
-          for (const mealTime of form.mealTimes) {
-            const intakeTime = form.mealTimeTimes[mealTime] || '08:00';
-            await addDirectMedication({
-              intake_time:       intakeTime,
-              drug_name:         form.name.trim(),
-              dosage_message:    `${form.dosageAmount}${form.dosageUnit}`,
-              notification_type: 'PUSH',
-              days,
-              is_custom:         true,
-              start_date:        form.startDate || null,
-              end_date:          form.ongoing ? null : (form.endDate || null),
-            });
-          }
-
-      } else {
-        // 1️⃣ 일정 수정
-        console.log('[수정] schedulePayload:', schedulePayload);
-        await updateSchedule(medId, schedulePayload);
-
-        // 2️⃣ 알람 수정 — PATCH /alarms/{id} ✅
-        if (form.alarmId) {
-          console.log('[수정] alarmId:', form.alarmId, 'alarmPayload:', alarmPayload);
-          await updateAlarm(form.alarmId, alarmPayload);
-        } else {
-          // alarmId가 없으면 scheduleId로 대체 시도 (서버 구조에 따라 조정)
-          const fallbackId = form.scheduleId ?? medId;
-          console.log('[수정] alarmId 없음, fallback id:', fallbackId, 'alarmPayload:', alarmPayload);
-          await updateAlarm(fallbackId, alarmPayload);
+      if (mode === 'create') {
+        // 복용 시간마다 각각 스케줄 등록 (PRN은 1개)
+        for (const t of times) {
+          await addDirectMedication({
+            intake_time:       t,
+            drug_name:         form.name.trim(),
+            dosage_message:    `${form.dosageAmount}${form.dosageUnit}`,
+            notification_type: 'PUSH',
+            days,
+            is_custom:         true,
+            start_date:        form.startDate || null,
+            end_date:          form.ongoing ? null : (form.endDate || null),
+            interval_days:     intervalDays,
+            is_as_needed:      prn,
+            meal_basis:        mealBasis,
+            timing_offset_min: timingOffsetMin,
+          });
         }
+      } else {
+        // 수정 — times를 백엔드가 스케줄 재생성
+        await updateMedication(medId, source, {
+          drug_name:         form.name.trim(),
+          dosage_message:    `${form.dosageAmount}${form.dosageUnit}`,
+          start_date:        form.startDate || null,
+          end_date:          form.ongoing ? null : (form.endDate || null),
+          times,
+          days,
+          notification_type: 'PUSH',
+          interval_days:     intervalDays,
+          is_as_needed:      prn,
+          meal_basis:        mealBasis,
+          timing_offset_min: timingOffsetMin,
+        });
       }
 
       navigate('/medication');
@@ -249,20 +260,11 @@ export default function MedicationFormPage() {
 
   // ── 렌더 ─────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#F4F4F5]">
-      {/* 헤더 */}
-      <div className="sticky top-0 z-10 bg-white border-b border-[#E4E4E7] px-4 py-3 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-[#F4F4F5]">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#09090B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-        <h1 className="text-[16px] font-semibold text-[#09090B]">
-          {mode === 'edit' ? '복용 약 수정' : '복용 약 등록'}
-        </h1>
-      </div>
-
-      <div className="px-4 py-5 space-y-4 max-w-lg mx-auto pb-32">
+    <MobileFrame
+      contentBg="white"
+      header={<Header variant="back" title={mode === 'edit' ? '복용 약 수정' : '복용 약 등록'} />}
+    >
+      <div className="px-4 py-5 space-y-4 pb-32">
 
         {/* ── 약 기본 정보 ── */}
         <Section title="약 기본 정보">
@@ -283,7 +285,7 @@ export default function MedicationFormPage() {
               step={0.5}
               value={form.dosageAmount}
               onChange={e => set('dosageAmount', parseFloat(e.target.value) || 1)}
-              className="w-24 border border-[#E4E4E7] rounded-xl px-3 py-3 text-sm text-[#09090B] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+              className="w-24 border border-borderHairline rounded-xl px-3 py-3 text-sm text-center text-textHeading focus:outline-none focus:ring-2 focus:ring-primary"
             />
             <div className="flex flex-wrap gap-2">
               {UNITS.map(u => (
@@ -312,27 +314,25 @@ export default function MedicationFormPage() {
             onChange={v => set('ongoing', v)}
           />
 
-          <div className="mt-3 flex flex-col gap-3">
-            <div>
-              <Label>시작일</Label>
-              <input
-                type="date"
-                value={form.startDate}
-                onChange={e => set('startDate', e.target.value)}
-                className="w-full border border-[#E4E4E7] rounded-xl px-3 py-3 text-sm text-[#09090B] focus:outline-none focus:ring-2 focus:ring-[#2563EB] bg-white"
-              />
-            </div>
+          {/* 시작일 ~ 종료일 — 이력 조회와 동일하게 한 줄 가로 배치 */}
+          <div className="mt-3 flex items-center gap-2">
+            <input
+              type="date"
+              value={form.startDate}
+              onChange={e => set('startDate', e.target.value)}
+              className="flex-1 min-w-0 border border-borderHairline rounded-xl px-3 py-2.5 text-sm text-textHeading focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+            />
             {!form.ongoing && (
-              <div>
-                <Label>종료일</Label>
+              <>
+                <span className="text-mute text-sm flex-shrink-0">~</span>
                 <input
                   type="date"
                   value={form.endDate}
                   min={form.startDate}
                   onChange={e => set('endDate', e.target.value)}
-                  className="w-full border border-[#E4E4E7] rounded-xl px-3 py-3 text-sm text-[#09090B] focus:outline-none focus:ring-2 focus:ring-[#2563EB] bg-white"
+                  className="flex-1 min-w-0 border border-borderHairline rounded-xl px-3 py-2.5 text-sm text-textHeading focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                 />
-              </div>
+              </>
             )}
           </div>
 
@@ -395,7 +395,7 @@ export default function MedicationFormPage() {
 
               {form.timing !== '상관없음' && (
                 <>
-                  <Label mt>시간 (분)</Label>
+                  <Label mt>시간</Label>
                   <div className="flex gap-2">
                     {TIMING_MINS.map(m => (
                       <ChipButton
@@ -403,7 +403,7 @@ export default function MedicationFormPage() {
                         active={form.timingMinutes === m}
                         onClick={() => set('timingMinutes', m)}
                       >
-                        {m}분
+                        {fmtMin(m)}
                       </ChipButton>
                     ))}
                   </div>
@@ -479,17 +479,6 @@ export default function MedicationFormPage() {
 
         {/* ── 복약 알림 ── */}
         <Section title="복약 알림">
-          {mode === 'edit' && (
-            <div className="mb-3 flex items-center gap-2 px-3 py-2 bg-[#EFF6FF] rounded-xl">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-              <span className="text-xs text-[#2563EB]">
-                알림 변경 시 <strong>PATCH /alarms/{'{id}'}</strong> 로 별도 저장돼요
-              </span>
-            </div>
-          )}
-
           <Toggle
             label="알림 받기"
             checked={form.alarmEnabled}
@@ -518,11 +507,6 @@ export default function MedicationFormPage() {
             </div>
           )}
 
-          {mode === 'edit' && import.meta.env.DEV && (
-            <p className="mt-2 text-[10px] text-[#A1A1AA]">
-              alarm_id: {form.alarmId ?? '(서버 응답 대기중)'}
-            </p>
-          )}
         </Section>
 
         {/* ── 삭제 버튼 (수정 모드만) ── */}
@@ -538,7 +522,7 @@ export default function MedicationFormPage() {
       </div>
 
       {/* ── 하단 고정 버튼 ── */}
-      <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-white border-t border-[#E4E4E7]">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full md:max-w-[480px] px-4 pb-6 pt-3 bg-white border-t border-[#E4E4E7]">
         <button
           onClick={handleSubmit}
           disabled={loading}
@@ -547,14 +531,14 @@ export default function MedicationFormPage() {
           {loading ? '저장 중...' : mode === 'edit' ? '수정 완료' : '등록 완료'}
         </button>
       </div>
-    </div>
+    </MobileFrame>
   );
 }
 
 // ── 공통 서브 컴포넌트 ─────────────────────────────────────────
 function Section({ title, children }) {
   return (
-    <div className="bg-white rounded-2xl px-4 py-4 shadow-sm">
+    <div className="bg-white border border-borderHairline rounded-2xl px-4 py-4 shadow-sm">
       <h2 className="text-[13px] font-semibold text-[#71717A] uppercase tracking-wide mb-3">{title}</h2>
       {children}
     </div>
@@ -586,15 +570,15 @@ function ChipButton({ active, onClick, children }) {
 function Toggle({ label, checked, onChange, mt }) {
   return (
     <div className={`flex items-center justify-between ${mt ? 'mt-3' : ''}`}>
-      <span className="text-sm text-[#09090B]">{label}</span>
+      <span className="text-sm text-textHeading">{label}</span>
       <button
         onClick={() => onChange(!checked)}
         className={`w-11 h-6 rounded-full transition-colors relative
-          ${checked ? 'bg-[#2563EB]' : 'bg-[#E4E4E7]'}`}
+          ${checked ? 'bg-primary' : 'bg-borderHairline'}`}
       >
         <span
-          className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform
-            ${checked ? 'translate-x-5' : 'translate-x-0.5'}`}
+          className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform
+            ${checked ? 'translate-x-5' : 'translate-x-0'}`}
         />
       </button>
     </div>

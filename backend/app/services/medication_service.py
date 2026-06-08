@@ -18,6 +18,8 @@ from app.schemas.medication import (
     PrescriptionListItem,
     MedicationCardItem,
     MedicationListResponse,
+    MedicationDetailResponse,
+    MedicationUpdateRequest,
     MedicationScheduleRequest,
     MedicationScheduleResponse,
     MedicationScheduleListResponse,
@@ -29,7 +31,10 @@ from app.schemas.medication import (
     TodayMedicationResponse,
     DateMedicationResponse,
     TodayMedicationScheduleItem,
+    MedicationCalendarResponse,
+    MedicationAnalysisResponse,
 )
+import calendar as _calendar
 
 VALID_DAYS = {"MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"}
 VALID_NOTIFICATION_TYPES = {"PUSH", "SMS", "EMAIL"}
@@ -60,7 +65,8 @@ def _schedule_to_response(schedule: MedicationSchedule) -> MedicationScheduleRes
         medication_id=schedule.prescribed_medicine_id,
         intake_time=str(schedule.intake_time)[:5],
         dosage_message=schedule.dosage_message,
-        is_after_meal=None,
+        meal_basis=schedule.meal_basis,
+        timing_offset_min=schedule.timing_offset_min,
         notification_type=schedule.notification_type,
         is_active=schedule.is_active,
         is_custom=schedule.is_custom,
@@ -70,22 +76,105 @@ def _schedule_to_response(schedule: MedicationSchedule) -> MedicationScheduleRes
     )
 
 
+_MEAL_TO_TIME = {"아침": "08:00", "점심": "13:00", "저녁": "18:00", "취침": "22:00"}
+_COUNT_TIMES = {
+    1: ["08:00"],
+    2: ["08:00", "18:00"],
+    3: ["08:00", "13:00", "18:00"],
+    4: ["08:00", "13:00", "18:00", "22:00"],
+}
+
+
+def _times_from_frequency(frequency: Optional[str]) -> list:
+    """처방 frequency → 복용 시간 목록.
+    시간대 단어(아침/점심/저녁/취침) 우선, 없으면 '1일 N회' 횟수.
+    1~4회는 식사 기준 기본값, 5회 이상은 기상~취침(08~22) 균등 분배.
+    (정확한 N시간 간격·격일은 자동 표현 불가 — 등록 후 '수정'에서 시간 직접 조정)"""
+    f = frequency or ""
+    meals = sorted({t for kw, t in _MEAL_TO_TIME.items() if kw in f})
+    if meals:
+        return meals
+    m = re.search(r"(\d+)\s*회", f)
+    n = int(m.group(1)) if m else 1
+    if n in _COUNT_TIMES:
+        return _COUNT_TIMES[n]
+    if n <= 1:
+        return ["08:00"]
+    return [f"{(8 + round(14 * i / (n - 1))):02d}:00" for i in range(n)]
+
+
+def _interval_from_frequency(frequency: Optional[str]) -> Optional[int]:
+    """처방 frequency → 복용 간격(일). 격일=2·N주=N*7·주1회=7·N일마다=N.
+    '1일 N회'(하루 여러 번)는 매일이라 간격 아님(None). 매일/시간대 기반도 None."""
+    f = (frequency or "").replace(" ", "")
+    if "1일" in f:
+        return None
+    if "격일" in f or "이틀" in f:
+        return 2
+    m = re.search(r"(\d+)주", f)
+    if m:
+        return int(m.group(1)) * 7
+    if "매주" in f or "주1회" in f:
+        return 7
+    m = re.search(r"(\d+)일", f)
+    if m and int(m.group(1)) > 1:
+        return int(m.group(1))
+    return None
+
+
+def _is_prn(frequency: Optional[str]) -> bool:
+    """필요시 복용(PRN) 여부 — 정해진 시간 없음."""
+    f = frequency or ""
+    return "필요시" in f or "prn" in f.lower()
+
+
+def _meal_from_frequency(frequency: Optional[str]):
+    """frequency 텍스트에서 표시용 식사기준 추출. 반환 (basis, offset_min) 또는 (None, None).
+    어휘: 식후 / 식전 / 식간 / 취침 전(취침전 포함) / 공복. 키워드 뒤 'N분'이 붙으면 offset으로.
+    '상관없' / '관계없' 포함 시 (None, None). 표시용 폴백 — DB에 저장하지 않는다."""
+    if not frequency:
+        return (None, None)
+    text = str(frequency)
+    if "상관없" in text or "관계없" in text:
+        return (None, None)
+    if "취침" in text:
+        basis = "취침 전"
+    elif "공복" in text:
+        basis = "공복"
+    else:
+        m = re.search(r"식(후|전|간)", text)
+        basis = ("식" + m.group(1)) if m else None
+    if basis is None:
+        return (None, None)
+    mo = re.search(r"식[후전간]\s*(\d+)\s*분", text)
+    offset = int(mo.group(1)) if mo else None
+    return (basis, offset)
+
+
 def _create_default_schedule(prescription: Prescription, user_id: int, db: Session):
-    schedule = MedicationSchedule(
-        user_id=user_id,
-        prescribed_medicine_id=prescription.id,
-        drug_name=prescription.drug_name,
-        intake_time="08:00",
-        notification_type="PUSH",
-        is_active=True,
-        is_custom=False,
-        start_date=prescription.start_date,
-        end_date=prescription.end_date,
-    )
-    db.add(schedule)
-    db.flush()
-    for day in ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]:
-        db.add(ScheduleDay(schedule_id=schedule.schedule_id, day_of_week=day))
+    """처방 frequency 기준으로 복용 시간대마다 스케줄 1행씩 생성. PRN은 1행(필요시)."""
+    prn = _is_prn(prescription.frequency)
+    times = ["08:00"] if prn else _times_from_frequency(prescription.frequency)
+    interval = None if prn else _interval_from_frequency(prescription.frequency)
+    for t in times:
+        schedule = MedicationSchedule(
+            user_id=user_id,
+            prescribed_medicine_id=prescription.id,
+            drug_name=prescription.drug_name,
+            intake_time=t,
+            dosage_message=prescription.dosage,
+            notification_type="PUSH",
+            is_active=True,
+            is_custom=False,
+            start_date=prescription.start_date,
+            end_date=prescription.end_date,
+            interval_days=interval,
+            is_as_needed=prn,
+        )
+        db.add(schedule)
+        db.flush()
+        for day in ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]:
+            db.add(ScheduleDay(schedule_id=schedule.schedule_id, day_of_week=day))
 
 
 def create_prescription(user_id: int, request: PrescriptionCreateRequest, db: Session) -> PrescriptionResponse:
@@ -157,6 +246,7 @@ def get_prescriptions(user_id: int, db: Session) -> PrescriptionListResponse:
 def get_medication_list(user_id: int, db: Session) -> MedicationListResponse:
     """복약관리 목록 - 처방약 + 직접등록(custom)을 한 목록으로 반환"""
     cards = []
+    today = date.today()
 
     # 처방전 기반 (진료기록에 연결된 약)
     prescriptions = (
@@ -171,13 +261,27 @@ def get_medication_list(user_id: int, db: Session) -> MedicationListResponse:
         .all()
     )
     for p in prescriptions:
+        active = [s for s in p.medication_schedules if s.is_active]
+        prn = any(s.is_as_needed for s in active)
+        times = [] if prn else sorted({str(s.intake_time)[:5] for s in active})
+        # 식사기준: 저장값 우선, null이면 frequency에서 정규화(표시용 폴백 — 저장 안 함)
+        mb = next((s.meal_basis for s in active if s.meal_basis), None)
+        mo = next((s.timing_offset_min for s in active if s.timing_offset_min is not None), None)
+        if mb is None:
+            mb, fb_off = _meal_from_frequency(p.frequency)
+            if mo is None:
+                mo = fb_off
         cards.append(MedicationCardItem(
             id=p.id, source="prescription", drug_name=p.drug_name,
             dosage=p.dosage, frequency=p.frequency,
-            start_date=p.start_date, end_date=p.end_date, is_active=p.is_active,
+            start_date=p.start_date, end_date=p.end_date,
+            is_active=p.is_active and (p.end_date is None or p.end_date >= today),
+            dosage_text=p.dosage, times=times, is_as_needed=prn,
+            meal_basis=mb,
+            timing_offset_min=mo,
         ))
 
-    # 직접등록 (처방전 없는 custom 일정) - 같은 약은 하나로 묶음
+    # 직접등록 (처방전 없는 custom 일정) - 같은 약은 하나로 묶고 복용시간 모음
     customs = (
         db.query(MedicationSchedule)
         .filter(
@@ -188,39 +292,278 @@ def get_medication_list(user_id: int, db: Session) -> MedicationListResponse:
         .order_by(MedicationSchedule.created_at.desc())
         .all()
     )
-    seen = set()
+    grouped: dict = {}
     for s in customs:
-        if s.drug_name in seen:
-            continue
-        seen.add(s.drug_name)
+        g = grouped.get(s.drug_name)
+        if g is None:
+            grouped[s.drug_name] = g = {"first": s, "times": set(), "dosage": s.dosage_message, "prn": False}
+        g["times"].add(str(s.intake_time)[:5])
+        if s.is_as_needed:
+            g["prn"] = True
+    for name, g in grouped.items():
+        s = g["first"]
         cards.append(MedicationCardItem(
-            id=s.schedule_id, source="custom", drug_name=s.drug_name,
+            id=s.schedule_id, source="custom", drug_name=name,
             dosage=None, frequency=None,
-            start_date=s.start_date,
-            end_date=s.end_date,
-            is_active=s.is_active,
+            start_date=s.start_date, end_date=s.end_date,
+            is_active=s.is_active and (s.end_date is None or s.end_date >= today),
+            dosage_text=g["dosage"], times=([] if g["prn"] else sorted(g["times"])), is_as_needed=g["prn"],
+            meal_basis=s.meal_basis, timing_offset_min=s.timing_offset_min,
         ))
 
     return MedicationListResponse(medications=cards)
+
+
+def _custom_group(user_id: int, drug_name: str, db: Session):
+    """직접등록(custom) 같은 약 = 같은 drug_name·user·처방없음 스케줄 묶음."""
+    return db.query(MedicationSchedule).filter(
+        MedicationSchedule.user_id == user_id,
+        MedicationSchedule.drug_name == drug_name,
+        MedicationSchedule.prescribed_medicine_id.is_(None),
+        MedicationSchedule.is_active == True,
+    ).all()
+
+
+def _delete_schedules(schedules: list, db: Session):
+    """스케줄 제거 — 연결된 로그·요일까지 함께 (FK 충돌 방지)."""
+    for s in schedules:
+        db.query(MedicationLog).filter(MedicationLog.schedule_id == s.schedule_id).delete()
+        db.query(ScheduleDay).filter(ScheduleDay.schedule_id == s.schedule_id).delete()
+        db.delete(s)
+    db.flush()
+
+
+def _create_schedules(user_id, prescribed_medicine_id, drug_name, dosage_message,
+                      times, days, notification_type, start_date, end_date, db,
+                      interval_days=None, is_as_needed=False,
+                      meal_basis=None, timing_offset_min=None) -> int:
+    """복용 시간(times)마다 스케줄 1행씩 생성. 첫 schedule_id 반환."""
+    first_id = None
+    for t in times:
+        sched = MedicationSchedule(
+            user_id=user_id,
+            prescribed_medicine_id=prescribed_medicine_id,
+            drug_name=drug_name,
+            intake_time=t,
+            dosage_message=dosage_message,
+            notification_type=notification_type or "PUSH",
+            is_active=True,
+            is_custom=prescribed_medicine_id is None,
+            start_date=start_date,
+            end_date=end_date,
+            interval_days=interval_days,
+            is_as_needed=is_as_needed,
+            meal_basis=meal_basis,
+            timing_offset_min=timing_offset_min,
+        )
+        db.add(sched)
+        db.flush()
+        if first_id is None:
+            first_id = sched.schedule_id
+        for d in days:
+            db.add(ScheduleDay(schedule_id=sched.schedule_id, day_of_week=d))
+    return first_id
+
+
+def get_medication_by_id(user_id: int, medication_id: int, source: str, db: Session) -> MedicationDetailResponse:
+    """수정 폼 로드 — source(prescription|custom)별 단건 상세.
+    주의: meal_basis는 저장값(schedules)만 읽는다. frequency 표시용 폴백 미적용 —
+    추정값이 폼에 채워지면 무변경 저장만으로도 DB에 굳어 저장 오염되므로 금지."""
+    if source == "custom":
+        base = db.query(MedicationSchedule).filter(
+            MedicationSchedule.schedule_id == medication_id,
+            MedicationSchedule.user_id == user_id,
+        ).first()
+        if not base:
+            raise HTTPException(status_code=404, detail="medication_not_found")
+        scheds = _custom_group(user_id, base.drug_name, db)
+        drug_name, dosage_message = base.drug_name, base.dosage_message
+        start_date, end_date = base.start_date, base.end_date
+    else:
+        presc = db.query(Prescription).join(MedicalRecord).filter(
+            Prescription.id == medication_id,
+            MedicalRecord.user_id == user_id,
+            MedicalRecord.is_deleted == 0,
+        ).first()
+        if not presc:
+            raise HTTPException(status_code=404, detail="medication_not_found")
+        scheds = [s for s in presc.medication_schedules if s.is_active]
+        drug_name, dosage_message = presc.drug_name, presc.dosage
+        start_date, end_date = presc.start_date, presc.end_date
+
+    times = sorted({str(s.intake_time)[:5] for s in scheds})
+    days = sorted({sd.day_of_week for s in scheds for sd in s.schedule_days})
+    interval_days = next((s.interval_days for s in scheds if s.interval_days), None)
+    is_as_needed = any(s.is_as_needed for s in scheds)
+    meal_basis = next((s.meal_basis for s in scheds if s.meal_basis), None)
+    timing_offset_min = next((s.timing_offset_min for s in scheds if s.timing_offset_min is not None), None)
+    return MedicationDetailResponse(
+        id=medication_id, source=source, drug_name=drug_name,
+        dosage_message=dosage_message, start_date=start_date, end_date=end_date,
+        times=times, days=days, interval_days=interval_days, is_as_needed=is_as_needed,
+        meal_basis=meal_basis, timing_offset_min=timing_offset_min,
+    )
+
+
+def _reconcile_schedules(existing, user_id, prescribed_medicine_id, drug_name, dosage_message,
+                         times, days, notification_type, start_date, end_date, db,
+                         interval_days=None, is_as_needed=False,
+                         meal_basis=None, timing_offset_min=None) -> int:
+    """기존 스케줄과 새 times를 시간(HH:MM) 단위로 대조해 증분 반영.
+
+    같은 시간 슬롯은 유지하고 필드만 갱신(schedule_id 보존 → 복약 로그 유지), 빠진 시간은
+    삭제, 새 시간만 생성. 전부 삭제→재생성과 달리 변경되지 않은 시간의 체크 이력이 살아남는다.
+    """
+    want = []                       # 새 시간(HH:MM, 순서 보존 dedupe)
+    for t in times:
+        key = str(t)[:5]
+        if key not in want:
+            want.append(key)
+
+    existing_by_time = {}
+    for s in existing:
+        existing_by_time.setdefault(str(s.intake_time)[:5], []).append(s)
+
+    first_id = None
+    for time_key, scheds in existing_by_time.items():
+        if time_key in want:
+            keep = scheds[0]        # 유지 — 필드만 갱신(로그 보존)
+            keep.drug_name = drug_name
+            keep.dosage_message = dosage_message
+            keep.notification_type = notification_type or "PUSH"
+            keep.start_date = start_date
+            keep.end_date = end_date
+            keep.interval_days = interval_days
+            keep.is_as_needed = is_as_needed
+            keep.meal_basis = meal_basis
+            keep.timing_offset_min = timing_offset_min
+            db.query(ScheduleDay).filter(ScheduleDay.schedule_id == keep.schedule_id).delete()
+            for d in days:
+                db.add(ScheduleDay(schedule_id=keep.schedule_id, day_of_week=d))
+            if first_id is None:
+                first_id = keep.schedule_id
+            if len(scheds) > 1:     # 같은 시간 중복행(이례적) 정리
+                _delete_schedules(scheds[1:], db)
+        else:
+            _delete_schedules(scheds, db)   # 빠진 시간 — 슬롯·로그 삭제
+
+    db.flush()
+
+    new_times = [t for t in want if t not in existing_by_time]
+    if new_times:
+        nid = _create_schedules(
+            user_id, prescribed_medicine_id, drug_name, dosage_message,
+            new_times, days, notification_type, start_date, end_date, db,
+            interval_days=interval_days, is_as_needed=is_as_needed,
+            meal_basis=meal_basis, timing_offset_min=timing_offset_min,
+        )
+        if first_id is None:
+            first_id = nid
+
+    return first_id
+
+
+def update_medication(user_id: int, medication_id: int, source: str, request: MedicationUpdateRequest, db: Session):
+    """수정 저장 — 기존 스케줄과 새 시간을 대조해 증분 반영. 처방이면 prescription 필드도 갱신.
+
+    유지된 시간 슬롯의 복약 로그는 보존되고, 삭제된 시간 슬롯의 로그만 함께 제거된다.
+    """
+    if not request.times:
+        raise HTTPException(status_code=400, detail="times_required")
+    for t in request.times:
+        _validate_intake_time(t)
+    if request.days:
+        _validate_days(request.days)
+    days = request.days or ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
+
+    if source == "custom":
+        base = db.query(MedicationSchedule).filter(
+            MedicationSchedule.schedule_id == medication_id,
+            MedicationSchedule.user_id == user_id,
+        ).first()
+        if not base:
+            raise HTTPException(status_code=404, detail="medication_not_found")
+        existing = _custom_group(user_id, base.drug_name, db)
+        first_id = _reconcile_schedules(
+            existing, user_id, None, request.drug_name, request.dosage_message,
+            request.times, days, request.notification_type, request.start_date, request.end_date, db,
+            interval_days=request.interval_days, is_as_needed=request.is_as_needed,
+            meal_basis=request.meal_basis, timing_offset_min=request.timing_offset_min,
+        )
+        db.commit()
+        return {"id": first_id, "source": "custom", "detail": "updated"}
+
+    presc = db.query(Prescription).join(MedicalRecord).filter(
+        Prescription.id == medication_id,
+        MedicalRecord.user_id == user_id,
+        MedicalRecord.is_deleted == 0,
+    ).first()
+    if not presc:
+        raise HTTPException(status_code=404, detail="medication_not_found")
+    presc.drug_name = request.drug_name
+    presc.dosage = request.dosage_message
+    if request.start_date:
+        presc.start_date = request.start_date
+    presc.end_date = request.end_date
+    existing = db.query(MedicationSchedule).filter(
+        MedicationSchedule.prescribed_medicine_id == presc.id
+    ).all()
+    _reconcile_schedules(
+        existing, user_id, presc.id, request.drug_name, request.dosage_message,
+        request.times, days, request.notification_type, presc.start_date, presc.end_date, db,
+        interval_days=request.interval_days, is_as_needed=request.is_as_needed,
+        meal_basis=request.meal_basis, timing_offset_min=request.timing_offset_min,
+    )
+    db.commit()
+    return {"id": presc.id, "source": "prescription", "detail": "updated"}
+
+
+def _occurs_on(s, target_date: date) -> bool:
+    """스케줄 s가 target_date에 복용 예정인지 — 간격·요일·기간·PRN 반영.
+    달력/분석처럼 여러 날을 훑을 때도 쓰므로 start/end 기간 검사를 포함한다."""
+    if s.is_as_needed:
+        return False
+    if s.start_date and target_date < s.start_date:
+        return False
+    if s.end_date and target_date > s.end_date:
+        return False
+    iv = s.interval_days
+    if iv and iv > 1:
+        anchor = s.start_date or (s.created_at.date() if s.created_at else None)
+        if anchor is None or target_date < anchor:
+            return False
+        return (target_date - anchor).days % iv == 0
+    sched_days = {sd.day_of_week for sd in s.schedule_days}
+    return (not sched_days) or (DAY_MAP[target_date.weekday()] in sched_days)
+
+
+def _user_active_schedules(user_id: int, db: Session) -> list:
+    """사용자의 활성 스케줄 전체(처방·custom) — 기간 필터 없이. 달력/분석에서 날짜별로 _occurs_on 적용."""
+    return (
+        db.query(MedicationSchedule)
+        .outerjoin(Prescription, MedicationSchedule.prescribed_medicine_id == Prescription.id)
+        .outerjoin(MedicalRecord, Prescription.medical_record_id == MedicalRecord.id)
+        .filter(MedicationSchedule.is_active == True)
+        .filter(
+            (MedicalRecord.user_id == user_id) |
+            (MedicationSchedule.user_id == user_id)
+        )
+        .all()
+    )
+
 
 def get_today_medications(user_id: int, db: Session) -> TodayMedicationResponse:
     return get_medications_by_date(user_id, date.today(), db)
 
 
 def get_medications_by_date(user_id: int, target_date: date, db: Session) -> DateMedicationResponse:
-    day_of_week = DAY_MAP[target_date.weekday()]
-
     schedules = (
         db.query(MedicationSchedule)
         .outerjoin(Prescription, MedicationSchedule.prescribed_medicine_id == Prescription.id)
         .outerjoin(MedicalRecord, Prescription.medical_record_id == MedicalRecord.id)
-        .join(MedicationSchedule.schedule_days)
         .filter(
             MedicationSchedule.is_active == True,
-            ScheduleDay.day_of_week == day_of_week,
-            # start_date가 없거나 target_date 이후인 경우만
             (MedicationSchedule.start_date == None) | (MedicationSchedule.start_date <= target_date),
-            # end_date가 없거나 target_date 이전인 경우만
             (MedicationSchedule.end_date == None) | (MedicationSchedule.end_date >= target_date),
         )
         .filter(
@@ -229,6 +572,9 @@ def get_medications_by_date(user_id: int, target_date: date, db: Session) -> Dat
         )
         .all()
     )
+
+    # 간격(N일마다) 약은 기준일 기준 날짜 계산, 그 외는 요일 매칭
+    schedules = [s for s in schedules if _occurs_on(s, target_date)]
 
     logs = (
         db.query(MedicationLog)
@@ -243,6 +589,13 @@ def get_medications_by_date(user_id: int, target_date: date, db: Session) -> Dat
     result = []
     for s in schedules:
         log = log_map.get(s.schedule_id)
+        # 식사기준: 저장값 우선, null이면 처방 frequency에서 정규화(표시용 폴백 — 저장 안 함)
+        mb = s.meal_basis
+        mo = s.timing_offset_min
+        if mb is None and s.prescription:
+            mb, fb_off = _meal_from_frequency(s.prescription.frequency)
+            if mo is None:
+                mo = fb_off
         result.append(TodayMedicationScheduleItem(
             schedule_id=s.schedule_id,
             drug_name=s.drug_name,
@@ -251,10 +604,77 @@ def get_medications_by_date(user_id: int, target_date: date, db: Session) -> Dat
             dosage_message=s.dosage_message,
             is_taken=log.status == 'TAKEN' if log else False,
             log_id=log.log_id if log else None,
+            meal_basis=mb,
+            timing_offset_min=mo,
+            is_custom=s.is_custom,
         ))
 
     result.sort(key=lambda x: x.intake_time)
     return DateMedicationResponse(date=target_date, schedules=result)
+
+
+def get_medication_calendar(user_id: int, year: int, month: int, db: Session) -> MedicationCalendarResponse:
+    """해당 월의 성실(doneDays)·누락(missedDays) 일자 배열.
+    doneDays  = 그 달 TAKEN 로그가 있는 날.
+    missedDays = 예정 복용일(오늘 이전·이번 달) 중 TAKEN 로그가 없는 날.
+    ※ check_medication은 TAKEN만 적재 → 누락은 '예정 vs 실제'로 도출(로그만으론 못 구함).
+    """
+    last_day = _calendar.monthrange(year, month)[1]
+    month_start = date(year, month, 1)
+    month_end = date(year, month, last_day)
+    today = date.today()
+
+    taken_logs = (
+        db.query(MedicationLog)
+        .filter(
+            MedicationLog.user_id == user_id,
+            MedicationLog.status == 'TAKEN',
+            MedicationLog.intake_date >= month_start,
+            MedicationLog.intake_date <= month_end,
+        )
+        .all()
+    )
+    done_days = {log.intake_date.day for log in taken_logs}
+
+    schedules = _user_active_schedules(user_id, db)
+    missed_days = set()
+    # 오늘은 아직 복용 가능 → 누락 판정에서 제외(어제까지만)
+    limit = min(month_end, today - timedelta(days=1))
+    d = month_start
+    while d <= limit:
+        if d.day not in done_days and any(_occurs_on(s, d) for s in schedules):
+            missed_days.add(d.day)
+        d += timedelta(days=1)
+
+    return MedicationCalendarResponse(doneDays=sorted(done_days), missedDays=sorted(missed_days))
+
+
+def get_medication_analysis(user_id: int, db: Session) -> MedicationAnalysisResponse:
+    """최근 7일(어제까지) 예정 복용 횟수 대비 TAKEN 비율(정수 %)."""
+    today = date.today()
+    end = today - timedelta(days=1)   # 오늘은 진행 중이라 제외
+    start = end - timedelta(days=6)   # 7일 구간
+
+    schedules = _user_active_schedules(user_id, db)
+    expected = 0
+    d = start
+    while d <= end:
+        expected += sum(1 for s in schedules if _occurs_on(s, d))
+        d += timedelta(days=1)
+
+    taken = (
+        db.query(MedicationLog)
+        .filter(
+            MedicationLog.user_id == user_id,
+            MedicationLog.status == 'TAKEN',
+            MedicationLog.intake_date >= start,
+            MedicationLog.intake_date <= end,
+        )
+        .count()
+    )
+
+    rate = round(min(taken, expected) / expected * 100) if expected else 0
+    return MedicationAnalysisResponse(periodLabel="최근 7일", achievementRate=rate)
 
 
 def create_schedule(user_id: int, medication_id: Optional[int], request: MedicationScheduleRequest, db: Session) -> MedicationScheduleResponse:
@@ -290,6 +710,10 @@ def create_schedule(user_id: int, medication_id: Optional[int], request: Medicat
         is_custom=request.is_custom or False,
         start_date=request.start_date,
         end_date=request.end_date,
+        interval_days=request.interval_days,
+        is_as_needed=request.is_as_needed or False,
+        meal_basis=request.meal_basis,
+        timing_offset_min=request.timing_offset_min,
     )
     db.add(schedule)
     db.flush()
@@ -500,7 +924,8 @@ def get_medication_history(user_id: int, start_date: date, end_date: date, drug_
             frequency=log.medication_schedule.prescription.frequency if log.medication_schedule and log.medication_schedule.prescription else None,
             start_date=log.medication_schedule.prescription.start_date if log.medication_schedule and log.medication_schedule.prescription else None,
             end_date=log.medication_schedule.prescription.end_date if log.medication_schedule and log.medication_schedule.prescription else None,
-            created_at=log.created_at,
+            created_at=log.created_at.isoformat(timespec="seconds") + "Z",   # naive UTC → Z 명시
+            checked_at=(log.checked_at.isoformat(timespec="seconds") + "Z") if log.checked_at else None,
         )
         for log in logs
     ]

@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import Header from '../../components/Header.jsx'
 import BottomNav from '../../components/BottomNav.jsx'
+import MobileFrame from '../../components/MobileFrame.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faWandMagicSparkles,
@@ -24,12 +25,10 @@ function GuideHubPage() {
   const navigate = useNavigate()
 
   return (
-    <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
-      <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 pb-24">
-
-        {/* 탭 최상위 화면: 좌측 정렬 제목 헤더 (뒤로가기 없음 — 마이페이지와 동일 규칙) */}
-        <Header variant="default" title="가이드" />
-
+    <MobileFrame
+      header={<Header variant="default" title="가이드" />}
+      bottomNav={<BottomNav />}
+    >
         <main className="px-5 pt-5 pb-2 space-y-4">
 
           {/* 섹션 헤더 — 홈의 '오늘의 AI 가이드'와 동일 톤 */}
@@ -62,10 +61,7 @@ function GuideHubPage() {
           </div>
 
         </main>
-
-        <BottomNav />
-      </div>
-    </div>
+    </MobileFrame>
   )
 }
 
