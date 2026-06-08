@@ -7,18 +7,22 @@ POINT_RULES = {
     "attendance":           10,   # 출석 체크
     "attendance_7days":     50,   # 연속 7일 출석 보너스
     "attendance_30days":   100,   # 연속 30일 출석 보너스
-    "medication_log":        5,   # 복약 기록
-    "guide_view":            3,   # 건강 가이드 조회
-    "profile_complete":     20,   # 프로필 완성 (1회)
+    "medication_guide":     10,   # 복약 가이드 생성
+    "sleep_guide":          10,   # 수면 가이드 생성
+    "diet_guide":           10,   # 식단 가이드 생성
+    "health_checkup":       10,   # 건강검진 등록
+    "medical_record":        5,   # 진료기록 등록
 }
 
 POINT_DESCRIPTIONS = {
     "attendance":           "출석 체크",
     "attendance_7days":     "연속 7일 출석 보너스",
     "attendance_30days":    "연속 30일 출석 보너스",
-    "medication_log":       "복약 기록",
-    "guide_view":           "건강 가이드 조회",
-    "profile_complete":     "프로필 완성",
+    "medication_guide":     "복약 가이드 생성",
+    "sleep_guide":          "수면 가이드 생성",
+    "diet_guide":           "식단 가이드 생성",
+    "health_checkup":       "건강검진 등록",
+    "medical_record":       "진료기록 등록",
 }
 
 

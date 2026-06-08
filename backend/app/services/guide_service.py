@@ -63,7 +63,7 @@ def _to_schema(guide: MedicationGuide) -> MedicationGuideSchema:
         # references 는 Text 컬럼에 JSON 문자열로 저장 → list[str] 로 디코드. 레거시 빈값/비JSON 은 빈 목록.
         references=_decode_references(guide.references),
         is_fallback=guide.is_fallback,
-        created_at=guide.created_at.isoformat(timespec="seconds") + "Z",  # DB·서버 UTC → JS 로컬 변환 위해 Z 명시
+        created_at=guide.created_at.isoformat(timespec="seconds") + "Z",
         disclaimer=DISCLAIMER,
         medication_id=guide.medication_id,
         drug_name=guide.drug_name,
@@ -99,8 +99,6 @@ def _resolve_prescription_item_seq(medication_id: int, user_id: int, db: Session
             item_seq = drug_info.drug_code or ""
             drug_name = drug_info.drug_name or prescription.drug_name
 
-    # drug_id 미연결 처방 폴백: 약명 → item_seq 매칭. 미달이면 item_seq 빈 채로 두어
-    # RAG 빈검색 게이트가 fallback 안내를 내도록 한다.
     if not item_seq:
         match = match_drug(prescription.drug_name, get_index(db))
         best = match.get("best_match")
@@ -111,7 +109,6 @@ def _resolve_prescription_item_seq(medication_id: int, user_id: int, db: Session
     return prescription, item_seq, drug_name
 
 
-# 복약 가이드 생성 (동기 처리, 5~10초 블로킹)
 async def request_guide_generation(
     request: GenerateGuideRequest,
     user_id: int,
@@ -143,11 +140,14 @@ async def request_guide_generation(
     db.add(guide)
     db.commit()
     db.refresh(guide)
-
+    
+    # 포인트 적립
+    point_service.earn(user_id, "medication_guide", db)
+    db.commit()
+    
     return GenerateGuideResponse(detail="medication_guide_created", guide_id=guide.id)
 
 
-# 복약 가이드 단건 조회
 def get_medication_guide(
     guide_id: int,
     user_id: int,
@@ -166,7 +166,6 @@ def get_medication_guide(
     return _to_schema(guide)
 
 
-# 복약 가이드 목록 조회 (created_at DESC)
 def list_medication_guides(
     user_id: int,
     db: Session,
@@ -183,7 +182,6 @@ def list_medication_guides(
     )
 
 
-# 복약 가이드 삭제
 def delete_medication_guide(
     guide_id: int,
     user_id: int,
