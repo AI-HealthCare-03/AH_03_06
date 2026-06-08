@@ -169,6 +169,7 @@ function MedicationList({ onTodayClick, navigate }) {
                       <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                     </svg>
                     <span className="truncate">
+                      {/* 용량 · 식사기준 · 주기. 식사기준은 저장값 또는 frequency 폴백(백엔드) */}
                       {[med.description, med.mealTiming, med.isAsNeeded ? '필요시 복용' : (med.times?.length > 0 ? `매일 ${med.times.join(' · ')}` : null)]
                         .filter(Boolean).join(' · ')}
                     </span>
@@ -464,20 +465,13 @@ function TodayMedication({ onBack }) {
                         )}
                       </div>
 
-                      <div className="w-9 h-9 rounded-[8px] bg-[#F4F4F5] flex items-center justify-center shrink-0">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M10.5 20H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H20a2 2 0 0 1 2 2v3"/>
-                          <circle cx="18" cy="18" r="3"/><path d="M22 22l-1.5-1.5"/>
-                        </svg>
-                      </div>
-
                       <div>
                         <p className={`text-[14px] font-[600] leading-tight
                           ${entry.completionStatus === '완료' ? 'text-[#A1A1AA] line-through' : 'text-[#09090B]'}`}>
                           {entry.medicationName}
                         </p>
                         <p className="text-[12px] text-[#A1A1AA] mt-0.5">
-                          {entry.dosageAmount}{entry.dosageUnit} · {entry.categoryLabel}{entry.mealTiming ? ` · ${entry.mealTiming}` : ''}
+                          {[`${entry.dosageAmount}${entry.dosageUnit}`.trim(), entry.mealTiming, entry.categoryLabel].filter(Boolean).join(' · ')}
                         </p>
                       </div>
                     </button>

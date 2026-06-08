@@ -114,6 +114,7 @@ class TodayMedicationScheduleItem(BaseModel):
     log_id:         Optional[int] = None
     meal_basis:        Optional[str] = None
     timing_offset_min: Optional[int] = None
+    is_custom:      bool = False          # 직접등록(custom)=일반의약품, 처방연결=처방약
 
     class Config:
         from_attributes = True

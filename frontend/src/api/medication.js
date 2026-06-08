@@ -173,6 +173,21 @@ const fmtMealTiming = (basis, offMin) => {
   return `${basis} ${off}`;
 };
 
+// frequency 텍스트 → 표시용 식사기준. 백엔드 _meal_from_frequency와 어휘 동기화.
+// 어휘: 식후/식전/식간/취침 전/공복 (+ 'N분' 오프셋). 상관없·관계없 또는 미매칭은 '' .
+export const mealFromFrequency = (frequency) => {
+  if (!frequency) return '';
+  const t = String(frequency);
+  if (t.includes('상관없') || t.includes('관계없')) return '';
+  let basis = '';
+  if (t.includes('취침')) basis = '취침 전';
+  else if (t.includes('공복')) basis = '공복';
+  else { const m = t.match(/식(후|전|간)/); if (m) basis = '식' + m[1]; }
+  if (!basis) return '';
+  const mo = t.match(/식[후전간]\s*(\d+)\s*분/);
+  return fmtMealTiming(basis, mo ? parseInt(mo[1], 10) : null);
+};
+
 const toMedicationCard = (p) => ({
   id:          p.id,
   source:      p.source,
@@ -218,9 +233,9 @@ const toTodayView = (res) => {
     groupMap.get(clockTime).entries.push({
       medicationId:     s.schedule_id,
       medicationName:   s.drug_name,
-      dosageAmount:     s.dosage ?? '',
+      dosageAmount:     s.dosage ?? s.dosage_message ?? '',
       dosageUnit:       '',
-      categoryLabel:    '처방약',
+      categoryLabel:    s.is_custom ? '일반의약품' : '처방약',
       mealTiming:       fmtMealTiming(s.meal_basis, s.timing_offset_min),
       completionStatus: s.is_taken ? '완료' : '예정',
     });
@@ -228,8 +243,8 @@ const toTodayView = (res) => {
       id:     s.schedule_id,
       name:   s.drug_name,
       dosage: s.dosage_message ?? '',
-      timing: s.dosage_message ?? '',
-      type:   'prescription',
+      timing: fmtMealTiming(s.meal_basis, s.timing_offset_min),   // 식사기준(저장값/폴백)
+      type:   s.is_custom ? 'custom' : 'prescription',
       status: s.is_taken ? 'done' : 'pending',
     });
   }

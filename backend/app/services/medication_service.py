@@ -128,6 +128,29 @@ def _is_prn(frequency: Optional[str]) -> bool:
     return "필요시" in f or "prn" in f.lower()
 
 
+def _meal_from_frequency(frequency: Optional[str]):
+    """frequency 텍스트에서 표시용 식사기준 추출. 반환 (basis, offset_min) 또는 (None, None).
+    어휘: 식후 / 식전 / 식간 / 취침 전(취침전 포함) / 공복. 키워드 뒤 'N분'이 붙으면 offset으로.
+    '상관없' / '관계없' 포함 시 (None, None). 표시용 폴백 — DB에 저장하지 않는다."""
+    if not frequency:
+        return (None, None)
+    text = str(frequency)
+    if "상관없" in text or "관계없" in text:
+        return (None, None)
+    if "취침" in text:
+        basis = "취침 전"
+    elif "공복" in text:
+        basis = "공복"
+    else:
+        m = re.search(r"식(후|전|간)", text)
+        basis = ("식" + m.group(1)) if m else None
+    if basis is None:
+        return (None, None)
+    mo = re.search(r"식[후전간]\s*(\d+)\s*분", text)
+    offset = int(mo.group(1)) if mo else None
+    return (basis, offset)
+
+
 def _create_default_schedule(prescription: Prescription, user_id: int, db: Session):
     """처방 frequency 기준으로 복용 시간대마다 스케줄 1행씩 생성. PRN은 1행(필요시)."""
     prn = _is_prn(prescription.frequency)
@@ -241,14 +264,21 @@ def get_medication_list(user_id: int, db: Session) -> MedicationListResponse:
         active = [s for s in p.medication_schedules if s.is_active]
         prn = any(s.is_as_needed for s in active)
         times = [] if prn else sorted({str(s.intake_time)[:5] for s in active})
+        # 식사기준: 저장값 우선, null이면 frequency에서 정규화(표시용 폴백 — 저장 안 함)
+        mb = next((s.meal_basis for s in active if s.meal_basis), None)
+        mo = next((s.timing_offset_min for s in active if s.timing_offset_min is not None), None)
+        if mb is None:
+            mb, fb_off = _meal_from_frequency(p.frequency)
+            if mo is None:
+                mo = fb_off
         cards.append(MedicationCardItem(
             id=p.id, source="prescription", drug_name=p.drug_name,
             dosage=p.dosage, frequency=p.frequency,
             start_date=p.start_date, end_date=p.end_date,
             is_active=p.is_active and (p.end_date is None or p.end_date >= today),
             dosage_text=p.dosage, times=times, is_as_needed=prn,
-            meal_basis=next((s.meal_basis for s in active if s.meal_basis), None),
-            timing_offset_min=next((s.timing_offset_min for s in active if s.timing_offset_min is not None), None),
+            meal_basis=mb,
+            timing_offset_min=mo,
         ))
 
     # 직접등록 (처방전 없는 custom 일정) - 같은 약은 하나로 묶고 복용시간 모음
@@ -336,7 +366,9 @@ def _create_schedules(user_id, prescribed_medicine_id, drug_name, dosage_message
 
 
 def get_medication_by_id(user_id: int, medication_id: int, source: str, db: Session) -> MedicationDetailResponse:
-    """수정 폼 로드 — source(prescription|custom)별 단건 상세."""
+    """수정 폼 로드 — source(prescription|custom)별 단건 상세.
+    주의: meal_basis는 저장값(schedules)만 읽는다. frequency 표시용 폴백 미적용 —
+    추정값이 폼에 채워지면 무변경 저장만으로도 DB에 굳어 저장 오염되므로 금지."""
     if source == "custom":
         base = db.query(MedicationSchedule).filter(
             MedicationSchedule.schedule_id == medication_id,
@@ -557,6 +589,13 @@ def get_medications_by_date(user_id: int, target_date: date, db: Session) -> Dat
     result = []
     for s in schedules:
         log = log_map.get(s.schedule_id)
+        # 식사기준: 저장값 우선, null이면 처방 frequency에서 정규화(표시용 폴백 — 저장 안 함)
+        mb = s.meal_basis
+        mo = s.timing_offset_min
+        if mb is None and s.prescription:
+            mb, fb_off = _meal_from_frequency(s.prescription.frequency)
+            if mo is None:
+                mo = fb_off
         result.append(TodayMedicationScheduleItem(
             schedule_id=s.schedule_id,
             drug_name=s.drug_name,
@@ -565,8 +604,9 @@ def get_medications_by_date(user_id: int, target_date: date, db: Session) -> Dat
             dosage_message=s.dosage_message,
             is_taken=log.status == 'TAKEN' if log else False,
             log_id=log.log_id if log else None,
-            meal_basis=s.meal_basis,
-            timing_offset_min=s.timing_offset_min,
+            meal_basis=mb,
+            timing_offset_min=mo,
+            is_custom=s.is_custom,
         ))
 
     result.sort(key=lambda x: x.intake_time)

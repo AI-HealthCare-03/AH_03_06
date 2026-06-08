@@ -73,7 +73,6 @@ function toDateStr(year, month, day) {
 
 // ── 복약 카드 ─────────────────────────────────────────────────
 function MedCard({ med, onTake, onUndo }) {
-  const isPrescription = med.type === 'prescription';
   const isDone    = med.status === 'done';
   const isPending = med.status === 'pending';
   const isMissed  = med.status === 'missed';
@@ -82,22 +81,13 @@ function MedCard({ med, onTake, onUndo }) {
     <div className={`flex items-center gap-3 bg-white border border-borderHairline rounded-2xl px-4 py-3.5 mb-2 shadow-sm
       ${isPending ? 'border border-[#DBEAFE]' : ''}`}
     >
-      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0
-        ${isPrescription ? 'bg-[#EFF6FF]' : 'bg-[#F4F4F5]'}`}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-          stroke={isPrescription ? '#2563EB' : '#A1A1AA'} strokeWidth="1.8"
-          strokeLinecap="round" strokeLinejoin="round">
-          <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
-        </svg>
-      </div>
-
       <div className="flex-1 min-w-0">
         <p className={`text-[14px] font-medium truncate
           ${isDone ? 'text-[#A1A1AA] line-through' : 'text-[#09090B]'}`}>
           {med.name}
         </p>
-        <p className="text-[11px] text-[#A1A1AA] mt-0.5">{med.dosage} · {med.timing}</p>
+        {/* 용량 · 식사기준 */}
+        <p className="text-[11px] text-[#A1A1AA] mt-0.5">{[med.dosage, med.timing].filter(Boolean).join(' · ')}</p>
       </div>
 
       {/* ✅ 복용하기 버튼 — 클릭 시 onTake 호출 */}
@@ -379,7 +369,7 @@ export default function MedicationRecordPage() {
                 <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] inline-block" /> 처방약
               </span>
               <span className="flex items-center gap-1.5 text-[11px] text-[#71717A]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#A1A1AA] inline-block" /> 일반약·영양제
+                <span className="w-1.5 h-1.5 rounded-full bg-[#A1A1AA] inline-block" /> 일반의약품
               </span>
             </div>
           </div>

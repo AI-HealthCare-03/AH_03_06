@@ -4,7 +4,7 @@
 import { useState, useCallback } from 'react';
 import Header from '../../components/Header.jsx';
 import MobileFrame from '../../components/MobileFrame.jsx';
-import { fetchScheduleHistory } from '../../api/medication';
+import { fetchScheduleHistory, mealFromFrequency } from '../../api/medication';
 import { exportMedicationHistory } from '../../api/medicationHistories.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faClockRotateLeft, faDownload } from '@fortawesome/free-solid-svg-icons';
@@ -87,7 +87,8 @@ function HistoryRecord({ record }) {
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-medium text-[#09090B] truncate">{record.drug_name}</p>
         <p className="text-[11px] text-[#A1A1AA] mt-0.5">
-          {record.dosage ?? ''} {record.frequency ? `${record.frequency}회/일` : ''}
+          {/* 용량 · 식사기준(frequency 정규화). 백엔드 _meal_from_frequency와 어휘 동기화 */}
+          {[record.dosage, mealFromFrequency(record.frequency)].filter(Boolean).join(' · ')}
         </p>
       </div>
       <div className="text-right flex-shrink-0">
