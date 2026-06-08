@@ -30,6 +30,10 @@ import ExerciseGuideListPage from './pages/guide/ExerciseGuideListPage.jsx'
 import ExerciseGuidePage from './pages/guide/ExerciseGuidePage.jsx'
 import MyPage from './pages/user/MyPage'
 import ProfileEdit from './pages/user/ProfileEdit'
+import PointsPage from './pages/user/PointsPage'
+import AttendanceRecordPage from './pages/user/AttendanceRecordPage'
+import ProfileSelectPage from './pages/user/ProfileSelectPage'
+import { resetAttendanceCheckSession } from './components/AttendanceModal.jsx'
 import MedicalRecordDetail from './pages/medical-record/MedicalRecordDetail.jsx'
 import MedicalRecordList from './pages/medical-record/MedicalRecordList.jsx'
 import MedicalRecordForm from './pages/medical-record/MedicalRecordForm.jsx'
@@ -51,6 +55,7 @@ import ChatPage from './pages/chat/ChatPage.jsx'
 let _setAuth = null
 export function logout() {
   clearTokens()
+  resetAttendanceCheckSession()   // 계정 전환 시 출석 모달 다시 뜨도록
   _setAuth?.(false)
 }
 
@@ -102,6 +107,9 @@ function App() {
         <Route path="/guide/exercise" element={<PrivateRoute auth={auth}><ExerciseGuidePage /></PrivateRoute>} />
         <Route path="/user" element={<PrivateRoute auth={auth}><MyPage /></PrivateRoute>} />
         <Route path="/user/profile/edit" element={<PrivateRoute auth={auth}><ProfileEdit /></PrivateRoute>} />
+        <Route path="/user/points" element={<PrivateRoute auth={auth}><PointsPage /></PrivateRoute>} />
+        <Route path="/user/attendance" element={<PrivateRoute auth={auth}><AttendanceRecordPage /></PrivateRoute>} />
+        <Route path="/user/profile/select" element={<PrivateRoute auth={auth}><ProfileSelectPage /></PrivateRoute>} />
         <Route path="/health-checkup" element={<PrivateRoute auth={auth}><HealthCheckList /></PrivateRoute>} />
         <Route path="/health-checkup/input" element={<PrivateRoute auth={auth}><HealthCheckInput /></PrivateRoute>} />
         <Route path="/health-checkup/input/:year" element={<PrivateRoute auth={auth}><HealthCheckInput /></PrivateRoute>} />
