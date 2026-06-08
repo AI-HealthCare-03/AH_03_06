@@ -1,6 +1,8 @@
 # app/services/guide_service.py
 # 복약 가이드 비즈니스 로직 (생성/조회/목록/삭제)
 
+import json
+
 from fastapi import HTTPException
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
@@ -17,11 +19,7 @@ from app.schemas.guide import (
     MedicationGuideSchema,
 )
 from app.services.drug_matching_service import get_index, match_drug
-from app.services.llm_service import (
-    generate_guide_for_drug_async,
-    generate_guide_for_drug_stream,
-)
-from app.services import point_service
+from app.services.llm_service import generate_guide_for_drug_async
 
 
 DISCLAIMER = (
@@ -29,24 +27,56 @@ DISCLAIMER = (
     "대체하지 않습니다. 실제 복약 결정은 반드시 의사·약사와 상담하시기 바랍니다."
 )
 
+# 진료기록 자동 가이드는 사용자 질문이 없어 검색이 소집단(소아)·동물실험 청크로 쏠릴 수 있다.
+# 핵심(효능·복용법·경고·중대 주의)으로 검색을 유도하는 기본 질의.
+_DEFAULT_GUIDE_QUERY = "이 약의 주요 효능, 복용법, 경고 및 중대한 주의사항은 무엇인가요?"
+
+
+def _decode_references(raw: str | None) -> list[str]:
+    """references Text 컬럼(JSON 문자열) → list[str]. 빈값·비JSON 레거시는 빈 목록."""
+    if not raw:
+        return []
+    try:
+        val = json.loads(raw)
+    except (ValueError, TypeError):
+        return []
+    return [str(s) for s in val] if isinstance(val, list) else []
+
+
+def _decode_structured(raw: str | None) -> dict | None:
+    """main_content 가 구조화 JSON 이면 dict, 레거시(마크다운/비JSON)면 None."""
+    if not raw:
+        return None
+    try:
+        d = json.loads(raw)
+    except (ValueError, TypeError):
+        return None
+    return d if isinstance(d, dict) and "sections" in d else None
+
 
 def _to_schema(guide: MedicationGuide) -> MedicationGuideSchema:
+    structured = _decode_structured(guide.main_content) or {}
     return MedicationGuideSchema(
         guide_id=guide.id,
         safety_block=guide.safety_block,
-        safety_warn=guide.safety_warn,
-        safety_info=guide.safety_info,
         main_content=guide.main_content,
-        references=guide.references,
-        safety_recommendations=guide.safety_recommendations,
+        # references 는 Text 컬럼에 JSON 문자열로 저장 → list[str] 로 디코드. 레거시 빈값/비JSON 은 빈 목록.
+        references=_decode_references(guide.references),
         is_fallback=guide.is_fallback,
         created_at=guide.created_at.isoformat(timespec="seconds") + "Z",
         disclaimer=DISCLAIMER,
         medication_id=guide.medication_id,
         drug_name=guide.drug_name,
+        key_point=structured.get("key_point"),
+        sections=structured.get("sections", []),
+        safety_note=structured.get("safety_note"),
+        fallback_message=structured.get("fallback_message"),
     )
 
 
+# 처방 → (prescription, item_seq, drug_name) 해결. drug_id 있으면 그 drug_code 사용,
+# 없으면 약명→item_seq 매칭 폴백(confidence ≥ 90만 채택; 오매칭이 정보부족보다 위험).
+# 블로킹 생성에서 사용.
 def _resolve_prescription_item_seq(medication_id: int, user_id: int, db: Session):
     prescription = (
         db.query(Prescription)
@@ -89,74 +119,33 @@ async def request_guide_generation(
     payload = await generate_guide_for_drug_async(
         item_seq=item_seq,
         drug_name=drug_name,
+        user_query=_DEFAULT_GUIDE_QUERY,
     )
 
+    structured = {
+        "key_point": payload.get("key_point", ""),
+        "sections": payload.get("sections", []),
+        "safety_note": payload.get("safety_note", ""),
+        "fallback_message": payload.get("fallback_message"),
+    }
     guide = MedicationGuide(
         user_id=user_id,
         medication_id=request.medication_id,
         drug_name=drug_name,
         safety_block=payload.get("safety_block"),
-        safety_warn=payload.get("safety_warn"),
-        safety_info=payload.get("safety_info"),
-        main_content=payload["main_content"],
-        references=payload.get("references"),
-        safety_recommendations=payload.get("safety_recommendations"),
+        main_content=json.dumps(structured, ensure_ascii=False),   # 구조화 JSON 직렬화 저장(Text 컬럼)
+        references=json.dumps(payload.get("references") or [], ensure_ascii=False),
         is_fallback=payload.get("is_fallback", False),
     )
     db.add(guide)
     db.commit()
     db.refresh(guide)
-
+    
     # 포인트 적립
     point_service.earn(user_id, "medication_guide", db)
     db.commit()
-
-    return GenerateGuideResponse(detail="medication_guide_generating")
-
-
-async def stream_guide_generation(
-    request: GenerateGuideRequest,
-    user_id: int,
-    db: Session,
-):
-    _, item_seq, drug_name = _resolve_prescription_item_seq(request.medication_id, user_id, db)
-
-    async def _emit():
-        main_content = ""
-        meta: dict | None = None
-        async for ev in generate_guide_for_drug_stream(item_seq=item_seq, drug_name=drug_name):
-            etype = ev.get("type")
-            if etype == "meta":
-                meta = ev
-                yield ev
-            elif etype == "token":
-                main_content += ev.get("text", "")
-                yield ev
-
-        meta_d = meta or {}
-        guide = MedicationGuide(
-            user_id=user_id,
-            medication_id=request.medication_id,
-            drug_name=drug_name,
-            safety_block=meta_d.get("safety_block"),
-            safety_warn=meta_d.get("safety_warn"),
-            safety_info=meta_d.get("safety_info"),
-            main_content=main_content,
-            references=meta_d.get("references"),
-            safety_recommendations=meta_d.get("safety_recommendations"),
-            is_fallback=meta_d.get("is_fallback", False),
-        )
-        db.add(guide)
-        db.commit()
-        db.refresh(guide)
-
-        # 포인트 적립
-        point_service.earn(user_id, "medication_guide", db)
-        db.commit()
-
-        yield {"type": "done", "guide_id": guide.id, "is_fallback": guide.is_fallback}
-
-    return _emit()
+    
+    return GenerateGuideResponse(detail="medication_guide_created", guide_id=guide.id)
 
 
 def get_medication_guide(

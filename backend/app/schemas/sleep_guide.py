@@ -1,8 +1,12 @@
 # app/schemas/sleep_guide.py
 # 수면 가이드 요청/응답 스키마
 
+import re
 from typing import Optional
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel, Field, field_validator
+
+_TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 
 
 # 생성 요청
@@ -41,6 +45,12 @@ class SleepGenerateRequest(BaseModel):
 
     # 수면 방해 원인 (DB 저장 X, LLM 컨텍스트로만 활용 — 시안 8개 라벨)
     disturbance_causes: list[str] = []
+
+    @field_validator("weekday_bedtime", "weekday_wakeup", "weekend_bedtime", "weekend_wakeup")
+    def validate_time_format(cls, v):
+        if not _TIME_RE.match(v.strip()):
+            raise ValueError("invalid_time_format")
+        return v.strip()
 
 
 class SleepGenerateResponse(BaseModel):

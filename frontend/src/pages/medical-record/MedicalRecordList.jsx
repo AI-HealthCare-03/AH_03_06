@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listMedicalRecords } from '../../api/medicalRecord'
 import Header from '../../components/Header'
+import MobileFrame from '../../components/MobileFrame.jsx'
 import EmptyState from '../../components/EmptyState'
 import { faFileLines } from '@fortawesome/free-solid-svg-icons'
 
@@ -212,10 +213,7 @@ export default function MedicalRecordList() {
   const hasFilters = !!keyword || activeFilterCount > 0
 
   return (
-    <div className="mobile-container flex flex-col min-h-dvh bg-white font-['Pretendard',sans-serif]">
-
-      {/* 앱바 */}
-      <Header variant="back" title="진료기록" showDivider={false} />
+    <MobileFrame header={<Header variant="back" title="진료기록" />}>
 
       {/* 검색바 */}
       <div className="px-5 pt-1 pb-3">
@@ -309,7 +307,7 @@ export default function MedicalRecordList() {
       {/* FAB - 등록 버튼 */}
       <button
         onClick={() => navigate('/medical-records/new')}
-        className="fixed bottom-6 right-5 w-14 h-14 rounded-full bg-blue-600 text-white shadow-[0_8px_24px_rgba(37,99,235,0.4)] flex items-center justify-center active:scale-95 transition-transform duration-150 z-10"
+        className="fixed bottom-6 right-5 md:right-[calc((100vw_-_480px)/2_+_20px)] w-14 h-14 rounded-full bg-blue-600 text-white shadow-[0_8px_24px_rgba(37,99,235,0.4)] flex items-center justify-center active:scale-95 transition-transform duration-150 z-10"
         aria-label="진료기록 추가"
       >
         <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -350,6 +348,6 @@ export default function MedicalRecordList() {
           </div>
         </>
       )}
-    </div>
+    </MobileFrame>
   )
 }

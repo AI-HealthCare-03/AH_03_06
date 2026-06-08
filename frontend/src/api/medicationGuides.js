@@ -51,8 +51,7 @@ export async function deleteMedicationGuide(guideId) {
   return res.json()
 }
 
-// 데모용 — item_seq 직접 입력으로 /preview 를 호출.
-// 추후 medication_id 흐름과 통합 예정 (이때 본 함수는 제거 또는 내부 헬퍼로 흡수).
+// /preview — item_seq 직접(진료기록 약 탭 진입). 구조화 가이드 payload 반환(블로킹).
 export async function previewMedicationGuide({
   item_seq,
   drug_name = '',
@@ -70,66 +69,7 @@ export async function previewMedicationGuide({
   return res.json()
 }
 
-// NDJSON 스트림 공통 파서 — meta(1) → token(N) → done(1) 줄 단위.
-// onMeta(evt) / onToken(text) / onDone(evt). fetch 자체 실패만 throw.
-async function consumeNdjsonStream(res, { onMeta, onToken, onDone } = {}) {
-  if (!res.ok) throw new Error(await res.text())
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder()
-  let buf = ''
-  while (true) {
-    const { value, done } = await reader.read()
-    if (done) break
-    buf += decoder.decode(value, { stream: true })
-    let nl
-    while ((nl = buf.indexOf('\n')) >= 0) {
-      const line = buf.slice(0, nl).trim()
-      buf = buf.slice(nl + 1)
-      if (!line) continue
-      let evt
-      try { evt = JSON.parse(line) } catch { continue }
-      if (evt.type === 'meta') onMeta?.(evt)
-      else if (evt.type === 'token') onToken?.(evt.text)
-      else if (evt.type === 'done') onDone?.(evt)
-    }
-  }
-}
-
-
-// previewMedicationGuide 의 stream 변종 — /preview-stream (데모, item_seq 직접 입력).
-export async function previewMedicationGuideStream(
-  {
-    item_seq,
-    drug_name = '',
-    user_query = null,
-    patient = null,
-    safety = null,
-    top_k = 3,
-  },
-  handlers = {},
-) {
-  const res = await fetch(`${base()}/medication_guides/preview-stream`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ item_seq, drug_name, user_query, patient, safety, top_k }),
-  })
-  return consumeNdjsonStream(res, handlers)
-}
-
-
-// /generate-stream — 처방(medication_id) 기반 스트리밍 생성+저장 (인증 필요).
-// done 이벤트에 guide_id 가 실려 옴 → onDone(evt) 로 전달.
-export async function generateMedicationGuideStream(medicationId, handlers = {}, refresh = false) {
-  const res = await fetch(`${base()}/medication_guides/generate-stream`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ medication_id: medicationId, refresh }),
-  })
-  return consumeNdjsonStream(res, handlers)
-}
-
-
-// 데모용 — drug_info_rag + drug_detail_rag 메타데이터 union을 dedupe해
+// drug_info_rag + drug_detail_rag 메타데이터 union을 dedupe해
 // [{item_seq, drug_name}] 반환. q 가 비어있으면 처음 limit 개.
 // AbortController 지원 — 빠른 타이핑 시 직전 요청 abort 로 race condition 차단.
 export async function fetchDrugSuggest({ q = '', limit = 20 } = {}, signal) {

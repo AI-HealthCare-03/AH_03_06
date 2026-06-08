@@ -4,6 +4,7 @@
 import { useNavigate } from 'react-router-dom'
 import BottomNav from '../../components/BottomNav.jsx'
 import Header from '../../components/Header.jsx'
+import MobileFrame from '../../components/MobileFrame.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faStethoscope,
@@ -47,10 +48,11 @@ function All() {
   const navigate = useNavigate()
 
   return (
-    <div className="bg-[#FAFAFA] w-full min-h-[100dvh] flex justify-center">
-      <div className="w-full bg-[#FAFAFA] relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] pb-24">
-
-        <Header variant="default" title="전체" />
+    <MobileFrame
+      contentBg="white"
+      header={<Header variant="default" title="전체" />}
+      bottomNav={<BottomNav />}
+    >
 
         <main className="px-5 pt-6 pb-2 space-y-6">
           {MENU.map(({ category, items }) => (
@@ -84,9 +86,7 @@ function All() {
           ))}
         </main>
 
-        <BottomNav />
-      </div>
-    </div>
+    </MobileFrame>
   )
 }
 
