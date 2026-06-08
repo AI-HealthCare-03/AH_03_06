@@ -8,6 +8,7 @@ import { listSleepGuides, getSleepGuide } from '../../api/sleepGuides.js'
 import { listDietGuideDates, getDietGuideByDate } from '../../api/dietGuides.js'
 import { sleepDescFrom, dietDescFrom, localToday, pickGuideDate } from '../../utils/guideSummary.js'
 import { logout } from '../../App.jsx'
+import AttendanceModal from '../../components/AttendanceModal.jsx'
 import BottomNav from '../../components/BottomNav.jsx'
 import Header from '../../components/Header.jsx'
 import MobileFrame from '../../components/MobileFrame.jsx'
@@ -280,6 +281,7 @@ function Home() {
           </p>
 
         </main>
+        <AttendanceModal />
     </MobileFrame>
   )
 }
