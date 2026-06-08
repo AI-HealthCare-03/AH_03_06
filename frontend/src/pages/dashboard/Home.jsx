@@ -4,6 +4,8 @@ import { getAccessToken } from '../../utils/token.js'
 import { getTodayMedication } from '../../api/medication.js'
 import { listMedicalRecords } from '../../api/medicalRecord'
 import { listHealthCheckups, getHealthCheckupByYear } from '../../api/healthCheckup.js'
+import { listSleepGuides, getSleepGuide } from '../../api/sleepGuides.js'
+import { listDietGuideDates, getDietGuideByDate } from '../../api/dietGuides.js'
 import { logout } from '../../App.jsx'
 import BottomNav from '../../components/BottomNav.jsx'
 import Header from '../../components/Header.jsx'
@@ -41,12 +43,65 @@ const classifyBmi = (h, w) => {
   return { bmi, status: bmi < 23 ? '정상' : bmi < 25 ? '주의' : '위험' }
 }
 
+// 수면 weekly_goal 텍스트 → "권장 취침 HH:MM · 기상 HH:MM" (B안 정규식).
+// 키워드("취침"·"기상") 인접 시각 우선(앞·뒤 모두 — "22:30에 취침"·"취침 22:30" 둘 다 대응),
+// 실패 시 등장 순 2개, 1개 이하면 null(폴백 문구).
+const _timeNear = (text, kw) => {
+  const i = text.indexOf(kw)
+  if (i < 0) return null
+  const start = Math.max(0, i - 14)
+  const win = text.slice(start, i + kw.length + 14)
+  const kS = i - start, kE = kS + kw.length
+  let best = null, bestGap = Infinity
+  for (const m of win.matchAll(/([01]?\d|2[0-3]):[0-5]\d/g)) {
+    const gap = Math.max(0, kS - (m.index + m[0].length), m.index - kE)  // 가장자리 간격
+    if (gap < bestGap) { bestGap = gap; best = m[0] }
+  }
+  return best
+}
+// 식단 meal_plan_type(검진 그룹 기반, diet_service.GROUP_TO_MEAL_PLAN) → 카드용 한글.
+const MEAL_PLAN_KO = {
+  'Balanced Diet':                '균형 잡힌 일반 식단',
+  'Low-Sodium Diet':             '저염 식단',
+  'Low-Carb Diet':               '저탄수 식단',
+  'Low-Calorie Diet':            '저칼로리 식단',
+  'Low-Carb Low-Sodium Diet':    '저염·저탄수 식단',
+  'Low-Calorie Low-Sodium Diet': '저염·저칼로리 식단',
+  'Low-Carb Low-Calorie Diet':   '저탄수·저칼로리 식단',
+  'Therapeutic Diet':            '맞춤 집중 관리 식단',
+}
+
+// 끼니 텍스트("**\n- 흑미밥 1/2공기 (100g)\n- 아욱국…") → "흑미밥 1/2공기 (100g), 아욱국…" (마크다운 제거)
+const parseMealItems = (text) =>
+  (text || '').split('\n')
+    .map(s => s.replace(/\*+/g, '').replace(/^[-•\s]+/, '').trim())
+    .filter(Boolean)
+    .join(', ')
+// 로컬(KST) 오늘 "YYYY-MM-DD"
+const localToday = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+const sleepDescFrom = (weeklyGoal) => {
+  if (!weeklyGoal) return null
+  const bed = _timeNear(weeklyGoal, '취침')
+  const wake = _timeNear(weeklyGoal, '기상')
+  if (bed && wake) return `취침 ${bed} · 기상 ${wake} 권장`
+  const all = [...weeklyGoal.matchAll(/([01]?\d|2[0-3]):[0-5]\d/g)].map(m => m[0])
+  if (all.length >= 2) return `취침 ${all[0]} · 기상 ${all[1]} 권장`
+  return null
+}
+
 function Home() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [today, setToday] = useState(null)
   const [recentRecord, setRecentRecord] = useState(null)
   const [checkup, setCheckup] = useState(null)
+  const [sleepDesc, setSleepDesc] = useState(null)   // null=폴백 문구 사용
+  const [dietDesc, setDietDesc] = useState(null)
+  const [dietMeals, setDietMeals] = useState([])   // 오늘 가이드일 때만 채움(아침/점심/저녁)
 
   useEffect(() => {
     fetch(`${base}/users/me`, {
@@ -76,6 +131,37 @@ function Home() {
         if (latest) return getHealthCheckupByYear(latest.checkup_year)
       })
       .then(detail => detail && setCheckup(detail))
+      .catch(() => {})
+
+    // 수면: 최신 가이드 weekly_goal에서 취침·기상 시각 추출(없으면 폴백 유지)
+    listSleepGuides()
+      .then(d => {
+        const latest = (d?.guides ?? [])[0]
+        if (latest) return getSleepGuide(latest.guide_id)
+      })
+      .then(g => { const desc = sleepDescFrom(g?.weekly_goal); if (desc) setSleepDesc(desc) })
+      .catch(() => {})
+
+    // 식단: 최신 가이드의 meal_plan_type(백엔드가 검진 그룹으로 산정) → 한글 매핑(없으면 폴백)
+    listDietGuideDates()
+      .then(d => {
+        const latest = (d?.dates ?? []).slice().sort().reverse()[0]
+        if (latest) return getDietGuideByDate(latest).then(g => ({ g, date: latest }))
+      })
+      .then(res => {
+        if (!res) return
+        const ko = MEAL_PLAN_KO[res.g?.meal_plan_type]
+        if (ko) setDietDesc(`${ko} 권장`)
+        // 최신 가이드가 '오늘'일 때만 끼니 목록(어제 식단을 오늘처럼 보여주지 않음)
+        if (res.date === localToday()) {
+          const meals = [
+            { label: '아침', items: parseMealItems(res.g?.breakfast) },
+            { label: '점심', items: parseMealItems(res.g?.lunch) },
+            { label: '저녁', items: parseMealItems(res.g?.dinner) },
+          ].filter(m => m.items)   // 파싱 실패한 끼니는 그 줄만 생략
+          if (meals.length) setDietMeals(meals)
+        }
+      })
       .catch(() => {})
   }, [])
 
@@ -170,21 +256,28 @@ function Home() {
             </div>
             <div className="space-y-2">
               {[
-                { icon: faUtensils,      title: '식단 가이드', desc: '혈압 관리 저염식 권장', path: '/diet-guides' },
+                { icon: faUtensils,      title: '식단 가이드', desc: dietDesc ?? '건강 맞춤 식단 권장', path: '/diet-guides', meals: dietMeals },
                 { icon: faPersonRunning, title: '운동 가이드', desc: '중간 강도 유산소 30분', path: '/exercise-guides' },
-                { icon: faMoon,          title: '수면 가이드', desc: '취침 전 카페인 회피', path: '/sleep-guides' },
-              ].map(({ icon, title, desc, path }) => (
+                { icon: faMoon,          title: '수면 가이드', desc: sleepDesc ?? '취침 전 카페인 회피', path: '/sleep-guides' },
+              ].map(({ icon, title, desc, path, meals }) => (
                 <button key={title} onClick={() => navigate(path)} className="w-full text-left bg-white border border-[#E4E4E7] rounded-[10px] shadow-sm p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-[8px] bg-white border border-[#E4E4E7] flex items-center justify-center">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-[8px] bg-white border border-[#E4E4E7] flex items-center justify-center shrink-0">
                       <FontAwesomeIcon icon={icon} className="text-[#2563EB] text-sm" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-[14px] font-[700] text-[#09090B] leading-tight">{title}</p>
-                      <p className="text-[12px] text-[#52525B] mt-0.5">{desc}</p>
+                      <p className="text-[12px] text-[#52525B] mt-0.5 truncate">{desc}</p>
+                      {/* 오늘 식단 끼니 목록(식단 카드만, 오늘 가이드일 때) — 끼니 라벨 mute·음식 subtext, 3줄 상한 */}
+                      {meals?.map(m => (
+                        <p key={m.label} className="text-[11px] mt-0.5 truncate">
+                          <span className="text-[#71717A] font-[600]">{m.label}</span>
+                          <span className="text-[#A1A1AA]"> · {m.items}</span>
+                        </p>
+                      ))}
                     </div>
                   </div>
-                  <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[11px]" />
+                  <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[11px] shrink-0 ml-2" />
                 </button>
               ))}
             </div>
