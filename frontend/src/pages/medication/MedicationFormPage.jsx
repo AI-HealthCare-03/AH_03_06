@@ -189,7 +189,7 @@ export default function MedicationFormPage() {
           await addDirectMedication({
             intake_time:       t,
             drug_name:         form.name.trim(),
-            dosage_message:    `${form.dosageAmount}${form.dosageUnit}`,
+            dosage_message:    `${form.dosageAmount || 1}${form.dosageUnit}`,
             notification_type: 'PUSH',
             days,
             is_custom:         true,
@@ -284,7 +284,10 @@ export default function MedicationFormPage() {
               min={0.5}
               step={0.5}
               value={form.dosageAmount}
-              onChange={e => set('dosageAmount', parseFloat(e.target.value) || 1)}
+              onChange= {e => {
+                const val = e.target.value;
+                set('dosageAmount', val === '' ? '' : parseFloat(val));
+              }}
               className="w-24 border border-borderHairline rounded-xl px-3 py-3 text-sm text-center text-textHeading focus:outline-none focus:ring-2 focus:ring-primary"
             />
             <div className="flex flex-wrap gap-2">

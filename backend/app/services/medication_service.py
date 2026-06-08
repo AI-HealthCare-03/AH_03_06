@@ -914,6 +914,28 @@ def get_medication_history(user_id: int, start_date: date, end_date: date, drug_
     total = query.count()
     logs = query.order_by(MedicationLog.intake_date.desc()).offset((page - 1) * size).limit(size).all()
 
+    # 달성률 계산 - _user_active_schedules, _occurs_on 재사용
+    schedules = _user_active_schedules(user_id, db)
+
+    total_scheduled = 0
+    for schedule in schedules:
+        current = max(start_date, schedule.start_date or start_date)
+        end     = min(end_date,   schedule.end_date   or end_date)
+        while current <= end:
+            if _occurs_on(schedule, current):
+                total_scheduled += 1
+            current += timedelta(days=1)
+
+    total_taken = db.query(MedicationLog).filter(
+        MedicationLog.user_id == user_id,
+        MedicationLog.intake_date >= start_date,
+        MedicationLog.intake_date <= end_date,
+        MedicationLog.status == 'TAKEN',
+    ).count()
+
+    total_missed     = max(total_scheduled - total_taken, 0)
+    achievement_rate = round(total_taken / total_scheduled * 100, 1) if total_scheduled > 0 else 0.0
+
     from app.schemas.medication import MedicationHistoryResponse, MedicationHistoryItem
     items = [
         MedicationHistoryItem(
@@ -924,12 +946,22 @@ def get_medication_history(user_id: int, start_date: date, end_date: date, drug_
             frequency=log.medication_schedule.prescription.frequency if log.medication_schedule and log.medication_schedule.prescription else None,
             start_date=log.medication_schedule.prescription.start_date if log.medication_schedule and log.medication_schedule.prescription else None,
             end_date=log.medication_schedule.prescription.end_date if log.medication_schedule and log.medication_schedule.prescription else None,
-            created_at=log.created_at.isoformat(timespec="seconds") + "Z",   # naive UTC → Z 명시
+            created_at=log.created_at.isoformat(timespec="seconds") + "Z",
             checked_at=(log.checked_at.isoformat(timespec="seconds") + "Z") if log.checked_at else None,
         )
         for log in logs
     ]
-    return MedicationHistoryResponse(total=total, page=page, size=size, items=items)
+
+    return MedicationHistoryResponse(
+        total=total,
+        page=page,
+        size=size,
+        items=items,
+        total_scheduled=total_scheduled,
+        total_taken=total_taken,
+        total_missed=total_missed,
+        achievement_rate=achievement_rate,
+    )
 
 def check_medication(user_id: int, request, db: Session):
     from datetime import datetime

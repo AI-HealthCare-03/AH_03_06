@@ -133,49 +133,36 @@ function DateSection({ dateStr, records }) {
 }
 
 // ── 통계 요약 카드 ────────────────────────────────────────────
-function SummaryCard({ records }) {
-  const taken  = records.length;
-  const missed = records.filter(r => r.status === 'missed').length;
-  const total  = records.length;
-  const rate   = 100;
+function SummaryCard({ stats }) {
+  const rate   = stats?.achievement_rate ?? 0;
+  const taken  = stats?.total_taken ?? 0;
+  const missed = stats?.total_missed ?? 0;
+  const total  = stats?.total_scheduled ?? 0;
 
   return (
     <div className="bg-white border border-borderHairline rounded-2xl px-5 py-4 shadow-sm mb-3">
       <div className="flex items-center justify-between">
-        {/* 달성율 */}
         <div>
           <p className="text-[12px] text-mute mb-0.5">전체 달성율</p>
           <p className="text-[28px] font-bold text-textHeading leading-tight">
             {rate}<span className="text-[16px] font-normal text-mute">%</span>
           </p>
         </div>
-
-        {/* 구분선 */}
         <div className="w-px h-12 bg-borderLight" />
-
-        {/* 완료 */}
         <div className="text-center">
           <p className="text-[12px] text-mute mb-0.5">완료</p>
           <p className="text-[20px] font-bold text-primary">
             {taken}<span className="text-[12px] font-normal text-mute">회</span>
           </p>
         </div>
-
-        {/* 구분선 */}
         <div className="w-px h-12 bg-borderLight" />
-
-        {/* 누락 — 0회면 회색, 1회 이상일 때만 빨강 */}
         <div className="text-center">
           <p className="text-[12px] text-mute mb-0.5">누락</p>
           <p className={`text-[20px] font-bold ${missed > 0 ? 'text-error' : 'text-mute'}`}>
             {missed}<span className="text-[12px] font-normal text-mute">회</span>
           </p>
         </div>
-
-        {/* 구분선 */}
         <div className="w-px h-12 bg-borderLight" />
-
-        {/* 총 횟수 */}
         <div className="text-center">
           <p className="text-[12px] text-mute mb-0.5">총 횟수</p>
           <p className="text-[20px] font-bold text-textHeading">
@@ -196,6 +183,7 @@ export default function MedicationHistoryPage() {
   const [loading,   setLoading]   = useState(false);
   const [csvLoading, setCsvLoading] = useState(false);
   const [error,     setError]     = useState('');
+  const [stats, setStats] = useState(null);
 
   // ── 빠른 기간 선택 ──
   const applyQuickRange = (days) => {
@@ -217,6 +205,12 @@ export default function MedicationHistoryPage() {
       const res = await fetchScheduleHistory(startDate, endDate);
       const data = res.data ?? res;
       setRecords(data.items ?? []);
+      setStats({
+        achievement_rate: data.achievement_rate ?? 0,
+        total_taken:      data.total_taken ?? 0,
+        total_missed:     data.total_missed ?? 0,
+        total_scheduled:  data.total_scheduled ?? 0,
+      });
     } catch (e) {
       console.error(e);
       setError('이력을 불러오지 못했어요. 다시 시도해 주세요.');
@@ -345,7 +339,7 @@ export default function MedicationHistoryPage() {
                 </div>
 
                 {/* 요약 */}
-                <SummaryCard records={records} />
+                <SummaryCard stats={stats} />
 
                 {/* 날짜별 목록 */}
                 {grouped.map(([dateStr, recs]) => (

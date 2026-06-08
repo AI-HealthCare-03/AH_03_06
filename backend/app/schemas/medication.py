@@ -215,10 +215,14 @@ class MedicationHistoryItem(BaseModel):
 
 
 class MedicationHistoryResponse(BaseModel):
-    total: int
-    page:  int
-    size:  int
-    items: List[MedicationHistoryItem]
+    total:            int
+    page:             int
+    size:             int
+    items:            List[MedicationHistoryItem]
+    total_scheduled:  int
+    total_taken:      int
+    total_missed:     int
+    achievement_rate: float
 
 
 class DailyMedicationRate(BaseModel):
