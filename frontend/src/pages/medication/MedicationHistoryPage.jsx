@@ -86,7 +86,7 @@ function HistoryRecord({ record }) {
       <span className="w-2 h-2 rounded-full flex-shrink-0 bg-[#2563EB]" />
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-medium text-[#09090B] truncate">{record.drug_name}</p>
-        <p className="text-[11px] text-[#A1A1AA] mt-0.5">
+        <p className="text-[11px] text-[#A1A1AA] mt-0.5 truncate">
           {/* 용량 · 식사기준(frequency 정규화). 백엔드 _meal_from_frequency와 어휘 동기화 */}
           {[record.dosage, mealFromFrequency(record.frequency)].filter(Boolean).join(' · ')}
         </p>

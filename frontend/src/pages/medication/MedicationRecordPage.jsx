@@ -87,7 +87,7 @@ function MedCard({ med, onTake, onUndo }) {
           {med.name}
         </p>
         {/* 용량 · 식사기준 */}
-        <p className="text-[11px] text-[#A1A1AA] mt-0.5">{[med.dosage, med.timing].filter(Boolean).join(' · ')}</p>
+        <p className="text-[11px] text-[#A1A1AA] mt-0.5 truncate">{[med.dosage, med.timing].filter(Boolean).join(' · ')}</p>
       </div>
 
       {/* ✅ 복용하기 버튼 — 클릭 시 onTake 호출 */}
