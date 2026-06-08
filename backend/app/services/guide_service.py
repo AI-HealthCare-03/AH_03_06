@@ -59,12 +59,9 @@ def _to_schema(guide: MedicationGuide) -> MedicationGuideSchema:
     return MedicationGuideSchema(
         guide_id=guide.id,
         safety_block=guide.safety_block,
-        safety_warn=guide.safety_warn,
-        safety_info=guide.safety_info,
         main_content=guide.main_content,
         # references 는 Text 컬럼에 JSON 문자열로 저장 → list[str] 로 디코드. 레거시 빈값/비JSON 은 빈 목록.
         references=_decode_references(guide.references),
-        safety_recommendations=guide.safety_recommendations,
         is_fallback=guide.is_fallback,
         created_at=guide.created_at.isoformat(timespec="seconds") + "Z",  # DB·서버 UTC → JS 로컬 변환 위해 Z 명시
         disclaimer=DISCLAIMER,
@@ -139,11 +136,8 @@ async def request_guide_generation(
         medication_id=request.medication_id,
         drug_name=drug_name,
         safety_block=payload.get("safety_block"),
-        safety_warn=payload.get("safety_warn"),
-        safety_info=payload.get("safety_info"),
         main_content=json.dumps(structured, ensure_ascii=False),   # 구조화 JSON 직렬화 저장(Text 컬럼)
         references=json.dumps(payload.get("references") or [], ensure_ascii=False),
-        safety_recommendations=payload.get("safety_recommendations"),
         is_fallback=payload.get("is_fallback", False),
     )
     db.add(guide)

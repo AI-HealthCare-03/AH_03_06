@@ -7,7 +7,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faWandMagicSparkles,
   faCircleInfo,
-  faTriangleExclamation,
   faBan,
   faTrash,
   faLightbulb,
@@ -114,26 +113,6 @@ function MedicationGuidePage() {
                     <h2 className="text-[14px] font-[700] text-error">차단 안내</h2>
                   </div>
                   <p className="text-[14px] font-[500] text-textBody leading-relaxed">{guide.safety_block}</p>
-                </section>
-              )}
-
-              {guide.safety_warn && (
-                <section className="bg-white border border-warning/40 rounded-[10px] p-5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FontAwesomeIcon icon={faTriangleExclamation} className="text-warning text-[16px]" />
-                    <h2 className="text-[14px] font-[700] text-warning">안전 경고</h2>
-                  </div>
-                  <p className="text-[14px] font-[500] text-textBody leading-relaxed">{guide.safety_warn}</p>
-                </section>
-              )}
-
-              {guide.safety_info && (
-                <section className="bg-white border border-primary/30 rounded-[10px] p-5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FontAwesomeIcon icon={faCircleInfo} className="text-primary text-[16px]" />
-                    <h2 className="text-[14px] font-[700] text-primary">안내</h2>
-                  </div>
-                  <p className="text-[14px] font-[500] text-textBody leading-relaxed">{guide.safety_info}</p>
                 </section>
               )}
 

@@ -54,10 +54,11 @@ AH_03_06/
 
 | 이름 | 역할 | 주요 구현 |
 |------|------|-----------|
-| 김창현 (조장) | 프로젝트 리더, 백엔드, 프론트엔드 | 개발환경 세팅, 인증 시스템 전체 (JWT/Google OAuth), 건강검진 CRUD, 혈압·혈당·BMI 기반 위험군 분류 엔진, RAG+LLM 식단 가이드 파이프라인, CLOVA OCR 처방전 14개 필드 추출, 멀티턴 챗봇, DUR 안전성 검사 |
-| 윤성수 | 백엔드, ML | 복약 가이드 RAG·LLM 백엔드, 복약 이력 관리, DUR 안전성 검사, 수면 가이드 RAG LLM, drug_matching_service, 식약처 의약품 데이터 적재 |
-| 이경민 | 프론트엔드 | 진료기록 UI, 복약 관리 UI, OCR 페이지 |
+| 김창현 (조장) | 프로젝트 리더, 백엔드, 프론트엔드 | 개발환경 세팅, 인증 시스템 전체 (JWT/Google OAuth), 건강검진 CRUD, 혈압·혈당·BMI 기반 위험군 분류 엔진, RAG+LLM 식단 가이드 파이프라인, CLOVA OCR 처방전 14개 필드 추출, 멀티턴 챗봇 |
+| 이경민 | 백엔드, ML | 복약 가이드 RAG·LLM 백엔드, 복약 이력 관리, DUR 안전성 검사, 수면 가이드 RAG LLM, drug_matching_service, 식약처 의약품 데이터 적재 |
+| 윤성수 | 프론트엔드 | 진료기록 UI, 복약 관리 UI, OCR 페이지 |
 
 ## 관련 문서
 - [Backend README](./backend/README.md)
 - [Frontend README](./frontend/README.md)
+- [ML README](./ml/README.md)
