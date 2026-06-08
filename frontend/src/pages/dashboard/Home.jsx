@@ -6,6 +6,7 @@ import { listMedicalRecords } from '../../api/medicalRecord'
 import { listHealthCheckups, getHealthCheckupByYear } from '../../api/healthCheckup.js'
 import { listSleepGuides, getSleepGuide } from '../../api/sleepGuides.js'
 import { listDietGuideDates, getDietGuideByDate } from '../../api/dietGuides.js'
+import { sleepDescFrom, dietDescFrom, localToday, pickGuideDate } from '../../utils/guideSummary.js'
 import { logout } from '../../App.jsx'
 import BottomNav from '../../components/BottomNav.jsx'
 import Header from '../../components/Header.jsx'
@@ -43,55 +44,12 @@ const classifyBmi = (h, w) => {
   return { bmi, status: bmi < 23 ? '정상' : bmi < 25 ? '주의' : '위험' }
 }
 
-// 수면 weekly_goal 텍스트 → "권장 취침 HH:MM · 기상 HH:MM" (B안 정규식).
-// 키워드("취침"·"기상") 인접 시각 우선(앞·뒤 모두 — "22:30에 취침"·"취침 22:30" 둘 다 대응),
-// 실패 시 등장 순 2개, 1개 이하면 null(폴백 문구).
-const _timeNear = (text, kw) => {
-  const i = text.indexOf(kw)
-  if (i < 0) return null
-  const start = Math.max(0, i - 14)
-  const win = text.slice(start, i + kw.length + 14)
-  const kS = i - start, kE = kS + kw.length
-  let best = null, bestGap = Infinity
-  for (const m of win.matchAll(/([01]?\d|2[0-3]):[0-5]\d/g)) {
-    const gap = Math.max(0, kS - (m.index + m[0].length), m.index - kE)  // 가장자리 간격
-    if (gap < bestGap) { bestGap = gap; best = m[0] }
-  }
-  return best
-}
-// 식단 meal_plan_type(검진 그룹 기반, diet_service.GROUP_TO_MEAL_PLAN) → 카드용 한글.
-const MEAL_PLAN_KO = {
-  'Balanced Diet':                '균형 잡힌 일반 식단',
-  'Low-Sodium Diet':             '저염 식단',
-  'Low-Carb Diet':               '저탄수 식단',
-  'Low-Calorie Diet':            '저칼로리 식단',
-  'Low-Carb Low-Sodium Diet':    '저염·저탄수 식단',
-  'Low-Calorie Low-Sodium Diet': '저염·저칼로리 식단',
-  'Low-Carb Low-Calorie Diet':   '저탄수·저칼로리 식단',
-  'Therapeutic Diet':            '맞춤 집중 관리 식단',
-}
-
 // 끼니 텍스트("**\n- 흑미밥 1/2공기 (100g)\n- 아욱국…") → "흑미밥 1/2공기 (100g), 아욱국…" (마크다운 제거)
 const parseMealItems = (text) =>
   (text || '').split('\n')
     .map(s => s.replace(/\*+/g, '').replace(/^[-•\s]+/, '').trim())
     .filter(Boolean)
     .join(', ')
-// 로컬(KST) 오늘 "YYYY-MM-DD"
-const localToday = () => {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-const sleepDescFrom = (weeklyGoal) => {
-  if (!weeklyGoal) return null
-  const bed = _timeNear(weeklyGoal, '취침')
-  const wake = _timeNear(weeklyGoal, '기상')
-  if (bed && wake) return `취침 ${bed} · 기상 ${wake} 권장`
-  const all = [...weeklyGoal.matchAll(/([01]?\d|2[0-3]):[0-5]\d/g)].map(m => m[0])
-  if (all.length >= 2) return `취침 ${all[0]} · 기상 ${all[1]} 권장`
-  return null
-}
 
 function Home() {
   const navigate = useNavigate()
@@ -100,6 +58,7 @@ function Home() {
   const [recentRecord, setRecentRecord] = useState(null)
   const [checkup, setCheckup] = useState(null)
   const [sleepDesc, setSleepDesc] = useState(null)   // null=폴백 문구 사용
+  const [sleepLifestyle, setSleepLifestyle] = useState(null)   // 생활습관 조정 1줄
   const [dietDesc, setDietDesc] = useState(null)
   const [dietMeals, setDietMeals] = useState([])   // 오늘 가이드일 때만 채움(아침/점심/저녁)
 
@@ -139,20 +98,26 @@ function Home() {
         const latest = (d?.guides ?? [])[0]
         if (latest) return getSleepGuide(latest.guide_id)
       })
-      .then(g => { const desc = sleepDescFrom(g?.weekly_goal); if (desc) setSleepDesc(desc) })
+      .then(g => {
+        const desc = sleepDescFrom(g?.weekly_goal); if (desc) setSleepDesc(desc)
+        // 생활습관 조정 — 첫 줄(마크다운·번호 제거), 1줄 truncate로 표시
+        const life = (g?.lifestyle_adjustment || '').split('\n')
+          .map(s => s.replace(/^[\d.\-•*\s]+/, '').replace(/\*+/g, '').trim()).find(Boolean)
+        if (life) setSleepLifestyle(life)
+      })
       .catch(() => {})
 
     // 식단: 최신 가이드의 meal_plan_type(백엔드가 검진 그룹으로 산정) → 한글 매핑(없으면 폴백)
     listDietGuideDates()
       .then(d => {
-        const latest = (d?.dates ?? []).slice().sort().reverse()[0]
-        if (latest) return getDietGuideByDate(latest).then(g => ({ g, date: latest }))
+        // 오늘 가이드가 있으면 오늘을, 없으면 최신을 조회(desc용). 끼니는 오늘일 때만.
+        const date = pickGuideDate(d?.dates)
+        if (date) return getDietGuideByDate(date).then(g => ({ g, date }))
       })
       .then(res => {
         if (!res) return
-        const ko = MEAL_PLAN_KO[res.g?.meal_plan_type]
-        if (ko) setDietDesc(`${ko} 권장`)
-        // 최신 가이드가 '오늘'일 때만 끼니 목록(어제 식단을 오늘처럼 보여주지 않음)
+        const dd = dietDescFrom(res.g?.meal_plan_type)
+        if (dd) setDietDesc(dd)
         if (res.date === localToday()) {
           const meals = [
             { label: '아침', items: parseMealItems(res.g?.breakfast) },
@@ -258,8 +223,8 @@ function Home() {
               {[
                 { icon: faUtensils,      title: '식단 가이드', desc: dietDesc ?? '건강 맞춤 식단 권장', path: '/diet-guides', meals: dietMeals },
                 { icon: faPersonRunning, title: '운동 가이드', desc: '중간 강도 유산소 30분', path: '/exercise-guides' },
-                { icon: faMoon,          title: '수면 가이드', desc: sleepDesc ?? '취침 전 카페인 회피', path: '/sleep-guides' },
-              ].map(({ icon, title, desc, path, meals }) => (
+                { icon: faMoon,          title: '수면 가이드', desc: sleepDesc ?? '취침 전 카페인 회피', path: '/sleep-guides', note: sleepLifestyle },
+              ].map(({ icon, title, desc, path, meals, note }) => (
                 <button key={title} onClick={() => navigate(path)} className="w-full text-left bg-white border border-[#E4E4E7] rounded-[10px] shadow-sm p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-[8px] bg-white border border-[#E4E4E7] flex items-center justify-center shrink-0">
@@ -275,6 +240,8 @@ function Home() {
                           <span className="text-[#A1A1AA]"> · {m.items}</span>
                         </p>
                       ))}
+                      {/* 수면 생활습관 조정 1줄(수면 카드만) — 길어지지 않게 truncate */}
+                      {note && <p className="text-[11px] text-[#A1A1AA] mt-0.5 truncate">{note}</p>}
                     </div>
                   </div>
                   <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[11px] shrink-0 ml-2" />
