@@ -41,6 +41,7 @@ function parseDosage(msg) {
 // ── 초기 폼 상태 ───────────────────────────────────────────────
 const defaultForm = () => ({
   name:           '',
+  isCustom:       true,          // true=일반의약품, false=처방약 (직접등록 기본=일반)
   dosageAmount:   1,
   dosageUnit:     '정',
   purpose:        '',
@@ -117,6 +118,7 @@ export default function MedicationFormPage() {
           intervalDays:  med.interval_days ?? 2,
           weekDays:      isWeekdays ? days.map(d => DAY_TO_KO[d]).filter(Boolean) : [],
           isAsNeeded:    med.is_as_needed ?? false,
+          isCustom:      med.is_custom ?? (source === 'custom'),
           timing:        med.meal_basis ?? prev.timing,
           timingMinutes: med.timing_offset_min ?? prev.timingMinutes,
           alarmEnabled:  true,
@@ -192,7 +194,7 @@ export default function MedicationFormPage() {
             dosage_message:    `${form.dosageAmount}${form.dosageUnit}`,
             notification_type: 'PUSH',
             days,
-            is_custom:         true,
+            is_custom:         form.isCustom,
             start_date:        form.startDate || null,
             end_date:          form.ongoing ? null : (form.endDate || null),
             interval_days:     intervalDays,
@@ -215,6 +217,7 @@ export default function MedicationFormPage() {
           is_as_needed:      prn,
           meal_basis:        mealBasis,
           timing_offset_min: timingOffsetMin,
+          is_custom:         form.isCustom,
         });
       }
 
@@ -276,6 +279,17 @@ export default function MedicationFormPage() {
             placeholder="예) 아스피린 100mg"
             className="w-full border border-[#E4E4E7] rounded-xl px-4 py-3 text-sm text-[#09090B] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
           />
+
+          {/* 약 구분 — 처방 수정 시엔 숨김(처방약 고정) */}
+          {(mode === 'create' || source === 'custom') && (
+            <>
+              <Label mt>약 구분</Label>
+              <div className="flex gap-2">
+                <ChipButton active={!form.isCustom} onClick={() => set('isCustom', false)}>처방약</ChipButton>
+                <ChipButton active={form.isCustom} onClick={() => set('isCustom', true)}>일반의약품</ChipButton>
+              </div>
+            </>
+          )}
 
           <Label mt>1회 복용량</Label>
           <div className="flex gap-2">

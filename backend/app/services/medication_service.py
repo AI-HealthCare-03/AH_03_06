@@ -279,6 +279,7 @@ def get_medication_list(user_id: int, db: Session) -> MedicationListResponse:
             dosage_text=p.dosage, times=times, is_as_needed=prn,
             meal_basis=mb,
             timing_offset_min=mo,
+            is_custom=False,                 # 처방약은 항상 처방약 라벨
         ))
 
     # 직접등록 (처방전 없는 custom 일정) - 같은 약은 하나로 묶고 복용시간 모음
@@ -309,6 +310,7 @@ def get_medication_list(user_id: int, db: Session) -> MedicationListResponse:
             is_active=s.is_active and (s.end_date is None or s.end_date >= today),
             dosage_text=g["dosage"], times=([] if g["prn"] else sorted(g["times"])), is_as_needed=g["prn"],
             meal_basis=s.meal_basis, timing_offset_min=s.timing_offset_min,
+            is_custom=s.is_custom,           # 직접등록은 저장된 약 구분으로 라벨 판정
         ))
 
     return MedicationListResponse(medications=cards)
@@ -336,8 +338,10 @@ def _delete_schedules(schedules: list, db: Session):
 def _create_schedules(user_id, prescribed_medicine_id, drug_name, dosage_message,
                       times, days, notification_type, start_date, end_date, db,
                       interval_days=None, is_as_needed=False,
-                      meal_basis=None, timing_offset_min=None) -> int:
-    """복용 시간(times)마다 스케줄 1행씩 생성. 첫 schedule_id 반환."""
+                      meal_basis=None, timing_offset_min=None, is_custom=None) -> int:
+    """복용 시간(times)마다 스케줄 1행씩 생성. 첫 schedule_id 반환.
+    is_custom 미지정(None)이면 처방연결 여부로 결정(기존 동작), 지정 시 그 값 사용."""
+    custom_flag = is_custom if is_custom is not None else (prescribed_medicine_id is None)
     first_id = None
     for t in times:
         sched = MedicationSchedule(
@@ -348,7 +352,7 @@ def _create_schedules(user_id, prescribed_medicine_id, drug_name, dosage_message
             dosage_message=dosage_message,
             notification_type=notification_type or "PUSH",
             is_active=True,
-            is_custom=prescribed_medicine_id is None,
+            is_custom=custom_flag,
             start_date=start_date,
             end_date=end_date,
             interval_days=interval_days,
@@ -379,6 +383,7 @@ def get_medication_by_id(user_id: int, medication_id: int, source: str, db: Sess
         scheds = _custom_group(user_id, base.drug_name, db)
         drug_name, dosage_message = base.drug_name, base.dosage_message
         start_date, end_date = base.start_date, base.end_date
+        is_custom = base.is_custom
     else:
         presc = db.query(Prescription).join(MedicalRecord).filter(
             Prescription.id == medication_id,
@@ -390,6 +395,7 @@ def get_medication_by_id(user_id: int, medication_id: int, source: str, db: Sess
         scheds = [s for s in presc.medication_schedules if s.is_active]
         drug_name, dosage_message = presc.drug_name, presc.dosage
         start_date, end_date = presc.start_date, presc.end_date
+        is_custom = False
 
     times = sorted({str(s.intake_time)[:5] for s in scheds})
     days = sorted({sd.day_of_week for s in scheds for sd in s.schedule_days})
@@ -401,14 +407,14 @@ def get_medication_by_id(user_id: int, medication_id: int, source: str, db: Sess
         id=medication_id, source=source, drug_name=drug_name,
         dosage_message=dosage_message, start_date=start_date, end_date=end_date,
         times=times, days=days, interval_days=interval_days, is_as_needed=is_as_needed,
-        meal_basis=meal_basis, timing_offset_min=timing_offset_min,
+        meal_basis=meal_basis, timing_offset_min=timing_offset_min, is_custom=is_custom,
     )
 
 
 def _reconcile_schedules(existing, user_id, prescribed_medicine_id, drug_name, dosage_message,
                          times, days, notification_type, start_date, end_date, db,
                          interval_days=None, is_as_needed=False,
-                         meal_basis=None, timing_offset_min=None) -> int:
+                         meal_basis=None, timing_offset_min=None, is_custom=None) -> int:
     """기존 스케줄과 새 times를 시간(HH:MM) 단위로 대조해 증분 반영.
 
     같은 시간 슬롯은 유지하고 필드만 갱신(schedule_id 보존 → 복약 로그 유지), 빠진 시간은
@@ -437,6 +443,8 @@ def _reconcile_schedules(existing, user_id, prescribed_medicine_id, drug_name, d
             keep.is_as_needed = is_as_needed
             keep.meal_basis = meal_basis
             keep.timing_offset_min = timing_offset_min
+            if is_custom is not None:
+                keep.is_custom = is_custom
             db.query(ScheduleDay).filter(ScheduleDay.schedule_id == keep.schedule_id).delete()
             for d in days:
                 db.add(ScheduleDay(schedule_id=keep.schedule_id, day_of_week=d))
@@ -455,7 +463,7 @@ def _reconcile_schedules(existing, user_id, prescribed_medicine_id, drug_name, d
             user_id, prescribed_medicine_id, drug_name, dosage_message,
             new_times, days, notification_type, start_date, end_date, db,
             interval_days=interval_days, is_as_needed=is_as_needed,
-            meal_basis=meal_basis, timing_offset_min=timing_offset_min,
+            meal_basis=meal_basis, timing_offset_min=timing_offset_min, is_custom=is_custom,
         )
         if first_id is None:
             first_id = nid
@@ -489,6 +497,7 @@ def update_medication(user_id: int, medication_id: int, source: str, request: Me
             request.times, days, request.notification_type, request.start_date, request.end_date, db,
             interval_days=request.interval_days, is_as_needed=request.is_as_needed,
             meal_basis=request.meal_basis, timing_offset_min=request.timing_offset_min,
+            is_custom=request.is_custom,     # 약 구분 변경 반영(None이면 기존 유지)
         )
         db.commit()
         return {"id": first_id, "source": "custom", "detail": "updated"}
