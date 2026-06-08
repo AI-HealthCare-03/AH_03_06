@@ -8,6 +8,7 @@ import MedicationGuideButton from '../../components/MedicationGuideButton.jsx'
 import SafetyCheckSection from '../../components/SafetyCheckSection.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faComments } from '@fortawesome/free-solid-svg-icons'
+import Header from '../../components/Header.jsx'
 
 const drugQueryPrefix = (name) =>
   String(name ?? '').split(/밀리그램|밀리그람|마이크로그램|마이크로그람|밀리리터|그램|그람/)[0].trim()
@@ -259,27 +260,21 @@ export default function MedicalRecordDetail() {
   return (
     <div className="mobile-container flex flex-col min-h-dvh bg-neutral-50 font-['Pretendard',sans-serif]">
 
-      <header className="w-full h-14 flex items-center justify-between px-4 bg-white shrink-0 border-b border-neutral-50">
-        <button
-          onClick={() => navigate(-1)}
-          className="w-10 h-10 flex items-center justify-center -ml-1 text-neutral-900"
-          aria-label="뒤로가기"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h1 className="text-base font-bold text-neutral-900">진료기록 상세</h1>
-        <button
-          onClick={() => setShowActions(true)}
-          className="w-10 h-10 flex items-center justify-center text-neutral-500"
-          aria-label="더보기"
-        >
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-            <circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" />
-          </svg>
-        </button>
-      </header>
+      <Header
+        variant="back"
+        title="진료기록 상세"
+        rightAction={
+          <button
+            onClick={() => setShowActions(true)}
+            className="w-10 h-10 flex items-center justify-center text-neutral-500"
+            aria-label="더보기"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" />
+            </svg>
+          </button>
+        }
+      />
 
       <main className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3 pb-16">
 

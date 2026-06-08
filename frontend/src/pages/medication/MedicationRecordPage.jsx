@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Header from '../../components/Header.jsx';
 import {
   fetchCalendar,
   fetchAnalysis,
@@ -268,17 +269,13 @@ export default function MedicationRecordPage() {
   const missedDays = new Set(calData?.missedDays ?? []);
 
   return (
-    <div className="min-h-screen bg-[#F4F4F5]">
+    <div className="bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
+      <div className="w-full bg-[#F4F4F5] flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8">
 
-      {/* 헤더 */}
-      <div className="sticky top-0 z-10 bg-white border-b border-[#E4E4E7] px-4 py-3 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-[#F4F4F5]">
-          <ChevronLeft />
-        </button>
-        <h1 className="text-[16px] font-semibold text-[#09090B]">복약 기록</h1>
-      </div>
+        {/* 헤더 — 공용 Header 컴포넌트로 통일 */}
+        <Header variant="back" title="복약 기록" />
 
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-3">
+        <div className="px-4 py-4 space-y-3">
 
         {/* 달력 카드 */}
         <div className="bg-white rounded-2xl px-4 py-4 shadow-sm">
@@ -398,6 +395,7 @@ export default function MedicationRecordPage() {
           </div>
         )}
         <div className="h-6" />
+        </div>
       </div>
     </div>
   );

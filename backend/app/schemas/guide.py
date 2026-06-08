@@ -6,13 +6,11 @@
 #   GET    /api/v1/medication_guides/{id}        (단건 조회)
 #   GET    /api/v1/medication_guides             (목록 조회)
 #   DELETE /api/v1/medication_guides/{id}        (삭제)
-#
-# ERD 참조: 3.12 MEDICATION_GUIDE (5/19 확정)
 
 from pydantic import BaseModel
 
 
-# ===== POST /api/v1/medication_guides/generate =====
+# POST /api/v1/medication_guides/generate
 
 class GenerateGuideRequest(BaseModel):
     """복약 가이드 생성 요청 본문
@@ -25,42 +23,49 @@ class GenerateGuideRequest(BaseModel):
 
 
 class GenerateGuideResponse(BaseModel):
-    """복약 가이드 생성 요청 응답 (202 Accepted)
+    """복약 가이드 생성 응답 (블로킹).
 
-    팀 가이드 비동기 패턴 (식단/운동/수면 가이드와 동일):
-    POST는 "생성 중" 메시지만 즉시 응답하고,
-    실제 가이드 본문은 백그라운드 RAG·LLM 처리 완료 후
-    GET 엔드포인트로 조회한다.
+    POST 가 생성·저장까지 마치고 guide_id 를 반환하면, 프론트는 그 id 로 GET 조회한다.
     """
-    detail: str  # 예: "medication_guide_generating"
+    detail: str       # 예: "medication_guide_created"
+    guide_id: int | None = None   # 블로킹 생성 완료 후 GET 이동용
 
 
-# ===== GET /api/v1/medication_guides/{id} =====
-# ===== GET /api/v1/medication_guides (목록 항목 공통) =====
+# GET /api/v1/medication_guides/{id}
+# GET /api/v1/medication_guides (목록 항목 공통)
+
+class GuideSection(BaseModel):
+    """구조화 본문 섹션 (Phase B). quote_raw 는 게이트 통과 후 제외 — 화면엔 quote_display 만."""
+    title: str
+    scope: str                  # 적용 대상 (전체 / 간기능부전 환자 / 투여 중지 후 …)
+    gloss: str
+    quote_display: str
+    source: str
+
 
 class MedicationGuideSchema(BaseModel):
-    """복약 가이드 단건 본문 (ERD MEDICATION_GUIDE 컬럼 기반)
+    """복약 가이드 단건 본문 (단건 조회 / 목록 항목 공통)."""
 
-    단건 조회 응답 / 목록 응답 각 항목 / Phase 2에서 DB row 매핑 대상.
-    """
-
-    # ----- ERD 컬럼 (DB 저장) -----
-    guide_id: int                              # ERD: id (PK)
+    # ----- DB 저장 컬럼 -----
+    guide_id: int                              # PK
     safety_block: str | None = None            # 차단 안내 (동일성분·회수약)
-    safety_warn: str | None = None             # 경고 안내 (최대량 초과)
-    safety_info: str | None = None             # 정보 안내 (노인주의 등)
-    main_content: str                          # 가이드 본문 (발췌+보충, 필수)
-    references: str | None = None              # 사용된 출처 (식약처·nedrug·학회)
-    safety_recommendations: str | None = None  # 안전 권고
+    main_content: str                          # 본문(구조화 JSON 직렬화 저장; 레거시는 마크다운)
+    references: list[str] = []                 # 검색된 출처 목록 (수면 SleepGuideSchema 와 동형)
     is_fallback: bool                          # 환각 차단 회피 응답 여부
     created_at: str                            # ISO 형식 (예: 2026-05-20T15:30:00)
 
     # ----- 응답 시 추가 정보 (DB에는 저장하지 않음) -----
-    disclaimer: str                            # 면책 안내 (NFR-501-2 법적 필수)
+    disclaimer: str                            # 면책 안내 (법적 필수)
 
-    # ----- 의약품 정보 (Phase 2: medication 테이블 JOIN으로 채움) -----
+    # ----- 의약품 정보 (저장된 가이드 row 에서 채움) -----
     medication_id: int | None = None
     drug_name: str | None = None
+
+    # ----- 구조화 본문 (Phase B) — main_content(JSON 직렬화)에서 디코드. 레거시(마크다운)면 비어 있음 -----
+    key_point: str | None = None
+    sections: list[GuideSection] = []
+    safety_note: str | None = None
+    fallback_message: str | None = None
 
 
 class GuideListResponse(BaseModel):
@@ -72,7 +77,7 @@ class GuideListResponse(BaseModel):
     total: int
 
 
-# ===== DELETE /api/v1/medication_guides/{id} =====
+# DELETE /api/v1/medication_guides/{id}
 
 class DeleteGuideResponse(BaseModel):
     """복약 가이드 삭제 응답 (200 OK)"""
