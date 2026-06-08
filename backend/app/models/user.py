@@ -22,7 +22,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=True)
     name = Column(String(50), nullable=False)
     nickname = Column(String(50), unique=True, nullable=True)
-    profile_image_url = Column(String(255), nullable=True)
+    # profile_image_url 제거
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
@@ -42,7 +42,7 @@ class User(Base):
     health_checkups = relationship("HealthCheckup", back_populates="user")
     medication_guides = relationship("MedicationGuide", back_populates="user")
 
-    medical_records = relationship("MedicalRecord", back_populates="user")  # 260519 추가
+    medical_records = relationship("MedicalRecord", back_populates="user")
     medication_logs = relationship("MedicationLog", back_populates="user")
     medication_schedules = relationship("MedicationSchedule", back_populates="user")
 
@@ -51,6 +51,8 @@ class User(Base):
 
     point = relationship("UserPoint", back_populates="user", uselist=False)
     point_history = relationship("PointHistory", back_populates="user")
+
+    profile_items = relationship("UserProfileItem", back_populates="user")
 
     fcm_tokens = relationship("FcmToken", back_populates="user")
 

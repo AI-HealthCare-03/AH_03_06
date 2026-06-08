@@ -147,7 +147,7 @@ def get_my_profile(user_id: int, db: Session):
         "email": user.email,
         "name": user.name,
         "nickname": user.nickname,
-        "profile_image_url": user.profile_image_url,
+        # profile_image_url 제거
         "birthday": profile.birthday if profile else None,
         "gender": profile.gender if profile else None,
         "height": float(health_info.height) if health_info else None,
@@ -156,6 +156,7 @@ def get_my_profile(user_id: int, db: Session):
         "smoking_status": smoking.smoking_status if smoking else None,
         "alcohol_status": alcohol.alcohol_status if alcohol else None,
     }
+
 
 def update_my_profile(user_id: int, request: UpdateProfileRequest, db: Session):
     user = db.query(User).filter(User.id == user_id).first()
