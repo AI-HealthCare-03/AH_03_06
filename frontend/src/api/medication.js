@@ -193,7 +193,7 @@ const toMedicationCard = (p) => ({
   source:      p.source,
   name:        p.drug_name,
   status:      p.is_active ? '진행 중' : '종료',
-  category:    p.source === 'custom' ? '일반의약품' : '처방약',
+  category:    p.is_custom ? '일반의약품' : '처방약',   // 저장된 약 구분으로 판정(오늘의 복약과 일치)
   description: p.dosage_text || p.frequency || p.dosage || '',
   times:       p.times || [],
   isAsNeeded:  p.is_as_needed || false,

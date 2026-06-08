@@ -48,14 +48,13 @@ function Card({ children, className = '' }) {
 }
 
 function PrescriptionItem({ drug, onAsk, asking }) {
-  const dosageText = [
-    drug.dosage && `${drug.dosage}정`,
-    drug.frequency && `1일 ${drug.frequency}회`,
-    drug.duration_days && `${drug.duration_days}일분`,
+  // dosage·frequency는 이미 단위 포함 문자열("1정", "1일 1회 (아침 식후)") → 그대로 사용(중복 단위 금지).
+  // duration_days만 숫자라 "일분" 부여.
+  const sub = [
+    drug.dosage,
+    drug.frequency,
+    drug.duration_days != null ? `${drug.duration_days}일분` : '',
   ].filter(Boolean).join(' · ')
-
-  const sub = dosageText || [drug.dosage, drug.frequency, drug.duration_days != null ? `${drug.duration_days}일분` : '']
-    .filter(Boolean).join(' · ')
 
   return (
     <div className="flex items-start gap-3 py-3 border-b border-neutral-50 last:border-0">

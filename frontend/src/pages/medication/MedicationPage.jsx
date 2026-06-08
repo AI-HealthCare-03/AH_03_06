@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import Header from '../../components/Header.jsx'
 import MobileFrame from '../../components/MobileFrame.jsx'
 import { getMedications, getTodayMedication, deleteMedication, checkMedication, deleteSchedule} from '../../api/medication.js'
+import { fmtTimes } from '../../utils/medicationFormat.js'
 
 export default function MedicationPage() {
   const [params] = useSearchParams()
@@ -161,16 +162,15 @@ function MedicationList({ onTodayClick, navigate }) {
                     {med.category}
                   </span>
 
-                  <h3 className="text-[16px] font-[700] text-textHeading leading-tight">{med.name}</h3>
+                  <h3 className="text-[16px] font-[700] text-textHeading leading-tight truncate">{med.name}</h3>
 
-                  {/* 용량 · 복용 시간 (한 줄로 병합) */}
-                  <div className="flex items-center gap-1.5 mt-1.5 text-[12px] text-subtext">
+                  {/* 용량 · 식사기준 · 주기 (한 줄 병합). 시간 4개 이상은 fmtTimes로 범위 축약 */}
+                  <div className="flex items-center gap-1.5 mt-1.5 text-[12px] text-subtext min-w-0">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-mute">
                       <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                     </svg>
                     <span className="truncate">
-                      {/* 용량 · 식사기준 · 주기. 식사기준은 저장값 또는 frequency 폴백(백엔드) */}
-                      {[med.description, med.mealTiming, med.isAsNeeded ? '필요시 복용' : (med.times?.length > 0 ? `매일 ${med.times.join(' · ')}` : null)]
+                      {[med.description, med.mealTiming, med.isAsNeeded ? '필요시 복용' : (med.times?.length > 0 ? `매일 ${fmtTimes(med.times)}` : null)]
                         .filter(Boolean).join(' · ')}
                     </span>
                   </div>
@@ -465,12 +465,12 @@ function TodayMedication({ onBack }) {
                         )}
                       </div>
 
-                      <div>
-                        <p className={`text-[14px] font-[600] leading-tight
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-[14px] font-[600] leading-tight truncate
                           ${entry.completionStatus === '완료' ? 'text-[#A1A1AA] line-through' : 'text-[#09090B]'}`}>
                           {entry.medicationName}
                         </p>
-                        <p className="text-[12px] text-[#A1A1AA] mt-0.5">
+                        <p className="text-[12px] text-[#A1A1AA] mt-0.5 truncate">
                           {[`${entry.dosageAmount}${entry.dosageUnit}`.trim(), entry.mealTiming, entry.categoryLabel].filter(Boolean).join(' · ')}
                         </p>
                       </div>
