@@ -4,7 +4,7 @@
 # 소셜 로그인 (Google)
 # 이메일 찾기, 비밀번호 재설정
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.auth import (
@@ -18,20 +18,23 @@ from app.schemas.auth import (
     ResetPasswordRequest, ResetPasswordResponse,
 )
 from app.services import auth_service
+from main import limiter
 
 router = APIRouter()
 
 
 # POST /api/v1/auth/register - 회원가입
 @router.post("/register", response_model=RegisterResponse, status_code=201)
-def register(request: RegisterRequest, db: Session = Depends(get_db)):
-    return auth_service.register(request, db)
+@limiter.limit("5/minute")
+def register(request: Request, body: RegisterRequest, db: Session = Depends(get_db)):
+    return auth_service.register(body, db)
 
 
 # POST /api/v1/auth/login - 로그인
 @router.post("/login", response_model=LoginResponse)
-def login(request: LoginRequest, db: Session = Depends(get_db)):
-    return auth_service.login(request, db)
+@limiter.limit("10/minute")
+def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
+    return auth_service.login(body, db)
 
 
 # POST /api/v1/auth/logout - 로그아웃
@@ -42,8 +45,9 @@ def logout(request: LogoutRequest, db: Session = Depends(get_db)):
 
 # POST /api/v1/auth/token/refresh - 액세스 토큰 재발급
 @router.post("/token/refresh", response_model=TokenRefreshResponse)
-def refresh_token(request: TokenRefreshRequest, db: Session = Depends(get_db)):
-    return auth_service.refresh_token(request, db)
+@limiter.limit("20/minute")
+def refresh_token(request: Request, body: TokenRefreshRequest, db: Session = Depends(get_db)):
+    return auth_service.refresh_token(body, db)
 
 
 # GET /api/v1/auth/social/{provider} - 소셜 로그인 요청
