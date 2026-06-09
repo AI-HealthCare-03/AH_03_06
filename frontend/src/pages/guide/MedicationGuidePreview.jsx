@@ -48,6 +48,7 @@ function MedicationGuidePreview() {
   // 자동완성용 약품 목록 (서버사이드 디바운스로 갱신)
   const [drugList, setDrugList] = useState([])
   const [drugListTotal, setDrugListTotal] = useState(0)
+  const [totalError, setTotalError] = useState(false)
 
   // 결과 상태
   const [guide, setGuide] = useState(null)
@@ -61,8 +62,8 @@ function MedicationGuidePreview() {
   // 마운트 시 1회 — 총 약품 수만 가져옴(라벨용). drugs 는 디폴트 drug_name 으로 별도 fetch.
   useEffect(() => {
     fetchDrugSuggest({ q: '', limit: 1 })
-      .then((data) => setDrugListTotal(data.total ?? 0))
-      .catch(() => {})
+      .then((data) => { setDrugListTotal(data.total ?? 0); setTotalError(false) })
+      .catch(() => setTotalError(true))
   }, [])
 
   // drug_name 변경 시 서버에 자동완성 질의 (250ms 디바운스 + AbortController).
@@ -162,10 +163,12 @@ function MedicationGuidePreview() {
               </datalist>
 
               <div className="mt-1 space-y-0.5">
-                <p className="text-[11px] text-mute">
+                <p className={`text-[11px] ${totalError ? 'text-red-400' : 'text-mute'}`}>
                   {drugListTotal > 0
                     ? `검색 가능 ${drugListTotal}종 (복약 가이드 제공 약품 · 입력 시 자동완성)`
-                    : '검색 가능 목록을 불러오는 중…'}
+                    : totalError
+                      ? '검색 목록을 불러오지 못했어요. 약품명은 직접 입력할 수 있어요.'
+                      : '검색 가능 목록을 불러오는 중…'}
                 </p>
                 {matchedDrug && (
                   <p className="text-[11px] text-primary">
