@@ -1,82 +1,52 @@
-import { getAccessToken } from '../utils/token.js'
-
-const base = () => import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
-
-function authHeaders() {
-  const t = getAccessToken()
-  return t ? { Authorization: `Bearer ${t}` } : {}
-}
+// src/api/chat.js
+import { apiFetch } from '../utils/api.js'
 
 export async function createChatSession(contextType, contextId = null) {
-  const res = await fetch(`${base()}/chat/sessions`, {
+  return apiFetch('/chat/sessions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ context_type: contextType, context_id: contextId }),
   })
-  if (!res.ok) throw new Error(await res.text())
-  return res.json()
 }
 
 export async function sendChatMessage(sessionId, message, category = null) {
-  const res = await fetch(`${base()}/chat/sessions/${sessionId}/messages`, {
+  return apiFetch(`/chat/sessions/${sessionId}/messages`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ message, category }),
   })
-  if (!res.ok) throw new Error(await res.text())
-  return res.json()
 }
 
 export async function getChatHistory(sessionId) {
-  const res = await fetch(`${base()}/chat/sessions/${sessionId}/messages`, {
-    headers: { ...authHeaders() },
-  })
-  if (!res.ok) throw new Error(await res.text())
-  return res.json()
+  return apiFetch(`/chat/sessions/${sessionId}/messages`)
 }
 
 export async function deleteChatMessage(sessionId, messageId) {
-  const res = await fetch(`${base()}/chat/sessions/${sessionId}/messages/${messageId}`, {
+  return apiFetch(`/chat/sessions/${sessionId}/messages/${messageId}`, {
     method: 'DELETE',
-    headers: { ...authHeaders() },
   })
-  if (!res.ok) throw new Error(await res.text())
-  return res.json()
 }
 
 export async function editChatMessage(sessionId, messageId, message, category = null) {
-  const res = await fetch(`${base()}/chat/sessions/${sessionId}/messages/${messageId}`, {
+  return apiFetch(`/chat/sessions/${sessionId}/messages/${messageId}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ message, category }),
   })
-  if (!res.ok) throw new Error(await res.text())
-  return res.json()
 }
 
 export async function regenerateChatMessage(sessionId, messageId, category = null) {
-  const res = await fetch(`${base()}/chat/sessions/${sessionId}/messages/${messageId}/regenerate`, {
+  return apiFetch(`/chat/sessions/${sessionId}/messages/${messageId}/regenerate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ message: '', category }),
   })
-  if (!res.ok) throw new Error(await res.text())
-  return res.json()
 }
 
 export async function clearChatMessages(sessionId) {
-  const res = await fetch(`${base()}/chat/sessions/${sessionId}/messages`, {
+  return apiFetch(`/chat/sessions/${sessionId}/messages`, {
     method: 'DELETE',
-    headers: { ...authHeaders() },
   })
-  if (!res.ok) throw new Error(await res.text())
-  return res.json()
 }
 
 export async function deleteChatSession(sessionId) {
-  const res = await fetch(`${base()}/chat/sessions/${sessionId}`, {
+  return apiFetch(`/chat/sessions/${sessionId}`, {
     method: 'DELETE',
-    headers: { ...authHeaders() },
   })
-  if (!res.ok) throw new Error(await res.text())
 }
