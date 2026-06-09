@@ -4,17 +4,22 @@ import { getAccessToken, getRefreshToken } from '../../utils/token.js'
 import { logout } from '../../App.jsx'
 import Header from '../../components/Header.jsx'
 import BottomNav from '../../components/BottomNav.jsx'
+import MobileFrame from '../../components/MobileFrame.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faChevronRight,
   faUserPen,
   faBullseye,
   faNotesMedical,
-  faBell,
-  faLink,
   faArrowRightFromBracket,
   faUserXmark,
+  faStar,
+  faCalendarCheck,
+  faImage,
 } from '@fortawesome/free-solid-svg-icons'
+import { getPointBalance } from '../../api/point.js'
+import { getAttendanceStatus } from '../../api/attendance.js'
+import { getProfileItems, resolveProfileImage } from '../../api/profile.js'
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
@@ -39,12 +44,22 @@ function MyPage() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [pointBalance, setPointBalance] = useState(null)   // null=미표시
+  const [streak, setStreak] = useState(null)
+  const [avatar, setAvatar] = useState(null)   // 선택한 프로필 image_url
 
   useEffect(() => {
     apiFetch('/users/me')
       .then(setUser)
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
+    getPointBalance().then(d => setPointBalance(d?.balance ?? 0)).catch(() => {})
+    getProfileItems().then(d => {
+      const items = d?.items ?? []
+      // 선택한 프로필 우선, 없으면 기본 프로필, 그것도 없으면 이니셜 폴백
+      setAvatar((items.find(i => i.is_selected) || items.find(i => i.is_default))?.image_url ?? null)
+    }).catch(() => {})
+    getAttendanceStatus().then(s => setStreak(s?.current_streak ?? 0)).catch(() => {})
   }, [])
 
   const handleLogout = async () => {
@@ -71,18 +86,16 @@ function MyPage() {
   }
 
   // 라우트·화면 미구현 메뉴 — 빈 화면 대신 안내 (구현되면 navigate 로 교체)
-  const comingSoon = () => window.alert('준비 중인 기능이에요. 곧 만나요!')
 
   const nickname = user?.nickname ?? '...'
   const email = user?.email ?? '...'
   const initial = nickname.charAt(0)
 
   return (
-    <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
-      <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 pb-24">
-
-        <Header variant="default" title="마이페이지" />
-
+    <MobileFrame
+      header={<Header variant="default" title="마이페이지" />}
+      bottomNav={<BottomNav />}
+    >
         <div className="px-5 pt-5 pb-6 space-y-6">
 
           {loading && (
@@ -106,9 +119,13 @@ function MyPage() {
                   className="w-full bg-white rounded-[10px] border border-[#E4E4E7] p-4 flex items-center justify-between active:bg-[#FAFAFA] transition-colors"
                 >
                   <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-full bg-[#EFF6FF] flex items-center justify-center">
-                      <span className="text-[18px] font-bold text-primary">{initial}</span>
-                    </div>
+                    {avatar ? (
+                      <img src={resolveProfileImage(avatar)} alt="프로필" className="w-12 h-12 rounded-full bg-[#F4F4F5] object-cover" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-[#EFF6FF] flex items-center justify-center">
+                        <span className="text-[18px] font-bold text-primary">{initial}</span>
+                      </div>
+                    )}
                     <div className="text-left">
                       <h2 className="text-[15px] font-bold text-[#18181B] tracking-tight">{nickname}</h2>
                       <p className="text-[12px] font-medium text-[#52525B] mt-0.5">{email}</p>
@@ -116,6 +133,37 @@ function MyPage() {
                   </div>
                   <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[13px]" />
                 </button>
+              </section>
+
+              {/* 혜택 */}
+              <section>
+                <h3 className="text-[11px] font-bold text-[#A1A1AA] mb-2 px-1 tracking-wider uppercase">혜택</h3>
+                <div className="bg-white rounded-[10px] border border-[#E4E4E7] overflow-hidden">
+                  <button onClick={() => navigate('/user/points')} className="w-full h-14 px-4 flex items-center justify-between border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">
+                        <FontAwesomeIcon icon={faStar} className="text-primary text-[14px]" />
+                      </div>
+                      <span className="text-[14px] font-medium text-[#09090B]">내 포인트</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {pointBalance != null && <span className="text-[13px] font-bold text-primary">{pointBalance.toLocaleString()} P</span>}
+                      <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[12px]" />
+                    </div>
+                  </button>
+                  <button onClick={() => navigate('/user/attendance')} className="w-full h-14 px-4 flex items-center justify-between active:bg-[#FAFAFA] transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">
+                        <FontAwesomeIcon icon={faCalendarCheck} className="text-primary text-[14px]" />
+                      </div>
+                      <span className="text-[14px] font-medium text-[#09090B]">출석 기록</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {streak != null && <span className="text-[13px] font-medium text-[#71717A]">연속 {streak}일</span>}
+                      <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[12px]" />
+                    </div>
+                  </button>
+                </div>
               </section>
 
               {/* 계정 관리 */}
@@ -128,6 +176,15 @@ function MyPage() {
                         <FontAwesomeIcon icon={faUserPen} className="text-primary text-[14px]" />
                       </div>
                       <span className="text-[14px] font-medium text-[#09090B]">프로필 수정</span>
+                    </div>
+                    <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[12px]" />
+                  </button>
+                  <button onClick={() => navigate('/user/profile/select')} className="w-full h-14 px-4 flex items-center justify-between border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">
+                        <FontAwesomeIcon icon={faImage} className="text-primary text-[14px]" />
+                      </div>
+                      <span className="text-[14px] font-medium text-[#09090B]">프로필 변경</span>
                     </div>
                     <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[12px]" />
                   </button>
@@ -152,35 +209,10 @@ function MyPage() {
                 </div>
               </section>
 
-              {/* 알림 */}
-              <section>
-                <h3 className="text-[11px] font-bold text-[#A1A1AA] mb-2 px-1 tracking-wider uppercase">알림</h3>
-                <div className="bg-white rounded-[10px] border border-[#E4E4E7] overflow-hidden">
-                  <button onClick={comingSoon} className="w-full h-14 px-4 flex items-center justify-between active:bg-[#FAFAFA] transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">
-                        <FontAwesomeIcon icon={faBell} className="text-primary text-[14px]" />
-                      </div>
-                      <span className="text-[14px] font-medium text-[#09090B]">알림 설정</span>
-                    </div>
-                    <span className="text-[11px] font-medium text-[#A1A1AA] bg-[#F4F4F5] px-2 py-1 rounded-full">준비 중</span>
-                  </button>
-                </div>
-              </section>
-
               {/* 계정 */}
               <section>
                 <h3 className="text-[11px] font-bold text-[#A1A1AA] mb-2 px-1 tracking-wider uppercase">계정</h3>
                 <div className="bg-white rounded-[10px] border border-[#E4E4E7] overflow-hidden">
-                  <button onClick={comingSoon} className="w-full h-14 px-4 flex items-center justify-between border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">
-                        <FontAwesomeIcon icon={faLink} className="text-primary text-[14px]" />
-                      </div>
-                      <span className="text-[14px] font-medium text-[#09090B]">소셜 로그인 연동</span>
-                    </div>
-                    <span className="text-[11px] font-medium text-[#A1A1AA] bg-[#F4F4F5] px-2 py-1 rounded-full">준비 중</span>
-                  </button>
                   <button onClick={handleLogout} className="w-full h-14 px-4 flex items-center justify-start border-b border-[#F4F4F5] active:bg-[#FAFAFA] transition-colors">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">
@@ -204,10 +236,7 @@ function MyPage() {
             </>
           )}
         </div>
-
-        <BottomNav />
-      </div>
-    </div>
+    </MobileFrame>
   )
 }
 

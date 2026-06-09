@@ -4,8 +4,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faEllipsisVertical,
   faBan,
-  faTriangleExclamation,
-  faCircleInfo,
 } from '@fortawesome/free-solid-svg-icons'
 
 
@@ -15,22 +13,6 @@ function SafetyBadge({ guide }) {
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-[700] bg-error/10 text-error">
         <FontAwesomeIcon icon={faBan} className="text-[9px]" />
         차단
-      </span>
-    )
-  }
-  if (guide.safety_warn) {
-    return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-[700] bg-warning/10 text-warning">
-        <FontAwesomeIcon icon={faTriangleExclamation} className="text-[9px]" />
-        경고
-      </span>
-    )
-  }
-  if (guide.safety_info) {
-    return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-[700] bg-primarySoft text-primary">
-        <FontAwesomeIcon icon={faCircleInfo} className="text-[9px]" />
-        안내
       </span>
     )
   }
@@ -59,7 +41,9 @@ function MedicationGuideCard({ guide, onDelete }) {
   const [showMenu, setShowMenu] = useState(false)
 
   const title = guide.drug_name || '약품 미식별'
-  const preview = (guide.main_content || '').replace(/\s+/g, ' ').trim().slice(0, 80)
+  // 구조화 가이드는 key_point, fallback 은 fallback_message 를 미리보기로 (레거시 main_content 폴백)
+  const preview = (guide.key_point || guide.fallback_message || guide.main_content || '')
+    .replace(/\s+/g, ' ').trim().slice(0, 80)
 
   return (
     <article className="bg-white rounded-[12px] border border-borderHairline relative">

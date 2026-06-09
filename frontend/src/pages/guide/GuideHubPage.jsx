@@ -1,6 +1,11 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../../components/Header.jsx'
 import BottomNav from '../../components/BottomNav.jsx'
+import MobileFrame from '../../components/MobileFrame.jsx'
+import { listSleepGuides, getSleepGuide } from '../../api/sleepGuides.js'
+import { listDietGuideDates, getDietGuideByDate } from '../../api/dietGuides.js'
+import { sleepDescFrom, dietDescFrom, pickGuideDate } from '../../utils/guideSummary.js'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faWandMagicSparkles,
@@ -22,14 +27,27 @@ const guides = [
 
 function GuideHubPage() {
   const navigate = useNavigate()
+  const [sleepDesc, setSleepDesc] = useState(null)   // null=하드코딩 폴백
+  const [dietDesc, setDietDesc] = useState(null)
+
+  useEffect(() => {
+    // 수면: 최신 가이드 weekly_goal → 취침·기상 시각
+    listSleepGuides()
+      .then(d => { const latest = (d?.guides ?? [])[0]; if (latest) return getSleepGuide(latest.guide_id) })
+      .then(g => { const desc = sleepDescFrom(g?.weekly_goal); if (desc) setSleepDesc(desc) })
+      .catch(() => {})
+    // 식단: 최신 가이드 meal_plan_type → 한글 유형 권장
+    listDietGuideDates()
+      .then(d => { const date = pickGuideDate(d?.dates); if (date) return getDietGuideByDate(date) })
+      .then(g => { const dd = dietDescFrom(g?.meal_plan_type); if (dd) setDietDesc(dd) })
+      .catch(() => {})
+  }, [])
 
   return (
-    <div className="bg-white md:bg-[#F4F4F5] w-full min-h-[100dvh] flex justify-center">
-      <div className="w-full bg-white relative flex flex-col min-h-[100dvh] mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8 pb-24">
-
-        {/* 탭 최상위 화면: 좌측 정렬 제목 헤더 (뒤로가기 없음 — 마이페이지와 동일 규칙) */}
-        <Header variant="default" title="가이드" />
-
+    <MobileFrame
+      header={<Header variant="default" title="가이드" />}
+      bottomNav={<BottomNav />}
+    >
         <main className="px-5 pt-5 pb-2 space-y-4">
 
           {/* 섹션 헤더 — 홈의 '오늘의 AI 가이드'와 동일 톤 */}
@@ -43,7 +61,12 @@ function GuideHubPage() {
 
           {/* 가이드 진입 카드 — 홈 화면 카드와 동일 구조 (아이콘 박스 + 제목/요약 + chevron) */}
           <div className="space-y-3">
-            {guides.map(({ title, desc, icon, path }) => (
+            {guides.map(({ title, desc, icon, path }) => {
+              // 식단·수면만 실데이터로 교체(없으면 하드코딩 폴백). 운동·복약은 그대로.
+              const realDesc = title === '식단 가이드' ? (dietDesc ?? desc)
+                : title === '수면 가이드' ? (sleepDesc ?? desc)
+                : desc
+              return (
               <button
                 key={path}
                 onClick={() => navigate(path)}
@@ -54,18 +77,16 @@ function GuideHubPage() {
                 </div>
                 <div className="flex-1 min-w-0 text-left">
                   <h3 className="text-[15px] font-[700] text-textHeading">{title}</h3>
-                  <p className="text-[13px] text-subtext mt-0.5 truncate">{desc}</p>
+                  <p className="text-[13px] text-subtext mt-0.5 truncate">{realDesc}</p>
                 </div>
                 <FontAwesomeIcon icon={faChevronRight} className="text-[14px] text-mute shrink-0" />
               </button>
-            ))}
+              )
+            })}
           </div>
 
         </main>
-
-        <BottomNav />
-      </div>
-    </div>
+    </MobileFrame>
   )
 }
 

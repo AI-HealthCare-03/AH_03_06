@@ -3,7 +3,8 @@
 // MedicationRecordPage의 분석 배너 클릭 시 진입
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import Header from '../../components/Header.jsx';
+import MobileFrame from '../../components/MobileFrame.jsx';
 import { fetchDashboard } from '../../api/medication';
 
 // ── 상수 ────────────────────────────────────────────────────
@@ -158,7 +159,6 @@ function MedRateRow({ med }) {
 
 // ── 메인 컴포넌트 ────────────────────────────────────────────
 export default function MedicationDashboardPage() {
-  const navigate = useNavigate();
   const [period,  setPeriod]  = useState('weekly');
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(false);
@@ -192,17 +192,10 @@ export default function MedicationDashboardPage() {
   })();
 
   return (
-    <div className="min-h-screen bg-[#F4F4F5]">
-
-      {/* ── 헤더 ── */}
-      <div className="sticky top-0 z-10 bg-white border-b border-[#E4E4E7] px-4 py-3 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-[#F4F4F5]">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#09090B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-        <h1 className="text-[16px] font-semibold text-[#09090B]">복약 달성 현황</h1>
-      </div>
+    <MobileFrame
+      contentBg="white"
+      header={<Header variant="back" title="복약 달성 현황" />}
+    >
 
       {/* ── 기간 탭 ── */}
       <div className="bg-white px-4 pt-3 pb-0 border-b border-[#E4E4E7]">
@@ -245,7 +238,7 @@ export default function MedicationDashboardPage() {
         <div className="px-4 py-5 space-y-4 max-w-lg mx-auto">
 
           {/* ── 카드 1: 전체 달성율 ── */}
-          <div className="bg-white rounded-2xl px-5 py-5 shadow-sm">
+          <div className="bg-white border border-borderHairline rounded-2xl px-5 py-5 shadow-sm">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-[13px] font-semibold text-[#71717A] uppercase tracking-wide">
                 전체 달성율
@@ -288,7 +281,7 @@ export default function MedicationDashboardPage() {
 
           {/* ── 카드 2: 일별 복약 완료율 ── */}
           {data.daily_rates?.length > 0 && (
-            <div className="bg-white rounded-2xl px-5 py-5 shadow-sm">
+            <div className="bg-white border border-borderHairline rounded-2xl px-5 py-5 shadow-sm">
               <h2 className="text-[13px] font-semibold text-[#71717A] uppercase tracking-wide mb-4">
                 일별 완료율
               </h2>
@@ -325,7 +318,7 @@ export default function MedicationDashboardPage() {
 
           {/* ── 카드 3: 약별 달성율 ── */}
           {data.medication_rates?.length > 0 && (
-            <div className="bg-white rounded-2xl px-5 py-5 shadow-sm">
+            <div className="bg-white border border-borderHairline rounded-2xl px-5 py-5 shadow-sm">
               <h2 className="text-[13px] font-semibold text-[#71717A] uppercase tracking-wide mb-4">
                 약별 달성율
               </h2>
@@ -341,6 +334,6 @@ export default function MedicationDashboardPage() {
           <div className="h-4" />
         </div>
       )}
-    </div>
+    </MobileFrame>
   );
 }

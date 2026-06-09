@@ -4,7 +4,7 @@
 
 import csv
 import io
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -75,7 +75,8 @@ def export_medication_history(
                 drug_name or "",
                 dosage or "",
                 "복용" if status == "TAKEN" else "미복용",
-                checked_at.isoformat(timespec="seconds") if checked_at else "",
+                # checked_at은 naive UTC → KST(+9h)로 변환해 내보낸다(엑셀은 tz 변환을 안 하므로).
+                (checked_at + timedelta(hours=9)).strftime("%Y-%m-%d %H:%M:%S") if checked_at else "",
             ])
 
         filename = f"medication_history_{start.isoformat()}_{end.isoformat()}.csv"

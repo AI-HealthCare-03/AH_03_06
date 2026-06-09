@@ -1,32 +1,27 @@
 # api/v1/medication_guides.py
 # 복약 가이드 관련 엔드포인트 담당
-# 가이드 생성 요청 (비동기 패턴)
+# 가이드 생성 요청 (블로킹, guide_id 반환)
 # 가이드 단건/목록 조회
 # 가이드 삭제
-# 가이드 미리보기 (데모, item_seq 직접 입력)
-# 자동완성 (데모, drug_name → item_seq)
+# 가이드 미리보기 (진료기록 약 탭 진입, item_seq 직접)
+# 약품 자동완성 (drug_name → item_seq)
 
-import json
 from typing import Any
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.guide import (
     GenerateGuideRequest,
     GenerateGuideResponse,
+    GuideSection,
     MedicationGuideSchema,
     GuideListResponse,
     DeleteGuideResponse,
 )
 from app.services import guide_service
-from app.services.llm_service import (
-    generate_guide_for_drug,
-    generate_guide_for_drug_async,
-    generate_guide_for_drug_stream,
-)
+from app.services.llm_service import generate_guide_for_drug_async
 from app.utils.auth import get_current_user
 from app.utils.rag import get_chroma_client
 from app.models.user import User
@@ -34,7 +29,7 @@ from app.models.user import User
 router = APIRouter()
 
 
-# 데모 자동완성용 약품 캐시 — drug_info_rag + drug_detail_rag 메타데이터를
+# 자동완성용 약품 캐시 — drug_info_rag + drug_detail_rag 메타데이터를
 # (item_seq, drug_name) dedupe (양쪽 존재 시 먼저 등록된 이름 유지)
 
 _drug_list_cache: list[dict[str, str]] | None = None
@@ -78,7 +73,7 @@ def _get_drug_list() -> list[dict[str, str]]:
     return _drug_list_cache
 
 
-# 데모/검증용 임시 스키마. 추후 medication_id 흐름 통합 시 정식 스키마로 흡수.
+# 미리보기 요청 스키마 (item_seq 직접 입력).
 
 class GuidePreviewRequest(BaseModel):
     item_seq: str
@@ -91,14 +86,14 @@ class GuidePreviewRequest(BaseModel):
 
 class GuidePreviewResponse(BaseModel):
     drug_name: str
-    main_content: str
+    key_point: str | None = None
+    sections: list[GuideSection] = []
+    safety_note: str | None = None
+    fallback_message: str | None = None
     is_fallback: bool
     disclaimer: str
-    references: str | None = None
+    references: list[str] = []
     safety_block: str | None = None
-    safety_warn: str | None = None
-    safety_info: str | None = None
-    safety_recommendations: str | None = None
 
 
 class DrugSuggestItem(BaseModel):
@@ -111,8 +106,8 @@ class DrugSuggestResponse(BaseModel):
     total: int  # 필터 적용 전 전체 약품 수 (사용자에게 검색 가능 범위 표시용)
 
 
-# POST /api/v1/medication_guides/generate - 복약 가이드 생성 요청
-@router.post("/generate", response_model=GenerateGuideResponse, status_code=202)
+# POST /api/v1/medication_guides/generate - 복약 가이드 생성(블로킹) → guide_id 반환
+@router.post("/generate", response_model=GenerateGuideResponse, status_code=201)
 async def request_medication_guide_generation(
     request: GenerateGuideRequest,
     db: Session = Depends(get_db),
@@ -123,28 +118,7 @@ async def request_medication_guide_generation(
     )
 
 
-# POST /api/v1/medication_guides/generate-stream - 복약 가이드 스트리밍 생성
-# meta → token×N → done{guide_id, is_fallback} NDJSON. 끝까지 완료된 경우에만 저장.
-@router.post("/generate-stream")
-async def generate_medication_guide_stream(
-    request: GenerateGuideRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    # 처방 해결을 응답 시작 전에 먼저 수행 → 없는/권한 없는 처방이면 여기서 깨끗한 404
-    # (await 시점에 _resolve_prescription_item_seq 가 실행된다. 스트림 시작 전.)
-    guide_stream = await guide_service.stream_guide_generation(
-        request, user_id=current_user.id, db=db
-    )
-
-    async def ndjson_iter():
-        async for event in guide_stream:
-            yield json.dumps(event, ensure_ascii=False) + "\n"
-
-    return StreamingResponse(ndjson_iter(), media_type="application/x-ndjson")
-
-
-# GET /api/v1/medication_guides/drug-suggest - 데모 자동완성 검색
+# GET /api/v1/medication_guides/drug-suggest - 약품 자동완성 검색
 # (static path 라 /{guide_id} 보다 먼저 정의)
 @router.get("/drug-suggest", response_model=DrugSuggestResponse)
 def drug_suggest(q: str = "", limit: int = 20):
@@ -185,13 +159,10 @@ def delete_medication_guide(
     return guide_service.delete_medication_guide(guide_id, user_id=current_user.id, db=db)
 
 
-# POST /api/v1/medication_guides/preview - 데모 가이드 생성 (item_seq 직접 입력)
-# (인증·DB·medication_id 흐름 우회. 추후 정식 medication_id 흐름과 통합 시 제거)
-# async 전환 — 임베딩 3회(drug_info/drug_detail/guideline) 동시 호출 + chat completion await.
-# 롤백 시: async/await 두 단어 제거 + generate_guide_for_drug_async → generate_guide_for_drug.
+# POST /api/v1/medication_guides/preview - 진료기록 약 탭 진입 미리보기 (item_seq 직접, 인증·저장 없음)
 @router.post("/preview", response_model=GuidePreviewResponse)
 async def preview_medication_guide(request: GuidePreviewRequest):
-    payload = await generate_guide_for_drug_async(
+    return await generate_guide_for_drug_async(
         item_seq=request.item_seq,
         drug_name=request.drug_name,
         user_query=request.user_query,
@@ -199,26 +170,3 @@ async def preview_medication_guide(request: GuidePreviewRequest):
         safety=request.safety,
         top_k=request.top_k,
     )
-    return payload
-
-
-# POST /api/v1/medication_guides/preview-stream - 데모 가이드 NDJSON 스트림.
-# 응답 라인 시퀀스: meta(1) → token(N) → done(1). 각 라인은 단일 JSON 객체 + '\n'.
-#   meta : {"type":"meta", drug_name, is_fallback, safety_block, disclaimer, references, safety_*}
-#   token: {"type":"token","text":"..."}    (정상: chat completion 청크 반복 / 거절: FALLBACK_TEXT 한 번)
-#   done : {"type":"done"}
-# 기존 /preview JSON 단발은 그대로 보존 — 프론트는 호출 URL만 갈아끼우면 됨.
-@router.post("/preview-stream")
-async def preview_medication_guide_stream(request: GuidePreviewRequest):
-    async def ndjson_iter():
-        async for event in generate_guide_for_drug_stream(
-            item_seq=request.item_seq,
-            drug_name=request.drug_name,
-            user_query=request.user_query,
-            patient=request.patient,
-            safety=request.safety,
-            top_k=request.top_k,
-        ):
-            yield json.dumps(event, ensure_ascii=False) + "\n"
-
-    return StreamingResponse(ndjson_iter(), media_type="application/x-ndjson")

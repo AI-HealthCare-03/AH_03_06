@@ -13,6 +13,8 @@ from app.schemas.medication import (
     PrescriptionDeleteResponse,
     PrescriptionListResponse,
     MedicationListResponse,
+    MedicationDetailResponse,
+    MedicationUpdateRequest,
     MedicationScheduleRequest,
     MedicationScheduleResponse,
     MedicationScheduleListResponse,
@@ -22,6 +24,8 @@ from app.schemas.medication import (
     MedicationCheckRequest,
     TodayMedicationResponse,
     DateMedicationResponse,
+    MedicationCalendarResponse,
+    MedicationAnalysisResponse,
 )
 
 router = APIRouter()
@@ -165,3 +169,48 @@ def check_medication(
     current_user=Depends(get_current_user)
 ):
     return medication_service.check_medication(current_user.id, request, db)
+
+
+# GET /api/v1/medications/calendar - 복약 기록 달력(성실/누락 일자)
+# 동적 경로(/{medication_id})보다 위에 선언하여, 'calendar'가 id 파라미터로 잘못 인식되는 것을 방지
+@router.get("/calendar", response_model=MedicationCalendarResponse)
+def medication_calendar(
+    year: int = Query(...),
+    month: int = Query(...),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.get_medication_calendar(current_user.id, year, month, db)
+
+
+# GET /api/v1/medications/analysis - 복약 분석 배너(최근 7일 달성률)
+@router.get("/analysis", response_model=MedicationAnalysisResponse)
+def medication_analysis(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.get_medication_analysis(current_user.id, db)
+
+
+# GET /api/v1/medications/{medication_id} - 수정 폼 로드 (source=prescription|custom)
+# 동적 단일경로라, 고정 경로(/list·/today·/schedules·/calendar·/analysis 등) 뒤에 선언하여 경로 충돌을 방지
+@router.get("/{medication_id}", response_model=MedicationDetailResponse)
+def get_medication_detail(
+    medication_id: int,
+    source: str = Query(default="prescription"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.get_medication_by_id(current_user.id, medication_id, source, db)
+
+
+# PUT /api/v1/medications/{medication_id} - 수정 저장 (source=prescription|custom)
+@router.put("/{medication_id}")
+def update_medication(
+    medication_id: int,
+    request: MedicationUpdateRequest,
+    source: str = Query(default="prescription"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.update_medication(current_user.id, medication_id, source, request, db)

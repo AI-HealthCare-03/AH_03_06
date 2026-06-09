@@ -2,18 +2,19 @@
 // GET /schedules?start_date=&end_date= — 복약 이력 기간별 조회
 
 import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { fetchScheduleHistory } from '../../api/medication';
-import MedicationHistoryExportButton from '../../components/MedicationHistoryExportButton.jsx';
+import Header from '../../components/Header.jsx';
+import MobileFrame from '../../components/MobileFrame.jsx';
+import { fetchScheduleHistory, mealFromFrequency } from '../../api/medication';
+import { exportMedicationHistory } from '../../api/medicationHistories.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faClockRotateLeft } from '@fortawesome/free-solid-svg-icons';
+import { faClockRotateLeft, faDownload } from '@fortawesome/free-solid-svg-icons';
 
 // ── 상수 ─────────────────────────────────────────────────────
 const QUICK_RANGES = [
-  { label: '최근 7일',  days: 7  },
-  { label: '최근 14일', days: 14 },
-  { label: '최근 30일', days: 30 },
-  { label: '최근 90일', days: 90 },
+  { label: '7일',  days: 7  },
+  { label: '14일', days: 14 },
+  { label: '30일', days: 30 },
+  { label: '90일', days: 90 },
 ];
 
 const STATUS_META = {
@@ -46,11 +47,20 @@ const fmtTime = (isoStr) => {
   return `${ampm} ${h % 12 || 12}:${m}`;
 };
 
-// 날짜별로 records 그룹화
+// ISO(UTC+Z) → 로컬(KST) 'YYYY-MM-DD'. 시각 표시와 같은 기준으로 묶어 새벽 복용이 전날로 새지 않게.
+const kstDateKey = (iso) => {
+  if (!iso) return 'unknown';
+  const d = new Date(iso);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+};
+
+// 날짜별로 records 그룹화 (KST 기준, 완료 시각 우선)
 const groupByDate = (records) => {
   const map = {};
   for (const r of records) {
-    const dateKey = r.created_at?.slice(0, 10) ?? 'unknown'
+    const dateKey = kstDateKey(r.checked_at ?? r.created_at);
     if (!map[dateKey]) map[dateKey] = [];
     map[dateKey].push(r);
   }
@@ -76,12 +86,13 @@ function HistoryRecord({ record }) {
       <span className="w-2 h-2 rounded-full flex-shrink-0 bg-[#2563EB]" />
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-medium text-[#09090B] truncate">{record.drug_name}</p>
-        <p className="text-[11px] text-[#A1A1AA] mt-0.5">
-          {record.dosage ?? ''} {record.frequency ? `${record.frequency}회/일` : ''}
+        <p className="text-[11px] text-[#A1A1AA] mt-0.5 truncate">
+          {/* 용량 · 식사기준(frequency 정규화). 백엔드 _meal_from_frequency와 어휘 동기화 */}
+          {[record.dosage, mealFromFrequency(record.frequency)].filter(Boolean).join(' · ')}
         </p>
       </div>
       <div className="text-right flex-shrink-0">
-        <p className="text-[11px] text-[#71717A]">{fmtTime(record.created_at)}</p>
+        <p className="text-[11px] text-[#71717A]">{fmtTime(record.checked_at ?? record.created_at)}</p>
         <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-[#EFF6FF] text-[#2563EB]">
           완료
         </span>
@@ -101,7 +112,7 @@ function DateSection({ dateStr, records }) {
                  'text-[#DC2626] bg-[#FEF2F2]';
 
   return (
-    <div className="bg-white rounded-2xl px-4 py-1 shadow-sm mb-3">
+    <div className="bg-white border border-borderHairline rounded-2xl px-4 py-1 shadow-sm mb-3">
       {/* 날짜 헤더 */}
       <div className="flex items-center justify-between py-3 border-b border-[#F4F4F5]">
         <span className="text-[13px] font-semibold text-[#09090B]">{fmtDate(dateStr)}</span>
@@ -122,53 +133,40 @@ function DateSection({ dateStr, records }) {
 }
 
 // ── 통계 요약 카드 ────────────────────────────────────────────
-function SummaryCard({ records }) {
-  const taken  = records.length;
-  const missed = records.filter(r => r.status === 'missed').length;
-  const total  = records.length;
-  const rate   = 100;
+function SummaryCard({ stats }) {
+  const rate   = stats?.achievement_rate ?? 0;
+  const taken  = stats?.total_taken ?? 0;
+  const missed = stats?.total_missed ?? 0;
+  const total  = stats?.total_scheduled ?? 0;
 
   return (
-    <div className="bg-white rounded-2xl px-5 py-4 shadow-sm mb-3">
+    <div className="bg-white border border-borderHairline rounded-2xl px-5 py-4 shadow-sm mb-3">
       <div className="flex items-center justify-between">
-        {/* 달성율 */}
         <div>
-          <p className="text-[11px] text-[#71717A] mb-0.5">전체 달성율</p>
-          <p className="text-[28px] font-bold text-[#09090B] leading-tight">
-            {rate}<span className="text-[16px] font-normal text-[#71717A]">%</span>
+          <p className="text-[12px] text-mute mb-0.5">전체 달성율</p>
+          <p className="text-[28px] font-bold text-textHeading leading-tight">
+            {rate}<span className="text-[16px] font-normal text-mute">%</span>
           </p>
         </div>
-
-        {/* 구분선 */}
-        <div className="w-px h-12 bg-[#F4F4F5]" />
-
-        {/* 완료 */}
+        <div className="w-px h-12 bg-borderLight" />
         <div className="text-center">
-          <p className="text-[11px] text-[#71717A] mb-0.5">완료</p>
-          <p className="text-[20px] font-bold text-[#2563EB]">
-            {taken}<span className="text-[12px] font-normal">회</span>
+          <p className="text-[12px] text-mute mb-0.5">완료</p>
+          <p className="text-[20px] font-bold text-primary">
+            {taken}<span className="text-[12px] font-normal text-mute">회</span>
           </p>
         </div>
-
-        {/* 구분선 */}
-        <div className="w-px h-12 bg-[#F4F4F5]" />
-
-        {/* 누락 */}
+        <div className="w-px h-12 bg-borderLight" />
         <div className="text-center">
-          <p className="text-[11px] text-[#71717A] mb-0.5">누락</p>
-          <p className="text-[20px] font-bold text-[#EF4444]">
-            {missed}<span className="text-[12px] font-normal">회</span>
+          <p className="text-[12px] text-mute mb-0.5">누락</p>
+          <p className={`text-[20px] font-bold ${missed > 0 ? 'text-error' : 'text-mute'}`}>
+            {missed}<span className="text-[12px] font-normal text-mute">회</span>
           </p>
         </div>
-
-        {/* 구분선 */}
-        <div className="w-px h-12 bg-[#F4F4F5]" />
-
-        {/* 전체 */}
+        <div className="w-px h-12 bg-borderLight" />
         <div className="text-center">
-          <p className="text-[11px] text-[#71717A] mb-0.5">전체</p>
-          <p className="text-[20px] font-bold text-[#09090B]">
-            {total}<span className="text-[12px] font-normal">회</span>
+          <p className="text-[12px] text-mute mb-0.5">총 횟수</p>
+          <p className="text-[20px] font-bold text-textHeading">
+            {total}<span className="text-[12px] font-normal text-mute">회</span>
           </p>
         </div>
       </div>
@@ -178,13 +176,14 @@ function SummaryCard({ records }) {
 
 // ── 메인 컴포넌트 ─────────────────────────────────────────────
 export default function MedicationHistoryPage() {
-  const navigate = useNavigate();
 
   const [startDate, setStartDate] = useState(addDays(today(), -6));
   const [endDate,   setEndDate]   = useState(today());
   const [records,   setRecords]   = useState(null);   // null = 미조회
   const [loading,   setLoading]   = useState(false);
+  const [csvLoading, setCsvLoading] = useState(false);
   const [error,     setError]     = useState('');
+  const [stats, setStats] = useState(null);
 
   // ── 빠른 기간 선택 ──
   const applyQuickRange = (days) => {
@@ -206,6 +205,12 @@ export default function MedicationHistoryPage() {
       const res = await fetchScheduleHistory(startDate, endDate);
       const data = res.data ?? res;
       setRecords(data.items ?? []);
+      setStats({
+        achievement_rate: data.achievement_rate ?? 0,
+        total_taken:      data.total_taken ?? 0,
+        total_missed:     data.total_missed ?? 0,
+        total_scheduled:  data.total_scheduled ?? 0,
+      });
     } catch (e) {
       console.error(e);
       setError('이력을 불러오지 못했어요. 다시 시도해 주세요.');
@@ -214,25 +219,39 @@ export default function MedicationHistoryPage() {
     }
   }, [startDate, endDate]);
 
+  // ── CSV 다운로드 (조회에 쓴 기간 그대로 재사용) ──
+  const handleDownloadCsv = async () => {
+    setError('');
+    try {
+      setCsvLoading(true);
+      const blob = await exportMedicationHistory(startDate, endDate);
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `medication_history_${startDate}_${endDate}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      setError('CSV 다운로드에 실패했어요. 다시 시도해 주세요.');
+    } finally {
+      setCsvLoading(false);
+    }
+  };
+
   const grouped = records ? groupByDate(records) : [];
 
   return (
-    <div className="min-h-screen bg-[#F4F4F5]">
-
-      {/* ── 헤더 ── */}
-      <div className="sticky top-0 z-10 bg-white border-b border-[#E4E4E7] px-4 py-3 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-[#F4F4F5]">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#09090B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6"/>
-          </svg>
-        </button>
-        <h1 className="text-[16px] font-semibold text-[#09090B]">복약 이력 조회</h1>
-      </div>
-
-      <div className="px-4 py-4 max-w-lg mx-auto space-y-3">
+    <MobileFrame
+      contentBg="white"
+      header={<Header variant="back" title="복약 이력 조회" />}
+    >
+      <div className="px-4 py-4 space-y-3">
 
         {/* ── 기간 선택 카드 ── */}
-        <div className="bg-white rounded-2xl px-4 py-4 shadow-sm">
+        <div className="bg-white border border-borderHairline rounded-2xl px-4 py-4 shadow-sm">
           {/* 헤더 — 다운로드 카드와 동일 톤(아이콘+제목+부제) */}
           <div className="flex items-start gap-2 mb-3">
             <FontAwesomeIcon icon={faClockRotateLeft} className="text-[#71717A] text-[14px] mt-0.5" />
@@ -243,7 +262,7 @@ export default function MedicationHistoryPage() {
           </div>
 
           {/* 빠른 선택 */}
-          <div className="flex gap-2 flex-wrap mb-4">
+          <div className="grid grid-cols-4 gap-2 mb-4">
             {QUICK_RANGES.map(({ label, days }) => {
               const end   = today();
               const start = addDays(end, -(days - 1));
@@ -252,10 +271,10 @@ export default function MedicationHistoryPage() {
                 <button
                   key={days}
                   onClick={() => applyQuickRange(days)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+                  className={`w-full py-1.5 rounded-lg text-sm font-medium transition-colors
                     ${isActive
-                      ? 'bg-[#2563EB] text-white'
-                      : 'bg-[#F4F4F5] text-[#71717A] hover:bg-[#E4E4E7]'}`}
+                      ? 'bg-primary text-white'
+                      : 'bg-borderLight text-subtext hover:bg-borderHairline'}`}
                 >
                   {label}
                 </button>
@@ -270,7 +289,7 @@ export default function MedicationHistoryPage() {
               value={startDate}
               max={endDate}
               onChange={e => { setStartDate(e.target.value); setRecords(null); }}
-              className="flex-1 min-w-0 border border-[#E4E4E7] rounded-xl px-3 py-2.5 text-sm text-[#09090B] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+              className="flex-1 min-w-0 border border-borderHairline rounded-xl px-3 py-2.5 text-sm text-textHeading focus:outline-none focus:ring-2 focus:ring-primary"
             />
             <span className="text-[#A1A1AA] text-sm flex-shrink-0">~</span>
             <input
@@ -279,7 +298,7 @@ export default function MedicationHistoryPage() {
               min={startDate}
               max={today()}
               onChange={e => { setEndDate(e.target.value); setRecords(null); }}
-              className="flex-1 min-w-0 border border-[#E4E4E7] rounded-xl px-3 py-2.5 text-sm text-[#09090B] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+              className="flex-1 min-w-0 border border-borderHairline rounded-xl px-3 py-2.5 text-sm text-textHeading focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
@@ -298,20 +317,29 @@ export default function MedicationHistoryPage() {
           <p className="text-center text-sm text-[#DC2626] py-2">{error}</p>
         )}
 
-        {/* 복약 이력 CSV 내보내기 */}
-        <MedicationHistoryExportButton />
-
         {/* ── 결과 ── */}
         {records !== null && !loading && (
           <>
             {records.length === 0 ? (
-              <div className="py-12 text-center text-sm text-[#A1A1AA]">
+              <div className="py-12 text-center text-sm text-mute">
                 해당 기간의 복약 이력이 없어요
               </div>
             ) : (
               <>
+                {/* CSV 다운로드 — 조회 기간 그대로 재사용 (작은 버튼) */}
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleDownloadCsv}
+                    disabled={csvLoading}
+                    className="inline-flex items-center gap-1.5 text-[13px] font-medium text-primary disabled:opacity-50"
+                  >
+                    <FontAwesomeIcon icon={faDownload} className="text-[12px]" />
+                    {csvLoading ? '다운로드 중…' : 'CSV 다운로드'}
+                  </button>
+                </div>
+
                 {/* 요약 */}
-                <SummaryCard records={records} />
+                <SummaryCard stats={stats} />
 
                 {/* 날짜별 목록 */}
                 {grouped.map(([dateStr, recs]) => (
@@ -338,6 +366,6 @@ export default function MedicationHistoryPage() {
 
         <div className="h-4" />
       </div>
-    </div>
+    </MobileFrame>
   );
 }

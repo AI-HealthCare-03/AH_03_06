@@ -7,3 +7,11 @@
 * {
   font-family: 'Pretendard', sans-serif !important;
 }
+
+@layer components {
+  /* 모바일 프레임 — 데스크탑에서 480px 카드(라운드·그림자)로 통일.
+     인라인 프레임 페이지(md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8)와 동일 스펙. */
+  .mobile-container {
+    @apply w-full mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8;
+  }
+}
