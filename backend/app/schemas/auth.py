@@ -2,6 +2,7 @@
 # 인증 관련 요청/응답 스키마
 
 import re
+from datetime import date
 from pydantic import BaseModel, EmailStr, field_validator
 
 # 공통 유저 응답
@@ -91,7 +92,7 @@ class SocialLoginResponse(BaseModel):
 # 이메일 찾기 요청
 class FindEmailRequest(BaseModel):
     name: str              # 사용자 실명
-    email: EmailStr        # 가입 시 등록한 이메일
+    birthday: date         # 생년월일 (YYYY-MM-DD)
 
 
 # 이메일 찾기 응답

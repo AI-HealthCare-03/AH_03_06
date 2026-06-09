@@ -1,5 +1,5 @@
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -12,6 +12,7 @@ from app.schemas.diet import (
     DietGuideGenerateCourseRequest,
     DietGuideGenerateResponse,
 )
+from app.limiter import limiter
 
 router = APIRouter()
 diet_service = DietService()
@@ -51,13 +52,15 @@ def delete_diet_guide(
 
 
 @router.post('/diet/generate', status_code=202, response_model=DietGuideGenerateResponse)
+@limiter.limit("5/minute")
 def generate_diet_guide(
-    request: DietGuideGenerateRequest,
+    request: Request,
+    body: DietGuideGenerateRequest,
     background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    checkup = diet_service.get_checkup_by_id(db, request.checkup_id, current_user.id)
+    checkup = diet_service.get_checkup_by_id(db, body.checkup_id, current_user.id)
     if not checkup:
         raise HTTPException(status_code=404, detail='checkup_not_found')
 
@@ -66,20 +69,22 @@ def generate_diet_guide(
         db=db,
         user_id=current_user.id,
         checkup=checkup,
-        target_date=request.target_date,
+        target_date=body.target_date,
     )
 
     return {'detail': 'diet_guide_generating'}
 
 
 @router.post('/diet/regenerate', status_code=202, response_model=DietGuideGenerateResponse)
+@limiter.limit("5/minute")
 def regenerate_diet_guide(
-    request: DietGuideGenerateRequest,
+    request: Request,
+    body: DietGuideGenerateRequest,
     background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    checkup = diet_service.get_checkup_by_id(db, request.checkup_id, current_user.id)
+    checkup = diet_service.get_checkup_by_id(db, body.checkup_id, current_user.id)
     if not checkup:
         raise HTTPException(status_code=404, detail='checkup_not_found')
 
@@ -88,20 +93,22 @@ def regenerate_diet_guide(
         db=db,
         user_id=current_user.id,
         checkup=checkup,
-        target_date=request.target_date,
+        target_date=body.target_date,
     )
 
     return {'detail': 'diet_guide_regenerating'}
 
 
 @router.post('/diet/generate-course', status_code=202, response_model=DietGuideGenerateResponse)
+@limiter.limit("5/minute")
 def generate_diet_guide_course(
-    request: DietGuideGenerateCourseRequest,
+    request: Request,
+    body: DietGuideGenerateCourseRequest,
     background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    checkup = diet_service.get_checkup_by_id(db, request.checkup_id, current_user.id)
+    checkup = diet_service.get_checkup_by_id(db, body.checkup_id, current_user.id)
     if not checkup:
         raise HTTPException(status_code=404, detail='checkup_not_found')
 
@@ -110,7 +117,7 @@ def generate_diet_guide_course(
         db=db,
         user_id=current_user.id,
         checkup=checkup,
-        days=request.days,
+        days=body.days,
     )
 
     return {'detail': 'diet_guide_course_generating'}

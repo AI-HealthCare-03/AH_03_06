@@ -13,7 +13,7 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models.user import User
+from app.models.user import User, UserProfile
 from app.models.social_login import SocialLogin
 from app.models.refresh_token import RefreshToken
 from app.schemas.auth import (
@@ -36,6 +36,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 14
 RESET_TOKEN_EXPIRE_MINUTES = 30
 
+LOGIN_MAX_ATTEMPTS = 5
+LOGIN_LOCK_MINUTES = 10
+
 ADJECTIVES = ["빠른", "느린", "작은", "큰", "밝은", "어두운", "따뜻한", "차가운"]
 NOUNS = ["고양이", "강아지", "토끼", "사자", "호랑이", "여우", "늑대", "곰"]
 
@@ -43,7 +46,6 @@ GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 
 
 def create_access_token(user_id: int) -> str:
-    """access_token 발급 (만료: 30분)"""
     return jwt.encode(
         {"sub": str(user_id), "exp": datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)},
         SECRET_KEY,
@@ -52,7 +54,6 @@ def create_access_token(user_id: int) -> str:
 
 
 def create_refresh_token(user_id: int) -> str:
-    """refresh_token 발급 (만료: 14일)"""
     return jwt.encode(
         {"sub": str(user_id), "exp": datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)},
         SECRET_KEY,
@@ -61,7 +62,6 @@ def create_refresh_token(user_id: int) -> str:
 
 
 def generate_nickname(db: Session) -> str:
-    """닉네임 자동 생성 (형용사+명사+4자리 숫자), 중복 시 재생성"""
     while True:
         nickname = f"{random.choice(ADJECTIVES)}{random.choice(NOUNS)}{random.randint(1000, 9999)}"
         if not db.query(User).filter(User.nickname == nickname).first():
@@ -69,7 +69,6 @@ def generate_nickname(db: Session) -> str:
 
 
 def mask_email(email: str) -> str:
-    """이메일 마스킹 처리 (예: exa***@example.com)"""
     local, domain = email.split("@")
     masked = local[:3] + "***"
     return f"{masked}@{domain}"
@@ -93,7 +92,6 @@ def register(request: RegisterRequest, db: Session):
     db.commit()
     db.refresh(user)
 
-    # 토큰 발급
     access_token = create_access_token(user_id=user.id)
     refresh_token = create_refresh_token(user_id=user.id)
 
@@ -120,18 +118,35 @@ def register(request: RegisterRequest, db: Session):
         }
     )
 
+
 def login(request: LoginRequest, db: Session) -> LoginResponse:
-    """로그인 - 이메일/비밀번호 검증 후 토큰 발급"""
-    # 이메일로 유저 조회
     user = db.query(User).filter(User.email == request.email).first()
-    if not user or not pwd_context.verify(request.password, user.password_hash):
+
+    if not user:
         raise HTTPException(status_code=400, detail="invalid_email_or_password")
 
-    # 토큰 발급
+    if user.login_locked_until and user.login_locked_until > datetime.utcnow():
+        remaining = int((user.login_locked_until - datetime.utcnow()).total_seconds() / 60) + 1
+        raise HTTPException(status_code=403, detail=f"account_locked:{remaining}")
+
+    if not pwd_context.verify(request.password, user.password_hash):
+        user.login_failed_count += 1
+
+        if user.login_failed_count >= LOGIN_MAX_ATTEMPTS:
+            user.login_locked_until = datetime.utcnow() + timedelta(minutes=LOGIN_LOCK_MINUTES)
+            db.commit()
+            raise HTTPException(status_code=403, detail=f"account_locked:{LOGIN_LOCK_MINUTES}")
+
+        db.commit()
+        remaining_attempts = LOGIN_MAX_ATTEMPTS - user.login_failed_count
+        raise HTTPException(status_code=400, detail=f"invalid_email_or_password:{remaining_attempts}")
+
+    user.login_failed_count = 0
+    user.login_locked_until = None
+
     access_token = create_access_token(user_id=user.id)
     refresh_token = create_refresh_token(user_id=user.id)
 
-    # refresh_token DB 저장
     db.add(RefreshToken(
         user_id=user.id,
         token=refresh_token,
@@ -153,7 +168,6 @@ def login(request: LoginRequest, db: Session) -> LoginResponse:
 
 
 def logout(request: LogoutRequest, db: Session) -> LogoutResponse:
-    """로그아웃 - refresh_token 무효화"""
     token = db.query(RefreshToken).filter(
         RefreshToken.token == request.refresh_token,
         RefreshToken.is_revoked == 0
@@ -169,8 +183,6 @@ def logout(request: LogoutRequest, db: Session) -> LogoutResponse:
 
 
 def refresh_token(request: TokenRefreshRequest, db: Session) -> TokenRefreshResponse:
-    """액세스 토큰 재발급 - refresh_token 검증 후 access_token 재발급"""
-    # refresh_token DB 조회
     token = db.query(RefreshToken).filter(
         RefreshToken.token == request.refresh_token,
         RefreshToken.is_revoked == 0
@@ -179,18 +191,15 @@ def refresh_token(request: TokenRefreshRequest, db: Session) -> TokenRefreshResp
     if not token:
         raise HTTPException(status_code=401, detail="invalid_refresh_token")
 
-    # 만료 확인
     if token.expires_at < datetime.utcnow():
         raise HTTPException(status_code=401, detail="invalid_refresh_token")
 
-    # 새 access_token 발급
     access_token = create_access_token(user_id=token.user_id)
 
     return TokenRefreshResponse(access_token=access_token)
 
 
 def social_login(provider: str) -> RedirectResponse:
-    """소셜 로그인 요청 - 소셜 로그인 제공자 인증 페이지로 리다이렉트"""
     if provider != "google":
         raise HTTPException(status_code=400, detail="invalid_provider")
 
@@ -286,20 +295,23 @@ def social_login_callback(provider: str, code: str, db: Session):
 
 
 def find_email(request: FindEmailRequest, db: Session) -> FindEmailResponse:
-    """이메일 찾기 - 이름, 이메일 일치 확인 후 마스킹된 이메일 반환"""
-    user = db.query(User).filter(
-        User.name == request.name,
-        User.email == request.email
-    ).first()
+    result = (
+        db.query(User)
+        .join(UserProfile, User.id == UserProfile.user_id)
+        .filter(
+            User.name == request.name,
+            UserProfile.birthday == request.birthday,
+        )
+        .first()
+    )
 
-    if not user:
+    if not result:
         raise HTTPException(status_code=404, detail="user_not_found")
 
-    return FindEmailResponse(email=mask_email(user.email))
+    return FindEmailResponse(email=mask_email(result.email))
 
 
 async def find_password(request: FindPasswordRequest, db: Session) -> FindPasswordResponse:
-    """비밀번호 재설정 링크 발송 - 이메일/이름 일치 확인 후 재설정 링크 발송"""
     user = db.query(User).filter(
         User.email == request.email,
         User.name == request.name
@@ -308,14 +320,12 @@ async def find_password(request: FindPasswordRequest, db: Session) -> FindPasswo
     if not user:
         raise HTTPException(status_code=404, detail="user_not_found")
 
-    # 재설정 토큰 발급 (만료: 30분)
     reset_token = jwt.encode(
         {"sub": str(user.id), "exp": datetime.utcnow() + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)},
         SECRET_KEY,
         algorithm=ALGORITHM
     )
 
-    # 이메일 발송 설정
     conf = ConnectionConfig(
         MAIL_USERNAME=settings.MAIL_USERNAME,
         MAIL_PASSWORD=settings.MAIL_PASSWORD,
@@ -327,7 +337,6 @@ async def find_password(request: FindPasswordRequest, db: Session) -> FindPasswo
         USE_CREDENTIALS=True
     )
 
-    # 이메일 내용
     reset_link = f"{settings.FRONTEND_URL}/password/reset?token={reset_token}"
     message = MessageSchema(
         subject="[Viva] 비밀번호 재설정 링크",
@@ -344,7 +353,6 @@ async def find_password(request: FindPasswordRequest, db: Session) -> FindPasswo
         subtype="plain"
     )
 
-    # 비동기 이메일 발송
     import asyncio
     try:
         fm = FastMail(conf)
@@ -356,28 +364,22 @@ async def find_password(request: FindPasswordRequest, db: Session) -> FindPasswo
 
 
 def reset_password(request: ResetPasswordRequest, db: Session) -> ResetPasswordResponse:
-    """비밀번호 재설정 - 재설정 토큰 검증 후 비밀번호 변경"""
-    # 비밀번호 확인
     if request.password != request.password_confirm:
         raise HTTPException(status_code=400, detail="password_mismatch")
 
-    # 재설정 토큰 검증
     try:
         payload = jwt.decode(request.token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = int(payload.get("sub"))
     except JWTError:
         raise HTTPException(status_code=400, detail="invalid_token")
 
-    # 유저 조회
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=400, detail="invalid_token")
 
-    # 이전 비밀번호와 동일 여부 확인
     if pwd_context.verify(request.password, user.password_hash):
         raise HTTPException(status_code=400, detail="same_as_old_password")
 
-    # 비밀번호 변경
     user.password_hash = pwd_context.hash(request.password)
     db.commit()
 
