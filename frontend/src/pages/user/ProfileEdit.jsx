@@ -115,7 +115,7 @@ function ProfileEdit() {
       : 'px-4 h-9 inline-flex items-center rounded-full border border-[#E4E4E7] bg-white text-[14px] text-[#18181B] transition-colors cursor-pointer'
 
   return (
-    <MobileFrame header={<Header variant="back" title="프로필 수정" />}>
+    <MobileFrame header={<Header variant="back" title="내 정보 수정" />}>
 
         <div className="px-5 py-6 space-y-8 pb-32">
 
