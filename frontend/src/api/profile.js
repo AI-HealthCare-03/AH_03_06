@@ -11,12 +11,12 @@ function authHeaders() {
 // 백엔드 origin (예: http://localhost:8000) — 정적 이미지 절대경로용
 const apiOrigin = (import.meta.env.VITE_API_BASE_URL ?? '/api/v1').replace(/\/api\/v1\/?$/, '')
 
-// image_url 보정: API는 '/static/avatars/..'로 주는데 정적 마운트가 루트('/')라 실제 경로는 '/avatars/..'.
-// → origin 부여 + '/static' 보정 (백엔드 image_url 경로 불일치 — 백엔드 수정되면 .replace 제거)
+// image_url 보정: API는 '/static/avatars/..' 상대경로로 주므로 origin만 부여.
+// (백엔드가 /static 마운트로 서빙 — 더는 /static 제거 안 함)
 export const resolveProfileImage = (url) => {
   if (!url) return ''
   if (/^https?:\/\//.test(url)) return url
-  return `${apiOrigin}${url.replace('/static', '')}`
+  return `${apiOrigin}${url}`
 }
 
 // GET /profile/items → { items: [{ id, name, image_url, required_point, is_default, is_unlocked, is_selected }] }
