@@ -12,10 +12,10 @@ function FormLayout({ step, total = 7, title, subtitle, children, onNext, nextLa
 
         <div className="sticky top-0 z-50 bg-white border-b border-gray-100">
           <header className="px-5 h-14 flex items-center justify-between">
-            <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-start">
+            <button onClick={() => navigate(-1)} className="w-11 h-11 flex items-center justify-start">
               <FontAwesomeIcon icon={faChevronLeft} className="text-[#18181B] text-[18px]" />
             </button>
-            <div className="w-10" />
+            <div className="w-11" />
           </header>
           {showProgress && (
             <div className="px-5 pt-2 pb-4">
