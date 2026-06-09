@@ -123,7 +123,7 @@ function RegisterNickname() {
           <button
             type="button"
             onClick={handleRegenerate}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-[#71717A]"
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-[#71717A]"
           >
             <FontAwesomeIcon icon={faRotateRight} className={`text-[16px] ${spinning ? 'animate-spin' : ''}`} />
           </button>
