@@ -1,15 +1,20 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.models.attendance import Attendance, AttendanceStreak
 from app.schemas.attendance import CheckInResponse, AttendanceStatusResponse, AttendanceCalendarResponse
 from app.services import point_service
 
+KST = timezone(timedelta(hours=9))
+
+
+def _today_kst() -> date:
+    return datetime.now(KST).date()
+
 
 def check_in(user_id: int, db: Session) -> CheckInResponse:
-    today = date.today()
+    today = _today_kst()
 
-    # 오늘 이미 출석했는지 확인
     existing = db.query(Attendance).filter(
         Attendance.user_id == user_id,
         Attendance.checked_at == today,
@@ -24,11 +29,9 @@ def check_in(user_id: int, db: Session) -> CheckInResponse:
             message="이미 출석했습니다",
         )
 
-    # 출석 기록 저장
     attendance = Attendance(user_id=user_id, checked_at=today)
     db.add(attendance)
 
-    # 연속 출석 업데이트
     streak = _get_or_create_streak(user_id, db)
     yesterday = today - timedelta(days=1)
 
@@ -42,7 +45,6 @@ def check_in(user_id: int, db: Session) -> CheckInResponse:
 
     streak.last_checked_at = today
 
-    # 포인트 적립
     point_service.earn(user_id, "attendance", db)
     if streak.current_streak % 7 == 0:
         point_service.earn(user_id, "attendance_7days", db)
@@ -60,7 +62,7 @@ def check_in(user_id: int, db: Session) -> CheckInResponse:
 
 
 def get_status(user_id: int, db: Session) -> AttendanceStatusResponse:
-    today = date.today()
+    today = _today_kst()
 
     today_checked = db.query(Attendance).filter(
         Attendance.user_id == user_id,
