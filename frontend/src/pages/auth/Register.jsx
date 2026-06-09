@@ -116,7 +116,7 @@ function Register() {
               onChange={e => setPassword(e.target.value)}
               className="w-full h-[56px] bg-[#F5F5F5] rounded-[8px] pl-4 pr-12 text-[15px] text-[#18181B] outline-none border border-transparent focus:border-primary/20 placeholder:text-[#A1A1AA]"
             />
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A1A1AA]">
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-1 top-1/2 -translate-y-1/2 text-[#A1A1AA] w-11 h-11 flex items-center justify-center">
               <FontAwesomeIcon icon={showPassword ? faEye : faEyeSlash} className="text-[18px]" />
             </button>
           </div>
@@ -134,7 +134,7 @@ function Register() {
               onChange={e => setPasswordConfirm(e.target.value)}
               className="w-full h-[56px] bg-[#F5F5F5] rounded-[8px] pl-4 pr-12 text-[15px] text-[#18181B] outline-none border border-transparent focus:border-primary/20 placeholder:text-[#A1A1AA]"
             />
-            <button type="button" onClick={() => setShowPasswordConfirm(!showPasswordConfirm)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A1A1AA]">
+            <button type="button" onClick={() => setShowPasswordConfirm(!showPasswordConfirm)} className="absolute right-1 top-1/2 -translate-y-1/2 text-[#A1A1AA] w-11 h-11 flex items-center justify-center">
               <FontAwesomeIcon icon={showPasswordConfirm ? faEye : faEyeSlash} className="text-[18px]" />
             </button>
           </div>

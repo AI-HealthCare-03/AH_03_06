@@ -128,7 +128,7 @@ function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A1A1AA]"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 text-[#A1A1AA] w-11 h-11 flex items-center justify-center"
                 >
                   <FontAwesomeIcon icon={showPassword ? faEye : faEyeSlash} className="text-[18px]" />
                 </button>
