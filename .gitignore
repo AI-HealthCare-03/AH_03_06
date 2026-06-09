@@ -45,3 +45,5 @@ frontend/.vite/frontend/node_modules/
 frontend/.vite/
 
 test/*
+
+backend/data/chroma_db/
