@@ -74,9 +74,8 @@ app.include_router(attendance.router, prefix="/api/v1/attendance", tags=["Attend
 app.include_router(point.router, prefix="/api/v1/point", tags=["Point"])
 app.include_router(profile.router, prefix="/api/v1/profile", tags=["Profile"])
 
-# 정적 파일 서빙 (firebase-messaging-sw.js)
-app.mount("/", StaticFiles(directory="app/static"), name="static")
-
+# 정적 파일 서빙
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 @app.get("/")
 def root():
