@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { listMedicalRecords } from '../../api/medicalRecord'
+import { listMedicalRecords } from '../../api/medicalrecord'
 import Header from '../../components/Header'
 import MobileFrame from '../../components/MobileFrame.jsx'
 import EmptyState from '../../components/EmptyState'

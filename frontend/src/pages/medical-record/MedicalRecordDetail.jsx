@@ -1,7 +1,7 @@
 // pages/medical-record/MedicalRecordDetail.jsx
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getMedicalRecord, deleteMedicalRecord } from '../../api/medicalRecord'
+import { getMedicalRecord, deleteMedicalRecord } from '../../api/medicalrecord'
 import { fetchDrugSuggest } from '../../api/medicationGuides.js'
 import { createChatSession } from '../../api/chat.js'
 import MedicationGuideButton from '../../components/MedicationGuideButton.jsx'

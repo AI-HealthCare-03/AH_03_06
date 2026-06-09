@@ -13,20 +13,9 @@ function RegisterNickname() {
   const [helperText, setHelperText] = useState('한글·영문·숫자 2~20자')
   const [helperColor, setHelperColor] = useState('text-[#A1A1AA]')
   const [isValid, setIsValid] = useState(false)
-  const [spinning, setSpinning] = useState(false)
-
-  const fetchNickname = async () => {
-    try {
-      const res = await fetch(`${base}/users/me/nickname`, {
-        headers: { Authorization: `Bearer ${getAccessToken()}` }
-      })
-      const data = await res.json()
-      setNickname(data.nickname)
-      validate(data.nickname)
-    } catch {}
-  }
-
-  useEffect(() => { fetchNickname() }, [])
+  const [spinning, setSpinning] = useState(true) // 마운트 시 추천 닉네임 로딩으로 시작
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const validate = (value) => {
     const lengthOK = value.length >= 2 && value.length <= 20
@@ -50,26 +39,53 @@ function RegisterNickname() {
     }
   }
 
+  const fetchNickname = async () => {
+    try {
+      const res = await fetch(`${base}/users/me/nickname`, {
+        headers: { Authorization: `Bearer ${getAccessToken()}` }
+      })
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setNickname(data.nickname)
+      validate(data.nickname)
+    } catch {
+      setHelperText('추천 닉네임을 불러오지 못했어요. 직접 입력해 주세요')
+      setHelperColor('text-red-500')
+      setIsValid(false)
+    } finally {
+      setSpinning(false)
+    }
+  }
+
+  useEffect(() => { fetchNickname() }, [])
+
   const handleChange = (e) => {
     setNickname(e.target.value)
     validate(e.target.value)
   }
 
-  const handleRegenerate = async () => {
+  const handleRegenerate = () => {
+    if (spinning) return
     setSpinning(true)
-    setTimeout(() => setSpinning(false), 600)
-    await fetchNickname()
+    fetchNickname()
   }
 
   const handleNext = async () => {
+    setSaveError('')
+    setSaving(true)
     try {
-      await fetch(`${base}/users/me`, {
+      const res = await fetch(`${base}/users/me`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAccessToken()}` },
         body: JSON.stringify({ nickname })
       })
+      if (!res.ok) throw new Error()
       navigate('/register/basic-info')
-    } catch {}
+    } catch {
+      setSaveError('닉네임 저장에 실패했어요. 다시 시도해 주세요.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -79,7 +95,8 @@ function RegisterNickname() {
       title="닉네임 설정"
       subtitle="다른 사용자에게 보여질 이름이에요"
       onNext={handleNext}
-      nextDisabled={!isValid}
+      nextLabel={saving ? '저장 중...' : '다음'}
+      nextDisabled={!isValid || saving}
     >
       <section className="mb-8">
         <div className="bg-[#EFF6FF] rounded-lg p-3 flex items-start gap-2">
@@ -113,6 +130,10 @@ function RegisterNickname() {
         </div>
         <p className={`text-[12px] mt-2 ml-1 ${helperColor}`}>{helperText}</p>
       </section>
+
+      {saveError && (
+        <p className="text-[13px] text-red-500 mt-4">{saveError}</p>
+      )}
     </FormLayout>
   )
 }

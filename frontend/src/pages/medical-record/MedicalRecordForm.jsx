@@ -10,7 +10,7 @@ import {
   createMedicalRecord,
   getMedicalRecord,
   updateMedicalRecord,
-} from '../../api/medicalRecord'
+} from '../../api/medicalrecord'
 import Header from '../../components/Header'
 
 // ── 진료과 목록 ────────────────────────────────────────────────

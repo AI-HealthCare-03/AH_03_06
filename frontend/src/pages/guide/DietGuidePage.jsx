@@ -103,15 +103,24 @@ function DietGuidePage() {
       }
       setRegenerating(true)
       await regenerateDietGuide(checkups[0].id, date)
+      let attempts = 0
+      const MAX_ATTEMPTS = 20 // 3초 × 20 ≈ 60초 상한
       const poll = setInterval(async () => {
+        attempts += 1
         try {
           const newGuide = await getDietGuideByDate(date)
           if (newGuide) {
             setGuide(newGuide)
             setRegenerating(false)
             clearInterval(poll)
+            return
           }
-        } catch {}
+        } catch { /* 폴링 중 일시 오류는 무시하고 다음 주기에 재시도 */ }
+        if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(poll)
+          setRegenerating(false)
+          window.alert('가이드 재생성이 지연되고 있어요. 잠시 후 다시 시도해 주세요.')
+        }
       }, 3000)
     } catch (err) {
       setRegenerating(false)

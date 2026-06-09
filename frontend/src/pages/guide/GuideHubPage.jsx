@@ -29,18 +29,21 @@ function GuideHubPage() {
   const navigate = useNavigate()
   const [sleepDesc, setSleepDesc] = useState(null)   // null=하드코딩 폴백
   const [dietDesc, setDietDesc] = useState(null)
+  const [loading, setLoading] = useState(true)   // 가이드 fetch 진행 중
 
   useEffect(() => {
     // 수면: 최신 가이드 weekly_goal → 취침·기상 시각
-    listSleepGuides()
+    const sleepLoad = listSleepGuides()
       .then(d => { const latest = (d?.guides ?? [])[0]; if (latest) return getSleepGuide(latest.guide_id) })
       .then(g => { const desc = sleepDescFrom(g?.weekly_goal); if (desc) setSleepDesc(desc) })
       .catch(() => {})
     // 식단: 최신 가이드 meal_plan_type → 한글 유형 권장
-    listDietGuideDates()
+    const dietLoad = listDietGuideDates()
       .then(d => { const date = pickGuideDate(d?.dates); if (date) return getDietGuideByDate(date) })
       .then(g => { const dd = dietDescFrom(g?.meal_plan_type); if (dd) setDietDesc(dd) })
       .catch(() => {})
+    // 가이드 fetch가 모두 끝난 뒤에만 카드 서브텍스트 노출(로딩 중 폴백 깜빡임 억제)
+    Promise.all([sleepLoad, dietLoad]).finally(() => setLoading(false))
   }, [])
 
   return (
@@ -77,7 +80,7 @@ function GuideHubPage() {
                 </div>
                 <div className="flex-1 min-w-0 text-left">
                   <h3 className="text-[15px] font-[700] text-textHeading">{title}</h3>
-                  <p className="text-[13px] text-subtext mt-0.5 truncate">{realDesc}</p>
+                  <p className="text-[13px] text-subtext mt-0.5 truncate">{loading ? '\u00A0' : realDesc}</p>
                 </div>
                 <FontAwesomeIcon icon={faChevronRight} className="text-[14px] text-mute shrink-0" />
               </button>

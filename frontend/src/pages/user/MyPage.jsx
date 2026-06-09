@@ -175,7 +175,7 @@ function MyPage() {
                       <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">
                         <FontAwesomeIcon icon={faUserPen} className="text-primary text-[14px]" />
                       </div>
-                      <span className="text-[14px] font-medium text-[#09090B]">프로필 수정</span>
+                      <span className="text-[14px] font-medium text-[#09090B]">내 정보 수정</span>
                     </div>
                     <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[12px]" />
                   </button>
@@ -184,7 +184,7 @@ function MyPage() {
                       <div className="w-9 h-9 rounded-lg bg-primarySoft flex items-center justify-center shrink-0">
                         <FontAwesomeIcon icon={faImage} className="text-primary text-[14px]" />
                       </div>
-                      <span className="text-[14px] font-medium text-[#09090B]">프로필 변경</span>
+                      <span className="text-[14px] font-medium text-[#09090B]">프로필 설정</span>
                     </div>
                     <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[12px]" />
                   </button>

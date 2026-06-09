@@ -5,7 +5,7 @@ import Header from '../../components/Header.jsx'
 import MobileFrame from '../../components/MobileFrame.jsx'
 import BottomNav from '../../components/BottomNav.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCheck, faLock } from '@fortawesome/free-solid-svg-icons'
+import { faCheck, faLock, faLockOpen } from '@fortawesome/free-solid-svg-icons'
 import { getProfileItems, unlockProfileItem, selectProfileItem, resolveProfileImage } from '../../api/profile.js'
 import { getPointBalance } from '../../api/point.js'
 
@@ -13,7 +13,7 @@ export default function ProfileSelectPage() {
   const navigate = useNavigate()
   const [items, setItems] = useState([])
   const [balance, setBalance] = useState(0)
-  const [busy, setBusy] = useState(false)
+  const [unlockingId, setUnlockingId] = useState(null)   // 진행 중인 아바타 id
 
   const load = () => {
     getProfileItems().then(d => setItems(d?.items ?? [])).catch(() => {})
@@ -22,8 +22,8 @@ export default function ProfileSelectPage() {
   useEffect(load, [])
 
   const handleTap = async (item) => {
-    if (busy || item.is_selected) return
-    setBusy(true)
+    if (unlockingId === item.id || item.is_selected) return
+    setUnlockingId(item.id)
     try {
       if (!item.is_unlocked) {
         // 무료(0P)는 확인 없이 바로 해금, 유료만 잔액 확인 + 확인창
@@ -39,7 +39,7 @@ export default function ProfileSelectPage() {
       const msg = String(e?.message ?? '')
       alert(msg.includes('insufficient_point') ? '포인트가 부족해요' : '처리 중 오류가 발생했어요. 다시 시도해주세요.')
     } finally {
-      setBusy(false)
+      setUnlockingId(null)
     }
   }
 
@@ -56,7 +56,7 @@ export default function ProfileSelectPage() {
         {/* 아바타 그리드 */}
         <div className="grid grid-cols-3 gap-3">
           {items.map(item => (
-            <button key={item.id} onClick={() => handleTap(item)} disabled={busy}
+            <button key={item.id} onClick={() => handleTap(item)} disabled={unlockingId === item.id}
               className={`relative bg-white rounded-[14px] border p-3 flex flex-col items-center gap-2 active:bg-[#FAFAFA] transition-colors
                 ${item.is_selected ? 'border-primary' : 'border-[#E4E4E7]'}`}>
               <div className="relative">
@@ -72,9 +72,16 @@ export default function ProfileSelectPage() {
                     <FontAwesomeIcon icon={faCheck} className="text-white text-[10px]" />
                   </div>
                 )}
+                {unlockingId === item.id && !item.is_unlocked && (
+                  <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center">
+                    <FontAwesomeIcon icon={faLockOpen} className="text-teal-400 text-[15px] animate-unlock" />
+                  </div>
+                )}
               </div>
               <span className="text-[11px] text-[#52525B] truncate w-full text-center">{item.name}</span>
-              {item.is_selected
+              {unlockingId === item.id && !item.is_unlocked
+                ? <span className="text-[10px] font-medium text-primary">해제 중</span>
+                : item.is_selected
                 ? <span className="text-[10px] font-bold text-primary">선택중</span>
                 : item.is_unlocked
                   ? <span className="text-[10px] text-[#A1A1AA]">보유</span>
