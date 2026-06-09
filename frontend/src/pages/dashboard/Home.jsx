@@ -226,9 +226,9 @@ function Home() {
             </div>
             <div className="space-y-2">
               {[
-                { icon: faUtensils,      title: '식단 가이드', desc: dietDesc ?? '건강 맞춤 식단 권장', path: '/diet-guides', meals: dietMeals },
-                { icon: faPersonRunning, title: '운동 가이드', desc: '중간 강도 유산소 30분', path: '/exercise-guides' },
-                { icon: faMoon,          title: '수면 가이드', desc: sleepDesc ?? '취침 전 카페인 회피', path: '/sleep-guides', note: sleepLifestyle },
+                { icon: faUtensils,      title: '식단 가이드', desc: dietDesc ?? '내 건강검진 기반 AI 권장식단', path: '/diet-guides', meals: dietMeals },
+                { icon: faPersonRunning, title: '운동 가이드', desc: '나에게 맞는 AI 운동 가이드', path: '/exercise-guides' },
+                { icon: faMoon,          title: '수면 가이드', desc: sleepDesc ?? '내 수면 패턴 AI 분석·코칭', path: '/sleep-guides', note: sleepLifestyle },
               ].map(({ icon, title, desc, path, meals, note }) => (
                 <button key={title} onClick={() => navigate(path)} className="w-full text-left bg-white border border-[#E4E4E7] rounded-[10px] shadow-sm p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3 min-w-0">
