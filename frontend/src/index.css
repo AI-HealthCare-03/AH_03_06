@@ -15,3 +15,13 @@
     @apply w-full mx-auto md:max-w-[480px] md:rounded-[24px] md:shadow-2xl md:my-8;
   }
 }
+
+/* 프로필 잠금 해제 진행 중 — 자물쇠가 풀리는 모션 */
+@keyframes unlock-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  35%      { transform: rotate(-16deg) translateY(-1px); }
+  65%      { transform: rotate(-4deg); }
+}
+.animate-unlock {
+  animation: unlock-wiggle 0.7s ease-in-out infinite;
+}
