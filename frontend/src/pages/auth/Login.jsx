@@ -5,6 +5,22 @@ import { loginSuccess } from '../../App.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons'
 
+const ERROR_MAP = {
+  invalid_email_or_password: '이메일 또는 비밀번호가 올바르지 않습니다.',
+}
+
+function parseError(message) {
+  if (message.startsWith('account_locked:')) {
+    const minutes = message.split(':')[1]
+    return `로그인 시도가 너무 많습니다. ${minutes}분 후에 다시 시도해 주세요.`
+  }
+  if (message.startsWith('invalid_email_or_password:')) {
+    const remaining = message.split(':')[1]
+    return `이메일 또는 비밀번호가 올바르지 않습니다. (남은 시도 횟수: ${remaining}회)`
+  }
+  return ERROR_MAP[message] ?? '오류가 발생했습니다. 다시 시도해 주세요.'
+}
+
 function Login() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
@@ -31,7 +47,7 @@ function Login() {
       loginSuccess()
       navigate('/home')
     } catch (err) {
-      setError(err.message)
+      setError(parseError(err.message))
     } finally {
       setLoading(false)
     }
@@ -119,8 +135,15 @@ function Login() {
               </div>
             </div>
 
-            {/* 비밀번호 찾기 */}
-            <div className="flex justify-end mb-[32px]">
+            {/* 이메일 찾기 / 비밀번호 찾기 */}
+            <div className="flex justify-end gap-3 mb-[32px]">
+              <span
+                onClick={() => navigate('/email/find')}
+                className="text-[13px] font-medium text-[#71717A] cursor-pointer"
+              >
+                이메일 찾기
+              </span>
+              <span className="text-[#D4D4D8]">|</span>
               <span
                 onClick={() => navigate('/password/find')}
                 className="text-[13px] font-medium text-[#71717A] cursor-pointer"
