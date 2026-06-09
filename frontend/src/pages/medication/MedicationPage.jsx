@@ -28,6 +28,7 @@ function MedicationList({ onTodayClick, navigate }) {
   const [error, setError]                   = useState(null)
   const [openMenuId, setOpenMenuId]         = useState(null)
   const [fabOpen, setFabOpen]               = useState(false)
+  const [actionError, setActionError]       = useState(null)
 
   useEffect(() => {
     const fetch = async () => {
@@ -56,15 +57,19 @@ function MedicationList({ onTodayClick, navigate }) {
   const handleDelete = async (id) => {
     if (!window.confirm('복약을 종료 처리할까요?')) return
 
+    setActionError(null)
     const med = allMedications.find(m => m.id === id)
-    if (med?.source === 'custom') {
-      await deleteSchedule(id)
-    } else {
-      await deleteMedication(id)
+    try {
+      if (med?.source === 'custom') {
+        await deleteSchedule(id)
+      } else {
+        await deleteMedication(id)
+      }
+      const res = await getMedications()
+      if (res.success) setAllMedications(res.data)
+    } catch {
+      setActionError('종료 처리에 실패했어요. 다시 시도해 주세요.')
     }
-
-    const res = await getMedications()
-    if (res.success) setAllMedications(res.data)
   }
 
   const handleMenuToggle = (e, id) => {
@@ -150,6 +155,7 @@ function MedicationList({ onTodayClick, navigate }) {
             </div>
           )}
           {error && <p className="text-center text-[14px] text-red-400 py-8">{error}</p>}
+          {actionError && <p className="text-center text-[13px] text-red-400 py-2">{actionError}</p>}
 
           {/* 약 카드 목록 */}
           {!isLoading && !error && filtered.map((med) => (
@@ -340,6 +346,7 @@ function TodayMedication({ onBack }) {
   const [todayMedication, setTodayMedication] = useState(null)
   const [isLoading, setIsLoading]             = useState(false)
   const [error, setError]                     = useState(null)
+  const [actionError, setActionError]         = useState(null)
 
   const fetch = async () => {
     setIsLoading(true)
@@ -359,13 +366,18 @@ function TodayMedication({ onBack }) {
   useEffect(() => { fetch() }, [])
 
   const handleCheck = async (medicationId, mealTime, currentStatus) => {
-    await checkMedication({
-      medicationId,
-      mealTime,
-      takenAt: new Date().toISOString(),
-      isChecked: currentStatus !== '완료',
-    })
-    fetch()
+    setActionError(null)
+    try {
+      await checkMedication({
+        medicationId,
+        mealTime,
+        takenAt: new Date().toISOString(),
+        isChecked: currentStatus !== '완료',
+      })
+      await fetch()
+    } catch {
+      setActionError('복용 체크에 실패했어요. 다시 시도해 주세요.')
+    }
   }
 
   const mealIcon = {
@@ -398,6 +410,7 @@ function TodayMedication({ onBack }) {
           </div>
         )}
         {error && <p className="text-center text-[14px] text-red-400 py-8">{error}</p>}
+        {actionError && <p className="text-center text-[13px] text-red-400 py-2">{actionError}</p>}
 
         {!isLoading && !error && todayMedication && (
           <div className="px-4 pt-2 space-y-3">

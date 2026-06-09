@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header.jsx';
 import MobileFrame from '../../components/MobileFrame.jsx';
+import ErrorState from '../../components/ErrorState.jsx';
 import {
   fetchCalendar,
   fetchAnalysis,
@@ -160,30 +161,38 @@ export default function MedicationRecordPage() {
   const [analysis,   setAnalysis]   = useState(null);
   const [dayData,    setDayData]    = useState(null);
   const [dayLoading, setDayLoading] = useState(false);
+  const [calError,      setCalError]      = useState(false);
+  const [analysisError, setAnalysisError] = useState(false);
+  const [dayError,      setDayError]      = useState(false);
+  const [actionError,   setActionError]   = useState(null);
 
   // ── 달력 로드 ──
-  useEffect(() => {
+  const loadCalendar = useCallback(() => {
     fetchCalendar(year, month)
-      .then(res => setCalData(res.data ?? res))
-      .catch(console.error);
+      .then(res => { setCalData(res.data ?? res); setCalError(false); })
+      .catch(() => setCalError(true));
   }, [year, month]);
+  useEffect(() => { loadCalendar(); }, [loadCalendar]);
 
-  // ── 분석 로드 (1회) ──
-  useEffect(() => {
+  // ── 분석 로드 ──
+  const loadAnalysis = useCallback(() => {
     fetchAnalysis()
-      .then(res => setAnalysis(res.data ?? res))
-      .catch(console.error);
+      .then(res => { setAnalysis(res.data ?? res); setAnalysisError(false); })
+      .catch(() => setAnalysisError(true));
   }, []);
+  useEffect(() => { loadAnalysis(); }, [loadAnalysis]);
 
   // ── 날짜별 복약 목록 로드 ──
-  useEffect(() => {
+  const loadDay = useCallback(() => {
     const dateStr = toDateStr(year, month, selected);
     setDayLoading(true);
+    setDayError(false);
     fetchMedicationsByDate(dateStr)
       .then(res => setDayData(res.data ?? res))
-      .catch(() => setDayData(null))
+      .catch(() => { setDayData(null); setDayError(true); })
       .finally(() => setDayLoading(false));
   }, [year, month, selected]);
+  useEffect(() => { loadDay(); }, [loadDay]);
 
   // ── 월 이동 ──
   const prevMonth = () => {
@@ -197,8 +206,11 @@ export default function MedicationRecordPage() {
 
   // ── ✅ 복용하기 — 로컬 상태 즉시 업데이트 ──
   const handleTake = useCallback(async (medId) => {
-    // UI 즉시 반영
+    setActionError(null);
+    // UI 즉시 반영 (실패 시 롤백용 스냅샷 보관)
+    let snapshot;
     setDayData(prev => {
+      snapshot = prev;
       if (!prev) return prev;
       const updated = {
         ...prev,
@@ -220,14 +232,18 @@ export default function MedicationRecordPage() {
     try {
       const dateStr = toDateStr(year, month, selected);
       await takeMedication(dateStr, medId);
-    } catch (e) {
-      console.error(e);
+    } catch {
+      setDayData(snapshot); // 롤백
+      setActionError('복용 처리에 실패했어요. 다시 시도해 주세요.');
     }
   }, [year, month, selected]);
 
   // ── ✅ 복용 취소 — 로컬 상태 즉시 업데이트 ──
   const handleUndo = useCallback(async (medId) => {
+    setActionError(null);
+    let snapshot;
     setDayData(prev => {
+      snapshot = prev;
       if (!prev) return prev;
       const updated = {
         ...prev,
@@ -247,8 +263,9 @@ export default function MedicationRecordPage() {
     try {
       const dateStr = toDateStr(year, month, selected);
       await undoTakeMedication(dateStr, medId);
-    } catch (e) {
-      console.error(e);
+    } catch {
+      setDayData(snapshot); // 롤백
+      setActionError('복용 취소에 실패했어요. 다시 시도해 주세요.');
     }
   }, [year, month, selected]);
 
@@ -321,6 +338,11 @@ export default function MedicationRecordPage() {
           </div>
         </div>
 
+        {/* 달력 로드 실패 */}
+        {calError && (
+          <ErrorState message={'달력을 불러오지 못했어요'} onRetry={loadCalendar} className="py-6" />
+        )}
+
         {/* 분석 배너 */}
         {analysis && (
           <AnalysisBanner
@@ -329,13 +351,24 @@ export default function MedicationRecordPage() {
             onClick={() => navigate('/medication/dashboard')}
           />
         )}
+        {!analysis && analysisError && (
+          <ErrorState message={'복약 분석을 불러오지 못했어요'} onRetry={loadAnalysis} className="py-4" />
+        )}
 
         {/* 날짜별 복약 목록 */}
+        {actionError && (
+          <p className="text-center text-[13px] text-red-400 py-2">{actionError}</p>
+        )}
+
         {dayLoading && (
           <div className="py-6 text-center text-sm text-[#71717A]">불러오는 중...</div>
         )}
 
-        {!dayLoading && dayData && (
+        {!dayLoading && dayError && (
+          <ErrorState message={'복약 기록을 불러오지 못했어요'} onRetry={loadDay} className="py-10" />
+        )}
+
+        {!dayLoading && !dayError && dayData && (
           <div>
             <div className="flex items-center justify-between px-1 py-2">
               <h2 className="text-[15px] font-semibold text-[#09090B]">{dayData.dateLabel}</h2>
@@ -375,7 +408,7 @@ export default function MedicationRecordPage() {
           </div>
         )}
 
-        {!dayLoading && !dayData && (
+        {!dayLoading && !dayError && !dayData && (
           <div className="py-10 text-center text-sm text-[#A1A1AA]">
             해당 날짜의 복약 기록이 없어요
           </div>
