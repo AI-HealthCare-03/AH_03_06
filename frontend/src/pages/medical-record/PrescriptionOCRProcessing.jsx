@@ -5,6 +5,10 @@ import FormLayout from '../../components/FormLayout.jsx'
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
+// OCR 평균 소요시간을 남기는 로그/계측이 없어 상한값으로 60초를 둔다.
+// (정상 요청은 훨씬 빨라 끊기지 않음. 업로드 구간·서버 행으로 인한 무한 스피너 방지가 목적.)
+const OCR_TIMEOUT_MS = 60000
+
 export default function PrescriptionOCRProcessing() {
   const navigate = useNavigate()
   const { state } = useLocation()
@@ -14,34 +18,61 @@ export default function PrescriptionOCRProcessing() {
       navigate('/medical-records/ocr', { replace: true })
       return
     }
-    callOcr(state.file)
-  }, [])
 
-  async function callOcr(file) {
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
+    const controller = new AbortController()
+    let timedOut = false
+    const timeoutId = setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, OCR_TIMEOUT_MS)
 
-      const res = await fetch(`${base}/ocr/prescription`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${getAccessToken()}` },
-        body: formData,
-      })
+    async function callOcr(file) {
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
 
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.detail ?? '처방전을 인식하지 못했어요.')
+        const res = await fetch(`${base}/ocr/prescription`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${getAccessToken()}` },
+          body: formData,
+          signal: controller.signal,
+        })
 
-      navigate('/medical-records/ocr/result', {
-        replace: true,
-        state: { ocrData: data, previewUrl: state.previewUrl },
-      })
-    } catch (e) {
-      navigate('/medical-records/ocr', {
-        replace: true,
-        state: { error: e.message ?? '처방전을 인식하지 못했어요. 다시 시도해 주세요.' },
-      })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data?.detail ?? '처방전을 인식하지 못했어요.')
+
+        clearTimeout(timeoutId)
+        navigate('/medical-records/ocr/result', {
+          replace: true,
+          state: { ocrData: data, previewUrl: state.previewUrl },
+        })
+      } catch (e) {
+        clearTimeout(timeoutId)
+        if (e.name === 'AbortError') {
+          // 타임아웃으로 끊은 경우에만 안내하며 업로드 화면으로 복귀.
+          // 화면 이탈(언마운트)에 의한 취소면 아무 동작도 하지 않는다.
+          if (timedOut) {
+            navigate('/medical-records/ocr', {
+              replace: true,
+              state: { error: '처방전 인식이 너무 오래 걸려요. 잠시 후 다시 시도해 주세요.' },
+            })
+          }
+          return
+        }
+        navigate('/medical-records/ocr', {
+          replace: true,
+          state: { error: e.message ?? '처방전을 인식하지 못했어요. 다시 시도해 주세요.' },
+        })
+      }
     }
-  }
+
+    callOcr(state.file)
+
+    return () => {
+      clearTimeout(timeoutId)
+      controller.abort()
+    }
+  }, [])
 
   return (
     <FormLayout
