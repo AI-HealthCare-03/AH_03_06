@@ -18,7 +18,7 @@ from app.schemas.auth import (
     ResetPasswordRequest, ResetPasswordResponse,
 )
 from app.services import auth_service
-from main import limiter
+from app.limiter import limiter
 
 router = APIRouter()
 

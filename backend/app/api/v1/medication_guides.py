@@ -18,7 +18,7 @@ from app.services.llm_service import generate_guide_for_drug_async
 from app.utils.auth import get_current_user
 from app.utils.rag import get_chroma_client
 from app.models.user import User
-from main import limiter
+from app.limiter import limiter
 
 router = APIRouter()
 

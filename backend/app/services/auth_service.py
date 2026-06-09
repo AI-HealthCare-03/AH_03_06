@@ -13,7 +13,7 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models.user import User
+from app.models.user import User, UserProfile
 from app.models.social_login import SocialLogin
 from app.models.refresh_token import RefreshToken
 from app.schemas.auth import (
@@ -36,8 +36,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 14
 RESET_TOKEN_EXPIRE_MINUTES = 30
 
-LOGIN_MAX_ATTEMPTS = 5        # 최대 로그인 실패 횟수
-LOGIN_LOCK_MINUTES = 10       # 잠금 시간 (분)
+LOGIN_MAX_ATTEMPTS = 5
+LOGIN_LOCK_MINUTES = 10
 
 ADJECTIVES = ["빠른", "느린", "작은", "큰", "밝은", "어두운", "따뜻한", "차가운"]
 NOUNS = ["고양이", "강아지", "토끼", "사자", "호랑이", "여우", "늑대", "곰"]
@@ -120,22 +120,15 @@ def register(request: RegisterRequest, db: Session):
 
 
 def login(request: LoginRequest, db: Session) -> LoginResponse:
-    """로그인 - 이메일/비밀번호 검증 후 토큰 발급"""
     user = db.query(User).filter(User.email == request.email).first()
 
-    # 존재하지 않는 이메일
     if not user:
         raise HTTPException(status_code=400, detail="invalid_email_or_password")
 
-    # 계정 잠금 확인
     if user.login_locked_until and user.login_locked_until > datetime.utcnow():
         remaining = int((user.login_locked_until - datetime.utcnow()).total_seconds() / 60) + 1
-        raise HTTPException(
-            status_code=403,
-            detail=f"account_locked:{remaining}"  # 프론트에서 파싱하여 "N분 후 다시 시도해주세요" 표시
-        )
+        raise HTTPException(status_code=403, detail=f"account_locked:{remaining}")
 
-    # 비밀번호 검증
     if not pwd_context.verify(request.password, user.password_hash):
         user.login_failed_count += 1
 
@@ -146,12 +139,8 @@ def login(request: LoginRequest, db: Session) -> LoginResponse:
 
         db.commit()
         remaining_attempts = LOGIN_MAX_ATTEMPTS - user.login_failed_count
-        raise HTTPException(
-            status_code=400,
-            detail=f"invalid_email_or_password:{remaining_attempts}"  # 프론트에서 파싱하여 "N회 남았습니다" 표시
-        )
+        raise HTTPException(status_code=400, detail=f"invalid_email_or_password:{remaining_attempts}")
 
-    # 로그인 성공 — 실패 횟수 초기화
     user.login_failed_count = 0
     user.login_locked_until = None
 
@@ -306,15 +295,20 @@ def social_login_callback(provider: str, code: str, db: Session):
 
 
 def find_email(request: FindEmailRequest, db: Session) -> FindEmailResponse:
-    user = db.query(User).filter(
-        User.name == request.name,
-        User.email == request.email
-    ).first()
+    result = (
+        db.query(User)
+        .join(UserProfile, User.id == UserProfile.user_id)
+        .filter(
+            User.name == request.name,
+            UserProfile.birthday == request.birthday,
+        )
+        .first()
+    )
 
-    if not user:
+    if not result:
         raise HTTPException(status_code=404, detail="user_not_found")
 
-    return FindEmailResponse(email=mask_email(user.email))
+    return FindEmailResponse(email=mask_email(result.email))
 
 
 async def find_password(request: FindPasswordRequest, db: Session) -> FindPasswordResponse:

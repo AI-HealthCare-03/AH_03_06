@@ -6,9 +6,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from app.limiter import limiter
 from app.api.v1 import auth, users, medications, medical_records, health_checkups, guides, medication_guides, dashboard, ocr, push, medication_histories, sleep_guides, chat, attendance, point, profile
 from app.database import engine, Base
 from app.models import (
@@ -33,9 +33,6 @@ from app.models import (
     UserProfileItem,
 )
 from app.scheduler import start_scheduler, stop_scheduler
-
-# Rate Limiter 설정
-limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager

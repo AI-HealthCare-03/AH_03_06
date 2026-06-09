@@ -13,7 +13,7 @@ from app.schemas.sleep_guide import (
     DeleteSleepGuideResponse,
 )
 from app.services import sleep_guide_service
-from main import limiter
+from app.limiter import limiter
 
 router = APIRouter()
 

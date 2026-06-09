@@ -12,7 +12,7 @@ from app.schemas.diet import (
     DietGuideGenerateCourseRequest,
     DietGuideGenerateResponse,
 )
-from main import limiter
+from app.limiter import limiter
 
 router = APIRouter()
 diet_service = DietService()
