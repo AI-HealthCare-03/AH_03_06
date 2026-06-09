@@ -62,6 +62,7 @@ function Home() {
   const [sleepLifestyle, setSleepLifestyle] = useState(null)   // 생활습관 조정 1줄
   const [dietDesc, setDietDesc] = useState(null)
   const [dietMeals, setDietMeals] = useState([])   // 오늘 가이드일 때만 채움(아침/점심/저녁)
+  const [guidesLoading, setGuidesLoading] = useState(true)   // 식단·수면 가이드 fetch 진행 중
 
   useEffect(() => {
     fetch(`${base}/users/me`, {
@@ -94,7 +95,7 @@ function Home() {
       .catch(() => {})
 
     // 수면: 최신 가이드 weekly_goal에서 취침·기상 시각 추출(없으면 폴백 유지)
-    listSleepGuides()
+    const sleepLoad = listSleepGuides()
       .then(d => {
         const latest = (d?.guides ?? [])[0]
         if (latest) return getSleepGuide(latest.guide_id)
@@ -109,7 +110,7 @@ function Home() {
       .catch(() => {})
 
     // 식단: 최신 가이드의 meal_plan_type(백엔드가 검진 그룹으로 산정) → 한글 매핑(없으면 폴백)
-    listDietGuideDates()
+    const dietLoad = listDietGuideDates()
       .then(d => {
         // 오늘 가이드가 있으면 오늘을, 없으면 최신을 조회(desc용). 끼니는 오늘일 때만.
         const date = pickGuideDate(d?.dates)
@@ -129,6 +130,9 @@ function Home() {
         }
       })
       .catch(() => {})
+
+    // 식단·수면 fetch가 모두 끝난 뒤에만 카드 서브텍스트 노출(로딩 중 폴백 깜빡임 억제)
+    Promise.all([sleepLoad, dietLoad]).finally(() => setGuidesLoading(false))
   }, [])
 
   const nickname = user?.nickname ?? '...'
@@ -233,7 +237,7 @@ function Home() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-[14px] font-[700] text-[#09090B] leading-tight">{title}</p>
-                      <p className="text-[12px] text-[#52525B] mt-0.5 truncate">{desc}</p>
+                      <p className="text-[12px] text-[#52525B] mt-0.5 truncate">{guidesLoading ? '\u00A0' : desc}</p>
                       {/* 오늘 식단 끼니 목록(식단 카드만, 오늘 가이드일 때) — 끼니 라벨 mute·음식 subtext, 3줄 상한 */}
                       {meals?.map(m => (
                         <p key={m.label} className="text-[11px] mt-0.5 truncate">
