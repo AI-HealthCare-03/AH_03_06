@@ -34,7 +34,7 @@ class RegisterRequest(BaseModel):
 
     @field_validator("name")
     def validate_name(cls, v):
-        if not re.match(r"^[가-힣a-zA-Z]+$", v):
+        if not re.match(r"^[가-힣a-zA-Z]{1,20}$", v):
             raise ValueError("invalid_name_format")
         return v
 
