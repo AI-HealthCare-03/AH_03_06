@@ -14,6 +14,8 @@ var/
 sdist/
 wheels/
 pip-wheel-metadata/
+backend/**/*.ipynb
+backend/*.ipynb
 
 # 가상환경
 venv/
@@ -31,6 +33,7 @@ env/
 firebase_key.json
 *.pem
 *.key
+backend/data/guidelines/
 
 # 로그
 *.log
@@ -46,4 +49,9 @@ frontend/.vite/
 
 test/*
 
+
+# Chroma DB
 backend/data/chroma_db/
+backend/ml_data/chroma_db/
+data/chroma_db/
+

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies.auth import get_current_user
 from app.services.diet_service import DietService
+from app.services.exercise_service import ExerciseService
 from app.schemas.diet import (
     DietGuideResponse,
     DietGuideDateListResponse,
@@ -12,7 +13,16 @@ from app.schemas.diet import (
     DietGuideGenerateCourseRequest,
     DietGuideGenerateResponse,
 )
+
+from app.schemas.exercise import (
+    ExerciseGuideResponse,
+    ExerciseGuideGenerateRequest,
+    ExerciseGuideGenerateResponse,
+)
 from app.limiter import limiter
+
+exercise_service = ExerciseService()
+
 
 router = APIRouter()
 diet_service = DietService()
@@ -122,15 +132,45 @@ def generate_diet_guide_course(
 
     return {'detail': 'diet_guide_course_generating'}
 
+# guides.py의 exercise 관련 엔드포인트 부분만 교체하세요
 
-@router.get('/exercise')
-def get_exercise_guide():
-    pass
+# ── GET: 날짜로 저장된 가이드 조회 ──────────────
+@router.get('/exercise/{guide_date}', response_model=ExerciseGuideResponse)
+def get_exercise_guide(
+    guide_date: date,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    result = exercise_service.get_guide_by_date(db, current_user.id, guide_date)
+    if not result:
+        raise HTTPException(status_code=404, detail='exercise_guide_not_found')
+    return result
 
 
-@router.post('/exercise/generate')
-def generate_exercise_guide():
-    pass
+# ── POST: 가이드 생성 (백그라운드) ───────────────
+@router.post('/exercise/generate', status_code=202, response_model=ExerciseGuideGenerateResponse)
+@limiter.limit("5/minute")
+def generate_exercise_guide(
+    request: Request,
+    req: ExerciseGuideGenerateRequest,
+    background_tasks: BackgroundTasks,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    checkup = exercise_service.get_checkup_by_id(db, req.checkup_id, current_user.id)
+    if not checkup:
+        raise HTTPException(status_code=404, detail='checkup_not_found')
+
+    target_date = req.target_date or date.today()
+
+    background_tasks.add_task(
+        exercise_service.generate_exercise_guide,
+        db          = db,
+        user_id     = current_user.id,
+        checkup     = checkup,
+        target_date = target_date,
+    )
+    return {'detail': 'exercise_guide_generating'}
 
 
 @router.get('/sleep')
