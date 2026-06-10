@@ -13,9 +13,6 @@ class UserPoint(Base):
     updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="point")
-    history = relationship("PointHistory", back_populates="user_point",
-                           primaryjoin="UserPoint.user_id == PointHistory.user_id",
-                           foreign_keys="PointHistory.user_id")
 
 
 class PointHistory(Base):
@@ -30,8 +27,4 @@ class PointHistory(Base):
     description = Column(String(100), nullable=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
 
-    user = relationship("User", back_populates="point_history",
-                        foreign_keys=[user_id])
-    user_point = relationship("UserPoint", back_populates="history",
-                              primaryjoin="PointHistory.user_id == UserPoint.user_id",
-                              foreign_keys="PointHistory.user_id")
+    user = relationship("User", back_populates="point_history")

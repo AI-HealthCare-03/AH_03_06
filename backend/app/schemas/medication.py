@@ -46,6 +46,7 @@ class MedicationCardItem(BaseModel):
     is_as_needed:  bool = False           # 필요시 복용(PRN)
     meal_basis:        Optional[str] = None  # 식사 기준(식전·식후·식간·상관없음)
     timing_offset_min: Optional[int] = None  # 식사 기준 오프셋(분)
+    is_custom:     bool = False           # 직접등록 일반의약품=true, 처방약=false (라벨 판정)
 
 class MedicationListResponse(BaseModel):
     medications: List[MedicationCardItem]
@@ -65,6 +66,7 @@ class MedicationDetailResponse(BaseModel):
     is_as_needed:   bool = False             # 필요시 복용(PRN)
     meal_basis:        Optional[str] = None  # 식사 기준(식전·식후·식간·상관없음)
     timing_offset_min: Optional[int] = None  # 식사 기준 오프셋(분)
+    is_custom:      bool = False             # 직접등록 일반의약품=true, 처방약=false
 
 
 class MedicationUpdateRequest(BaseModel):
@@ -80,6 +82,7 @@ class MedicationUpdateRequest(BaseModel):
     meal_basis:        Optional[str] = None   # 식사 기준(식전·식후·식간·상관없음)
     timing_offset_min: Optional[int] = None   # 식사 기준 오프셋(분)
     notification_type: Optional[str] = "PUSH"
+    is_custom:         Optional[bool] = None  # 약 구분 변경(일반=true/처방=false). None=기존 유지
 
 
 class PrescriptionDeleteResponse(BaseModel):

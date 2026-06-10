@@ -163,6 +163,7 @@ export default function MedicationDashboardPage() {
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -180,7 +181,7 @@ export default function MedicationDashboardPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [period]);
+  }, [period, reloadKey]);
 
   // ── 기간 라벨 ──
   const periodLabel = (() => {
@@ -226,7 +227,7 @@ export default function MedicationDashboardPage() {
         <div className="flex flex-col items-center justify-center py-20 gap-3">
           <p className="text-[#09090B] text-sm">{error}</p>
           <button
-            onClick={() => setPeriod(p => p)}
+            onClick={() => setReloadKey(k => k + 1)}
             className="text-[#2563EB] text-sm"
           >
             다시 시도

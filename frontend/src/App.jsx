@@ -30,6 +30,10 @@ import ExerciseGuideListPage from './pages/guide/ExerciseGuideListPage.jsx'
 import ExerciseGuidePage from './pages/guide/ExerciseGuidePage.jsx'
 import MyPage from './pages/user/MyPage'
 import ProfileEdit from './pages/user/ProfileEdit'
+import PointsPage from './pages/user/PointsPage'
+import AttendanceRecordPage from './pages/user/AttendanceRecordPage'
+import ProfileSelectPage from './pages/user/ProfileSelectPage'
+import { resetAttendanceCheckSession } from './components/AttendanceModal.jsx'
 import MedicalRecordDetail from './pages/medical-record/MedicalRecordDetail.jsx'
 import MedicalRecordList from './pages/medical-record/MedicalRecordList.jsx'
 import MedicalRecordForm from './pages/medical-record/MedicalRecordForm.jsx'
@@ -42,15 +46,14 @@ import HealthCheckResults from "./pages/health-checkup/HealthCheckResults.jsx"
 import MedicationPage from './pages/medication/MedicationPage.jsx'
 import MedicationRecordPage from './pages/medication/MedicationRecordPage.jsx'
 import MedicationFormPage from './pages/medication/MedicationFormPage.jsx'
-import MedicationDashboardPage from './pages/medication/MedicationDashboardPage.jsx';
-import MedicationHistoryPage from './pages/medication/MedicationHistoryPage.jsx';
-
-
+import MedicationDashboardPage from './pages/medication/MedicationDashboardPage.jsx'
+import MedicationHistoryPage from './pages/medication/MedicationHistoryPage.jsx'
 import ChatPage from './pages/chat/ChatPage.jsx'
 
 let _setAuth = null
 export function logout() {
   clearTokens()
+  resetAttendanceCheckSession()
   _setAuth?.(false)
 }
 
@@ -102,6 +105,9 @@ function App() {
         <Route path="/exercise-guides/:date" element={<PrivateRoute auth={auth}><ExerciseGuidePage /></PrivateRoute>} />
         <Route path="/user" element={<PrivateRoute auth={auth}><MyPage /></PrivateRoute>} />
         <Route path="/user/profile/edit" element={<PrivateRoute auth={auth}><ProfileEdit /></PrivateRoute>} />
+        <Route path="/user/points" element={<PrivateRoute auth={auth}><PointsPage /></PrivateRoute>} />
+        <Route path="/user/attendance" element={<PrivateRoute auth={auth}><AttendanceRecordPage /></PrivateRoute>} />
+        <Route path="/user/profile/select" element={<PrivateRoute auth={auth}><ProfileSelectPage /></PrivateRoute>} />
         <Route path="/health-checkup" element={<PrivateRoute auth={auth}><HealthCheckList /></PrivateRoute>} />
         <Route path="/health-checkup/input" element={<PrivateRoute auth={auth}><HealthCheckInput /></PrivateRoute>} />
         <Route path="/health-checkup/input/:year" element={<PrivateRoute auth={auth}><HealthCheckInput /></PrivateRoute>} />
@@ -116,9 +122,9 @@ function App() {
         <Route path="/medication" element={<PrivateRoute auth={auth}><MedicationPage /></PrivateRoute>} />
         <Route path="/medication/record" element={<PrivateRoute auth={auth}><MedicationRecordPage /></PrivateRoute>} />
         <Route path="/medication/form" element={<PrivateRoute auth={auth}><MedicationFormPage /></PrivateRoute>} />
+        <Route path="/medication/dashboard" element={<PrivateRoute auth={auth}><MedicationDashboardPage /></PrivateRoute>} />
         <Route path="/medication/history" element={<PrivateRoute auth={auth}><MedicationHistoryPage /></PrivateRoute>} />
         <Route path="/chat/:sessionId" element={<PrivateRoute auth={auth}><ChatPage /></PrivateRoute>} />
-        <Route path="/medication/history" element={<PrivateRoute auth={auth}><MedicationHistoryPage /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   )

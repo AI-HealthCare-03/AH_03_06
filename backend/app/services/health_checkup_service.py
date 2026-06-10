@@ -15,10 +15,10 @@ from app.schemas.health_checkup import (
     HealthClassificationResponse,
     HealthTrendResponse,
 )
+from app.services import point_service
 
 
 def _classify_bp(systolic: int, diastolic: int) -> str:
-    """혈압 분류 (FR-306 기준)"""
     if systolic <= 120 and diastolic <= 80:
         return "정상"
     elif systolic < 130 and diastolic < 80:
@@ -28,7 +28,6 @@ def _classify_bp(systolic: int, diastolic: int) -> str:
 
 
 def _classify_glucose(fasting_glucose: int) -> str:
-    """공복혈당 분류 (FR-306 기준)"""
     if fasting_glucose < 100:
         return "정상"
     elif fasting_glucose < 126:
@@ -38,7 +37,6 @@ def _classify_glucose(fasting_glucose: int) -> str:
 
 
 def _classify_cholesterol(total: int, hdl: int, ldl: int, triglyceride: int) -> str:
-    """콜레스테롤 분류 (FR-306 기준)"""
     if total < 200 and ldl < 130 and triglyceride < 150:
         return "정상"
     elif total < 240 and ldl < 160 and triglyceride < 200:
@@ -48,7 +46,6 @@ def _classify_cholesterol(total: int, hdl: int, ldl: int, triglyceride: int) -> 
 
 
 def _classify_bmi(height: float, weight: float) -> tuple:
-    """BMI 계산 및 분류 (FR-306 기준)"""
     bmi = round(weight / ((height / 100) ** 2), 1)
     if bmi < 18.5:
         result = "주의"
@@ -96,11 +93,15 @@ def create_checkup(
     db.add(checkup)
     db.commit()
     db.refresh(checkup)
+
+    # 포인트 적립
+    point_service.earn(user_id, "health_checkup", db)
+    db.commit()
+
     return HealthCheckupResponse.model_validate(checkup)
 
 
 def get_checkups(user_id: int, db: Session) -> HealthCheckupListResponse:
-    """건강검진 목록 조회 - 최신순 정렬"""
     checkups = db.query(HealthCheckup).filter(
         HealthCheckup.user_id == user_id
     ).order_by(HealthCheckup.checkup_year.desc()).all()
@@ -118,7 +119,6 @@ def get_checkups(user_id: int, db: Session) -> HealthCheckupListResponse:
 
 
 def get_checkup(user_id: int, checkup_id: int, db: Session) -> HealthCheckupResponse:
-    """건강검진 상세 조회"""
     checkup = db.query(HealthCheckup).filter(
         HealthCheckup.id == checkup_id,
         HealthCheckup.user_id == user_id
@@ -131,7 +131,6 @@ def get_checkup(user_id: int, checkup_id: int, db: Session) -> HealthCheckupResp
 
 
 def get_checkup_by_year(user_id: int, year: int, db: Session) -> HealthCheckupResponse:
-    """연도로 건강검진 상세 조회"""
     checkup = db.query(HealthCheckup).filter(
         HealthCheckup.user_id == user_id,
         HealthCheckup.checkup_year == year
@@ -149,7 +148,6 @@ def update_checkup(
     request: HealthCheckupUpdateRequest,
     db: Session
 ) -> HealthCheckupResponse:
-    """건강검진 데이터 수정 - 전달된 필드만 업데이트"""
     checkup = db.query(HealthCheckup).filter(
         HealthCheckup.id == checkup_id,
         HealthCheckup.user_id == user_id
@@ -167,7 +165,6 @@ def update_checkup(
 
 
 def delete_checkup(user_id: int, checkup_id: int, db: Session) -> HealthCheckupDeleteResponse:
-    """건강검진 데이터 삭제"""
     checkup = db.query(HealthCheckup).filter(
         HealthCheckup.id == checkup_id,
         HealthCheckup.user_id == user_id
@@ -182,7 +179,6 @@ def delete_checkup(user_id: int, checkup_id: int, db: Session) -> HealthCheckupD
 
 
 def get_classification(user_id: int, db: Session) -> HealthClassificationResponse:
-    """최신 건강검진 기준 분류 결과 조회"""
     checkup = db.query(HealthCheckup).filter(
         HealthCheckup.user_id == user_id
     ).order_by(HealthCheckup.checkup_year.desc()).first()
@@ -235,13 +231,11 @@ def get_classification(user_id: int, db: Session) -> HealthClassificationRespons
 
 
 def get_trend(user_id: int, db: Session, period: str = "1y", item: str = None) -> HealthTrendResponse:
-    """건강 수치 변화 추이 조회"""
     from datetime import datetime
 
     current_year = datetime.now().year
-    period_map = {"1m": 0, "3m": 0, "6m": 0, "1y": 1}
 
-    if period not in period_map:
+    if period not in ["1m", "3m", "6m", "1y"]:
         raise HTTPException(status_code=400, detail="invalid_period")
 
     if item and item not in ["bp", "glucose", "cholesterol", "bmi"]:

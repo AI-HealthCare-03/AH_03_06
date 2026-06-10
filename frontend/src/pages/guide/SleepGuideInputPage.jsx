@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../../components/Header.jsx'
+import ErrorState from '../../components/ErrorState.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faMinus, faPlus, faMoon } from '@fortawesome/free-solid-svg-icons'
 import { generateSleepGuide, fetchCaffeineTypes } from '../../api/sleepGuides.js'
@@ -127,6 +128,7 @@ function SleepGuideInputPage() {
 
   // 3단계: 카페인 (id → cups)
   const [caffeineTypes, setCaffeineTypes] = useState([])
+  const [caffeineError, setCaffeineError] = useState(false)
   const [caffeineCounts, setCaffeineCounts] = useState({})
 
   // 4단계: 방해 원인 (복수 선택)
@@ -138,9 +140,12 @@ function SleepGuideInputPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    fetchCaffeineTypes().then(setCaffeineTypes).catch(() => {})
+  const loadCaffeine = useCallback(() => {
+    fetchCaffeineTypes()
+      .then((types) => { setCaffeineTypes(types); setCaffeineError(false) })
+      .catch(() => setCaffeineError(true))
   }, [])
+  useEffect(() => { loadCaffeine() }, [loadCaffeine])
 
   // q5(주간 지장) ≥ 2 면 ESS 권유
   const essRecommended = brief[4] !== null && brief[4] >= 2
@@ -320,7 +325,9 @@ function SleepGuideInputPage() {
                   )
                 })}
                 {caffeineTypes.length === 0 && (
-                  <p className="text-[13px] text-mute text-center py-6">음료 목록을 불러오는 중…</p>
+                  caffeineError
+                    ? <ErrorState message={'음료 목록을 불러오지 못했어요'} onRetry={loadCaffeine} className="py-6" />
+                    : <p className="text-[13px] text-mute text-center py-6">음료 목록을 불러오는 중…</p>
                 )}
               </div>
             </section>

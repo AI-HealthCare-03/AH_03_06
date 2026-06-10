@@ -10,7 +10,6 @@ class UserProfileResponse(BaseModel):
     email: str
     name: str
     nickname: Optional[str] = None
-    profile_image_url: Optional[str] = None
     birthday: Optional[date] = None
     gender: Optional[str] = None
     height: Optional[float] = None

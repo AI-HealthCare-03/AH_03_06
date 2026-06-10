@@ -22,7 +22,9 @@ class User(Base):
     password_hash = Column(String(255), nullable=True)
     name = Column(String(50), nullable=False)
     nickname = Column(String(50), unique=True, nullable=True)
-    profile_image_url = Column(String(255), nullable=True)
+    # profile_image_url 제거
+    login_failed_count = Column(SmallInteger, nullable=False, default=0)
+    login_locked_until = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
@@ -42,7 +44,7 @@ class User(Base):
     health_checkups = relationship("HealthCheckup", back_populates="user")
     medication_guides = relationship("MedicationGuide", back_populates="user")
 
-    medical_records = relationship("MedicalRecord", back_populates="user")  # 260519 추가
+    medical_records = relationship("MedicalRecord", back_populates="user")
     medication_logs = relationship("MedicationLog", back_populates="user")
     medication_schedules = relationship("MedicationSchedule", back_populates="user")
 
@@ -52,7 +54,10 @@ class User(Base):
     point = relationship("UserPoint", back_populates="user", uselist=False)
     point_history = relationship("PointHistory", back_populates="user")
 
+    profile_items = relationship("UserProfileItem", back_populates="user")
+
     fcm_tokens = relationship("FcmToken", back_populates="user")
+
 
 class UserProfile(Base):
     """사용자 기본 프로필 테이블 (생년월일, 성별)"""
@@ -125,7 +130,7 @@ class SmokingInfo(Base):
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("user.id"), nullable=False, unique=True)
-    smoking_status = Column(SmallInteger, nullable=False, default=0)  # 0: 비흡연, 1: 흡연, 2: 금연
+    smoking_status = Column(SmallInteger, nullable=False, default=0)
     daily_amount = Column(SmallInteger, nullable=True)
     smoking_years = Column(SmallInteger, nullable=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
@@ -140,7 +145,7 @@ class AlcoholInfo(Base):
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("user.id"), nullable=False, unique=True)
-    alcohol_status = Column(SmallInteger, nullable=False, default=0)  # 0: 비음주, 1: 음주
+    alcohol_status = Column(SmallInteger, nullable=False, default=0)
     frequency = Column(SmallInteger, nullable=True)
     amount = Column(SmallInteger, nullable=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
@@ -155,7 +160,7 @@ class ExerciseInfo(Base):
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("user.id"), nullable=False, unique=True)
-    exercise_status = Column(SmallInteger, nullable=False, default=0)  # 0: 없음, 1: 있음
+    exercise_status = Column(SmallInteger, nullable=False, default=0)
     frequency = Column(SmallInteger, nullable=True)
     duration = Column(SmallInteger, nullable=True)
     daily_steps = Column(Integer, nullable=True)
@@ -195,8 +200,8 @@ class SleepInfo(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("user.id"), nullable=False, unique=True)
     sleep_hours = Column(DECIMAL(3, 1), nullable=True)
-    sleep_quality = Column(SmallInteger, nullable=True)  # 1~5
-    sleep_disorder = Column(SmallInteger, nullable=False, default=0)  # 0: 없음, 1: 불면증
+    sleep_quality = Column(SmallInteger, nullable=True)
+    sleep_disorder = Column(SmallInteger, nullable=False, default=0)
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
@@ -209,7 +214,7 @@ class DietInfo(Base):
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("user.id"), nullable=False, unique=True)
-    diet_type = Column(SmallInteger, nullable=False, default=0)  # 0: 일반, 1: 채식, 2: 비건
+    diet_type = Column(SmallInteger, nullable=False, default=0)
     daily_calories = Column(Integer, nullable=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())

@@ -14,6 +14,7 @@ import {
 } from '../../api/chat.js'
 import { getDietGuideByDate } from '../../api/dietGuides.js'
 import { getHealthCheckupByYear } from '../../api/healthCheckup.js'
+import { getProfileItems, resolveProfileImage } from '../../api/profile.js'
 
 const CATEGORIES = {
   DIET_GUIDE: [
@@ -165,7 +166,8 @@ const CONTEXT_TITLE = {
 
 function formatTime(iso) {
   if (!iso) return ''
-  const d = new Date(iso)
+  // 서버 created_at이 naive UTC(Z 미부착)면 Z 붙여 로컬(KST)로 변환 후 표시
+  const d = new Date(/[Z+]/.test(iso) ? iso : `${iso}Z`)
   const pad = (n) => String(n).padStart(2, '0')
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
@@ -351,11 +353,21 @@ function ChatPage() {
   const [showMenu,         setShowMenu]         = useState(false)
   const [dietGuide,        setDietGuide]        = useState(null)
   const [checkupData,      setCheckupData]      = useState(null)
+  const [chatAvatar,       setChatAvatar]       = useState(null)   // 유저 메시지 프로필 아바타
   const bottomRef = useRef(null)
   const inputRef  = useRef(null)
 
   const categories = CATEGORIES[contextType] ?? []
   const welcomeMsg = WELCOME_MESSAGE[contextType] ?? ''
+
+  // 선택/기본 프로필 아바타 — 유저 메시지에 표시
+  useEffect(() => {
+    getProfileItems().then(d => {
+      const items = d?.items ?? []
+      const url = (items.find(i => i.is_selected) || items.find(i => i.is_default))?.image_url
+      if (url) setChatAvatar(resolveProfileImage(url))
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!sessionId) return
@@ -652,6 +664,9 @@ function ChatPage() {
                   </>
                 )}
               </div>
+              {msg.role === 'user' && chatAvatar && (
+                <img src={chatAvatar} alt="프로필" className="w-7 h-7 rounded-full bg-[#F4F4F5] object-cover ml-2 shrink-0 mt-1" />
+              )}
             </div>
           ))}
 

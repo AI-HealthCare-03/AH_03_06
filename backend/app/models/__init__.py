@@ -38,3 +38,4 @@ from app.models.sleep_guide import SleepGuide, SleepGuideGuideline
 from app.models.attendance import Attendance, AttendanceStreak
 from app.models.point import UserPoint, PointHistory
 from app.models.exercise_guide import ExerciseGuide
+from app.models.profile import ProfileItem, UserProfileItem

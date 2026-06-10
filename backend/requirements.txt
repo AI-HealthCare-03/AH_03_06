@@ -47,3 +47,5 @@ rapidfuzz==3.14.5
 jamo==0.4.1
 sentence-transformers
 langchain-huggingface
+slowapi==0.1.9
+

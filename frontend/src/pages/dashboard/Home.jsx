@@ -2,9 +2,13 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getAccessToken } from '../../utils/token.js'
 import { getTodayMedication } from '../../api/medication.js'
-import { listMedicalRecords } from '../../api/medicalRecord'
+import { listMedicalRecords } from '../../api/medicalrecord'
 import { listHealthCheckups, getHealthCheckupByYear } from '../../api/healthCheckup.js'
+import { listSleepGuides, getSleepGuide } from '../../api/sleepGuides.js'
+import { listDietGuideDates, getDietGuideByDate } from '../../api/dietGuides.js'
+import { sleepDescFrom, dietDescFrom, localToday, pickGuideDate } from '../../utils/guideSummary.js'
 import { logout } from '../../App.jsx'
+import AttendanceModal from '../../components/AttendanceModal.jsx'
 import BottomNav from '../../components/BottomNav.jsx'
 import Header from '../../components/Header.jsx'
 import MobileFrame from '../../components/MobileFrame.jsx'
@@ -41,12 +45,24 @@ const classifyBmi = (h, w) => {
   return { bmi, status: bmi < 23 ? '정상' : bmi < 25 ? '주의' : '위험' }
 }
 
+// 끼니 텍스트("**\n- 흑미밥 1/2공기 (100g)\n- 아욱국…") → "흑미밥 1/2공기 (100g), 아욱국…" (마크다운 제거)
+const parseMealItems = (text) =>
+  (text || '').split('\n')
+    .map(s => s.replace(/\*+/g, '').replace(/^[-•\s]+/, '').trim())
+    .filter(Boolean)
+    .join(', ')
+
 function Home() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [today, setToday] = useState(null)
   const [recentRecord, setRecentRecord] = useState(null)
   const [checkup, setCheckup] = useState(null)
+  const [sleepDesc, setSleepDesc] = useState(null)   // null=폴백 문구 사용
+  const [sleepLifestyle, setSleepLifestyle] = useState(null)   // 생활습관 조정 1줄
+  const [dietDesc, setDietDesc] = useState(null)
+  const [dietMeals, setDietMeals] = useState([])   // 오늘 가이드일 때만 채움(아침/점심/저녁)
+  const [guidesLoading, setGuidesLoading] = useState(true)   // 식단·수면 가이드 fetch 진행 중
 
   useEffect(() => {
     fetch(`${base}/users/me`, {
@@ -77,6 +93,46 @@ function Home() {
       })
       .then(detail => detail && setCheckup(detail))
       .catch(() => {})
+
+    // 수면: 최신 가이드 weekly_goal에서 취침·기상 시각 추출(없으면 폴백 유지)
+    const sleepLoad = listSleepGuides()
+      .then(d => {
+        const latest = (d?.guides ?? [])[0]
+        if (latest) return getSleepGuide(latest.guide_id)
+      })
+      .then(g => {
+        const desc = sleepDescFrom(g?.weekly_goal); if (desc) setSleepDesc(desc)
+        // 생활습관 조정 — 첫 줄(마크다운·번호 제거), 1줄 truncate로 표시
+        const life = (g?.lifestyle_adjustment || '').split('\n')
+          .map(s => s.replace(/^[\d.\-•*\s]+/, '').replace(/\*+/g, '').trim()).find(Boolean)
+        if (life) setSleepLifestyle(life)
+      })
+      .catch(() => {})
+
+    // 식단: 최신 가이드의 meal_plan_type(백엔드가 검진 그룹으로 산정) → 한글 매핑(없으면 폴백)
+    const dietLoad = listDietGuideDates()
+      .then(d => {
+        // 오늘 가이드가 있으면 오늘을, 없으면 최신을 조회(desc용). 끼니는 오늘일 때만.
+        const date = pickGuideDate(d?.dates)
+        if (date) return getDietGuideByDate(date).then(g => ({ g, date }))
+      })
+      .then(res => {
+        if (!res) return
+        const dd = dietDescFrom(res.g?.meal_plan_type)
+        if (dd) setDietDesc(dd)
+        if (res.date === localToday()) {
+          const meals = [
+            { label: '아침', items: parseMealItems(res.g?.breakfast) },
+            { label: '점심', items: parseMealItems(res.g?.lunch) },
+            { label: '저녁', items: parseMealItems(res.g?.dinner) },
+          ].filter(m => m.items)   // 파싱 실패한 끼니는 그 줄만 생략
+          if (meals.length) setDietMeals(meals)
+        }
+      })
+      .catch(() => {})
+
+    // 식단·수면 fetch가 모두 끝난 뒤에만 카드 서브텍스트 노출(로딩 중 폴백 깜빡임 억제)
+    Promise.all([sleepLoad, dietLoad]).finally(() => setGuidesLoading(false))
   }, [])
 
   const nickname = user?.nickname ?? '...'
@@ -170,21 +226,30 @@ function Home() {
             </div>
             <div className="space-y-2">
               {[
-                { icon: faUtensils,      title: '식단 가이드', desc: '혈압 관리 저염식 권장', path: '/diet-guides' },
+                { icon: faUtensils,      title: '식단 가이드', desc: dietDesc ?? '건강 맞춤 식단 권장', path: '/diet-guides', meals: dietMeals },
                 { icon: faPersonRunning, title: '운동 가이드', desc: '중간 강도 유산소 30분', path: '/exercise-guides' },
-                { icon: faMoon,          title: '수면 가이드', desc: '취침 전 카페인 회피', path: '/sleep-guides' },
-              ].map(({ icon, title, desc, path }) => (
+                { icon: faMoon,          title: '수면 가이드', desc: sleepDesc ?? '취침 전 카페인 회피', path: '/sleep-guides', note: sleepLifestyle },
+              ].map(({ icon, title, desc, path, meals, note }) => (
                 <button key={title} onClick={() => navigate(path)} className="w-full text-left bg-white border border-[#E4E4E7] rounded-[10px] shadow-sm p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-[8px] bg-white border border-[#E4E4E7] flex items-center justify-center">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-[8px] bg-white border border-[#E4E4E7] flex items-center justify-center shrink-0">
                       <FontAwesomeIcon icon={icon} className="text-[#2563EB] text-sm" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-[14px] font-[700] text-[#09090B] leading-tight">{title}</p>
-                      <p className="text-[12px] text-[#52525B] mt-0.5">{desc}</p>
+                      <p className="text-[12px] text-[#52525B] mt-0.5 truncate">{guidesLoading ? '\u00A0' : desc}</p>
+                      {/* 오늘 식단 끼니 목록(식단 카드만, 오늘 가이드일 때) — 끼니 라벨 mute·음식 subtext, 3줄 상한 */}
+                      {meals?.map(m => (
+                        <p key={m.label} className="text-[11px] mt-0.5 truncate">
+                          <span className="text-[#71717A] font-[600]">{m.label}</span>
+                          <span className="text-[#A1A1AA]"> · {m.items}</span>
+                        </p>
+                      ))}
+                      {/* 수면 생활습관 조정 1줄(수면 카드만) — 길어지지 않게 truncate */}
+                      {note && <p className="text-[11px] text-[#A1A1AA] mt-0.5 truncate">{note}</p>}
                     </div>
                   </div>
-                  <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[11px]" />
+                  <FontAwesomeIcon icon={faChevronRight} className="text-[#A1A1AA] text-[11px] shrink-0 ml-2" />
                 </button>
               ))}
             </div>
@@ -220,6 +285,7 @@ function Home() {
           </p>
 
         </main>
+        <AttendanceModal />
     </MobileFrame>
   )
 }

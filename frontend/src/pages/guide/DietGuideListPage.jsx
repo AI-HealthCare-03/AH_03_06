@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../../components/Header.jsx'
+import ErrorState from '../../components/ErrorState.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faUtensils, faChevronRight } from '@fortawesome/free-solid-svg-icons'
 import { listDietGuideDates, getDietGuideByDate, generateDietGuide, regenerateDietGuide } from '../../api/dietGuides.js'
@@ -57,33 +58,46 @@ function DietGuideListPage() {
   const [guide,        setGuide]        = useState(null)
   const [guideLoading, setGuideLoading] = useState(false)
   const [generating,   setGenerating]   = useState(false)
+  const [guideError,   setGuideError]   = useState(false)
+  const [datesError,   setDatesError]   = useState(false)
+  const [generateError, setGenerateError] = useState('')
   const pollRef = useRef(null)
+
+  const fetchGuideDates = async () => {
+    try {
+      const data = await listDietGuideDates()
+      setGuideDates(Array.isArray(data?.dates) ? data.dates : [])
+      setDatesError(false)
+    } catch {
+      setDatesError(true)
+    }
+  }
+
+  const loadGuide = useCallback(() => {
+    if (!selected) return
+    setGuide(null)
+    setGuideError(false)
+    setGenerateError('')
+    setGuideLoading(true)
+    getDietGuideByDate(selected)
+      .then(data => setGuide(data))
+      .catch(() => setGuideError(true))
+      .finally(() => setGuideLoading(false))
+  }, [selected])
 
   useEffect(() => {
     fetchGuideDates()
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [])
 
-  useEffect(() => {
-    if (!selected) return
-    setGuide(null)
-    setGuideLoading(true)
-    getDietGuideByDate(selected)
-      .then(data => setGuide(data))
-      .catch(() => setGuide(null))
-      .finally(() => setGuideLoading(false))
-  }, [selected])
-
-  const fetchGuideDates = async () => {
-    try {
-      const data = await listDietGuideDates()
-      setGuideDates(Array.isArray(data?.dates) ? data.dates : [])
-    } catch {}
-  }
+  useEffect(() => { loadGuide() }, [loadGuide])
 
   const startPolling = (targetDate) => {
     if (pollRef.current) clearInterval(pollRef.current)
+    let attempts = 0
+    const MAX_ATTEMPTS = 20 // 3초 × 20 ≈ 60초 상한
     pollRef.current = setInterval(async () => {
+      attempts += 1
       try {
         const data = await getDietGuideByDate(targetDate)
         if (data) {
@@ -91,12 +105,19 @@ function DietGuideListPage() {
           setGuideDates(prev => prev.includes(targetDate) ? prev : [...prev, targetDate])
           setGenerating(false)
           clearInterval(pollRef.current)
+          return
         }
-      } catch {}
+      } catch { /* 폴링 중 일시 오류는 무시하고 다음 주기에 재시도 */ }
+      if (attempts >= MAX_ATTEMPTS) {
+        clearInterval(pollRef.current)
+        setGenerating(false)
+        setGenerateError('가이드 생성이 지연되고 있어요. 잠시 후 다시 시도해 주세요.')
+      }
     }, 3000)
   }
 
   const handleGenerate = async () => {
+    setGenerateError('')
     try {
       const data     = await listHealthCheckups()
       const checkups = Array.isArray(data?.checkups) ? data.checkups : []
@@ -187,9 +208,19 @@ function DietGuideListPage() {
             </div>
           </div>
 
+          {/* 날짜 목록 로드 실패 */}
+          {datesError && (
+            <ErrorState message={'식단 기록 날짜를 불러오지 못했어요'} onRetry={fetchGuideDates} className="py-3" />
+          )}
+
           {/* 로딩 */}
           {guideLoading && (
             <p className="text-[13px] text-mute text-center py-6">불러오는 중…</p>
+          )}
+
+          {/* 조회 실패 */}
+          {!guideLoading && guideError && (
+            <ErrorState message={'식단 가이드를 불러오지 못했어요'} onRetry={loadGuide} className="py-6" />
           )}
 
           {/* 생성 중 */}
@@ -199,8 +230,13 @@ function DietGuideListPage() {
             </div>
           )}
 
+          {/* 생성 지연/실패 안내 */}
+          {generateError && (
+            <p className="text-[13px] text-red-400 text-center py-3">{generateError}</p>
+          )}
+
           {/* 식단 없음 */}
-          {!guideLoading && !guide && !generating && (
+          {!guideLoading && !guideError && !guide && !generating && (
             <section className="bg-bgSubtle border border-borderHairline rounded-[12px] p-6 text-center">
               <FontAwesomeIcon icon={faUtensils} className="text-mute text-[24px] mb-3" />
               <h2 className="text-[14px] font-[700] text-textHeading mb-1">해당 날짜의 식단 가이드가 없어요</h2>

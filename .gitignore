@@ -49,7 +49,9 @@ frontend/.vite/
 
 test/*
 
+
 # Chroma DB
 backend/data/chroma_db/
 backend/ml_data/chroma_db/
 data/chroma_db/
+

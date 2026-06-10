@@ -1,5 +1,4 @@
 // src/api/auth.js
-
 import { clearTokens, setAccessToken, setRefreshToken } from '../utils/token.js'
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
@@ -7,14 +6,9 @@ const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 async function parseJson(res) {
   const text = await res.text()
   if (!text) return null
-  try {
-    return JSON.parse(text)
-  } catch {
-    return text
-  }
+  try { return JSON.parse(text) } catch { return text }
 }
 
-// 로그인
 export async function login(payload) {
   const res = await fetch(`${base}/auth/login`, {
     method: 'POST',
@@ -28,7 +22,6 @@ export async function login(payload) {
   return data
 }
 
-// 회원가입
 export async function register(payload) {
   const res = await fetch(`${base}/auth/register`, {
     method: 'POST',
@@ -42,7 +35,6 @@ export async function register(payload) {
   return data
 }
 
-// 로그아웃
 export async function logout(refreshToken) {
   try {
     await fetch(`${base}/auth/logout`, {
@@ -55,7 +47,6 @@ export async function logout(refreshToken) {
   }
 }
 
-// 토큰 재발급
 export async function refreshToken(token) {
   const res = await fetch(`${base}/auth/token/refresh`, {
     method: 'POST',
@@ -68,7 +59,6 @@ export async function refreshToken(token) {
   return data
 }
 
-// 이메일 찾기
 export async function findEmail(payload) {
   const res = await fetch(`${base}/auth/email/find`, {
     method: 'POST',
@@ -80,7 +70,6 @@ export async function findEmail(payload) {
   return data
 }
 
-// 비밀번호 재설정 링크 발송
 export async function findPassword(payload) {
   const res = await fetch(`${base}/auth/password/find`, {
     method: 'POST',
@@ -92,7 +81,6 @@ export async function findPassword(payload) {
   return data
 }
 
-// 비밀번호 재설정
 export async function resetPassword(payload) {
   const res = await fetch(`${base}/auth/password/reset`, {
     method: 'PUT',
