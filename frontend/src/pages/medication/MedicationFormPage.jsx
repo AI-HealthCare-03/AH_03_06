@@ -2,7 +2,7 @@
 // 약 등록(mode="create") / 수정(mode="edit") 통합 폼
 // 수정 모드: updateSchedule + updateAlarm(PATCH /alarms/{id}) 분리 호출
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '../../components/Header.jsx';
 import MobileFrame from '../../components/MobileFrame.jsx';
@@ -12,6 +12,7 @@ import {
   getMedicationById,
   updateMedication,
 } from '../../api/medication';
+import { fetchDrugSuggest } from '../../api/medicationGuides.js';
 
 // ── 상수 ──────────────────────────────────────────────────────
 const MEAL_TIMES   = ['아침', '점심', '저녁', '취침 전'];
@@ -80,6 +81,10 @@ export default function MedicationFormPage() {
   const [form,       setForm]       = useState(defaultForm());
   const [loading,    setLoading]    = useState(false);
   const [fetchError, setFetchError] = useState('');
+  // 약품 자동완성 — 선택 시 item_seq 확보 (Phase A: DUR 코드 매칭 대비, 백엔드 미사용이면 무시됨)
+  const [drugList,   setDrugList]   = useState([]);
+  const debounceRef = useRef(null);
+  const abortRef    = useRef(null);
 
   // ── 수정 모드: 기존 데이터 로드 ──────────────────────────────
   useEffect(() => {
@@ -134,6 +139,31 @@ export default function MedicationFormPage() {
 
   // ── 폼 헬퍼 ──────────────────────────────────────────────────
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+
+  // 약 이름 변경 시 자동완성 질의 (250ms 디바운스 + AbortController). 실패해도 수동 입력 가능.
+  useEffect(() => {
+    const q = form.name.trim();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    abortRef.current?.abort();
+    if (!q) { setDrugList([]); return; }
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const data = await fetchDrugSuggest({ q, limit: 30 }, ctrl.signal);
+        if (!ctrl.signal.aborted) setDrugList(data.drugs ?? []);
+      } catch (err) {
+        if (err?.name !== 'AbortError') setDrugList([]);
+      }
+    }, 250);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [form.name]);
+
+  // 입력이 목록의 약명과 정확히 일치하면 item_seq 추출 (없으면 undefined → 기존 이름매칭 폴백)
+  const matchedDrug = useMemo(
+    () => drugList.find(d => d.drug_name === form.name.trim()),
+    [drugList, form.name],
+  );
 
   const toggleMealTime = (t) =>
     set('mealTimes',
@@ -191,6 +221,7 @@ export default function MedicationFormPage() {
           await addDirectMedication({
             intake_time:       t,
             drug_name:         form.name.trim(),
+            item_seq:          matchedDrug?.item_seq ?? null, // 자동완성 선택 시 DUR 코드 (Phase A: 백엔드 미수신이면 무시)
             dosage_message:    `${form.dosageAmount || 1}${form.dosageUnit}`,
             notification_type: 'PUSH',
             days,
@@ -207,6 +238,7 @@ export default function MedicationFormPage() {
         // 수정 — times를 백엔드가 스케줄 재생성
         await updateMedication(medId, source, {
           drug_name:         form.name.trim(),
+          item_seq:          matchedDrug?.item_seq ?? null, // 자동완성 선택 시 DUR 코드 (Phase A: 백엔드 미수신이면 무시)
           dosage_message:    `${form.dosageAmount}${form.dosageUnit}`,
           start_date:        form.startDate || null,
           end_date:          form.ongoing ? null : (form.endDate || null),
@@ -276,9 +308,18 @@ export default function MedicationFormPage() {
             type="text"
             value={form.name}
             onChange={e => set('name', e.target.value)}
+            list="med-drug-suggest"
             placeholder="예) 아스피린 100mg"
             className="w-full border border-[#E4E4E7] rounded-xl px-4 py-3 text-sm text-[#09090B] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
           />
+          <datalist id="med-drug-suggest">
+            {drugList.map(d => (
+              <option key={d.item_seq} value={d.drug_name} />
+            ))}
+          </datalist>
+          {matchedDrug && (
+            <p className="text-[11px] text-primary mt-1">등록 약품 매칭됨</p>
+          )}
 
           {/* 약 구분 — 처방 수정 시엔 숨김(처방약 고정) */}
           {(mode === 'create' || source === 'custom') && (
