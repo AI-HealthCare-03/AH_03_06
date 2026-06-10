@@ -11,6 +11,7 @@ from app.models.drug_info import DrugInfo
 from app.models.guide import MedicationGuide
 from app.models.medical_record import MedicalRecord
 from app.models.prescription import Prescription
+from app.services import point_service
 from app.schemas.guide import (
     DeleteGuideResponse,
     GenerateGuideRequest,
