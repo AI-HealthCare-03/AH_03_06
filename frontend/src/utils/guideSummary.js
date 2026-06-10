@@ -44,6 +44,16 @@ export const dietDescFrom = (mealPlanType) => {
   return ko ? `${ko} 권장` : null
 }
 
+// 운동 cvd_range(4단계: low/moderate/high/very_high) → 개인화 한 줄 요약. 미매핑이면 null(폴백).
+const EXERCISE_DESC_KO = {
+  low:       '고강도 운동 가능',
+  moderate:  '중강도 유산소 권장',
+  high:      '저강도 운동 권장',
+  very_high: '운동 제한 · 의료진 상담',
+}
+
+export const exerciseDescFrom = (cvdRange) => EXERCISE_DESC_KO[cvdRange] ?? null
+
 // 로컬(KST) 오늘 "YYYY-MM-DD"
 export const localToday = () => {
   const d = new Date()

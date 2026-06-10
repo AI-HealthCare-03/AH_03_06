@@ -6,7 +6,8 @@ import { listMedicalRecords } from '../../api/medicalrecord'
 import { listHealthCheckups, getHealthCheckupByYear } from '../../api/healthCheckup.js'
 import { listSleepGuides, getSleepGuide } from '../../api/sleepGuides.js'
 import { listDietGuideDates, getDietGuideByDate } from '../../api/dietGuides.js'
-import { sleepDescFrom, dietDescFrom, localToday, pickGuideDate } from '../../utils/guideSummary.js'
+import { getExerciseGuideByDate } from '../../api/exerciseGuides.js'
+import { sleepDescFrom, dietDescFrom, exerciseDescFrom, localToday, pickGuideDate } from '../../utils/guideSummary.js'
 import { logout } from '../../App.jsx'
 import AttendanceModal from '../../components/AttendanceModal.jsx'
 import BottomNav from '../../components/BottomNav.jsx'
@@ -62,6 +63,7 @@ function Home() {
   const [sleepLifestyle, setSleepLifestyle] = useState(null)   // 생활습관 조정 1줄
   const [dietDesc, setDietDesc] = useState(null)
   const [dietMeals, setDietMeals] = useState([])   // 오늘 가이드일 때만 채움(아침/점심/저녁)
+  const [exerciseDesc, setExerciseDesc] = useState(null)   // null=폴백 문구 사용
   const [guidesLoading, setGuidesLoading] = useState(true)   // 식단·수면 가이드 fetch 진행 중
 
   useEffect(() => {
@@ -131,8 +133,13 @@ function Home() {
       })
       .catch(() => {})
 
-    // 식단·수면 fetch가 모두 끝난 뒤에만 카드 서브텍스트 노출(로딩 중 폴백 깜빡임 억제)
-    Promise.all([sleepLoad, dietLoad]).finally(() => setGuidesLoading(false))
+    // 운동: 오늘 가이드 cvd_range(4단계) → 개인화 강도 요약
+    const exerciseLoad = getExerciseGuideByDate(localToday())
+      .then(g => { const ed = exerciseDescFrom(g?.cvd_range); if (ed) setExerciseDesc(ed) })
+      .catch(() => {})
+
+    // 식단·수면·운동 fetch가 모두 끝난 뒤에만 카드 서브텍스트 노출(로딩 중 폴백 깜빡임 억제)
+    Promise.all([sleepLoad, dietLoad, exerciseLoad]).finally(() => setGuidesLoading(false))
   }, [])
 
   const nickname = user?.nickname ?? '...'
@@ -227,7 +234,7 @@ function Home() {
             <div className="space-y-2">
               {[
                 { icon: faUtensils,      title: '식단 가이드', desc: dietDesc ?? '내 건강검진 기반 AI 권장식단', path: '/diet-guides', meals: dietMeals },
-                { icon: faPersonRunning, title: '운동 가이드', desc: '나에게 맞는 AI 운동 가이드', path: '/exercise-guides' },
+                { icon: faPersonRunning, title: '운동 가이드', desc: exerciseDesc ?? '나에게 맞는 AI 운동 가이드', path: '/exercise-guides' },
                 { icon: faMoon,          title: '수면 가이드', desc: sleepDesc ?? '내 수면 패턴 AI 분석·코칭', path: '/sleep-guides', note: sleepLifestyle },
               ].map(({ icon, title, desc, path, meals, note }) => (
                 <button key={title} onClick={() => navigate(path)} className="w-full text-left bg-white border border-[#E4E4E7] rounded-[10px] shadow-sm p-4 flex items-center justify-between">
