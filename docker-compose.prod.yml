@@ -26,14 +26,5 @@ services:
       - db
     restart: always
 
-  db:
-    image: mysql:8.0
-    container_name: viva_db
-    env_file:
-      - .env.production
-    volumes:
-      - mysql_data:/var/lib/mysql
-    restart: always
-
 volumes:
   mysql_data:
