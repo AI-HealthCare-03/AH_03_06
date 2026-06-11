@@ -22,8 +22,6 @@ services:
     container_name: viva_backend
     env_file:
       - .env.production
-    depends_on:
-      - db
     restart: always
 
 volumes:
