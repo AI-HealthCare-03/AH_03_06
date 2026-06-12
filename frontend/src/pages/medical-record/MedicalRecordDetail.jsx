@@ -159,7 +159,7 @@ function DeleteConfirmModal({ onConfirm, onCancel, deleting }) {
       <div className="relative w-full max-w-[320px] bg-white rounded-3xl px-6 py-7 shadow-2xl">
         <h3 className="text-base font-bold text-neutral-900 mb-2 text-center">진료기록 삭제</h3>
         <p className="text-sm text-neutral-500 text-center leading-relaxed mb-6">
-          진료기록을 삭제하면 처방약과<br />AI 가이드도 함께 삭제돼요.
+          진료기록을 삭제하면 처방약·복약 일정·<br />AI 가이드가 함께 삭제돼요.
         </p>
         <div className="flex gap-3">
           <button
