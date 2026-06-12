@@ -4,13 +4,14 @@
 import re
 from datetime import date
 from pydantic import BaseModel, EmailStr, field_validator
+from typing import Optional
 
 # 공통 유저 응답
 class UserResponse(BaseModel):
     id: int                # 사용자 고유 ID
     email: EmailStr        # 사용자 이메일
     name: str              # 실명
-    nickname: str          # 닉네임
+    nickname: Optional[str] = None # 닉네임
 
 
 # 회원가입 요청
