@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Header from '../../components/Header.jsx'
 import MobileFrame from '../../components/MobileFrame.jsx'
+import EmptyState from '../../components/EmptyState.jsx'
+import { faPills } from '@fortawesome/free-solid-svg-icons'
 import { getMedications, getTodayMedication, deleteMedication, checkMedication, deleteSchedule} from '../../api/medication.js'
 import { fmtTimes } from '../../utils/medicationFormat.js'
 
@@ -246,15 +248,28 @@ function MedicationList({ onTodayClick, navigate }) {
             </div>
           ))}
 
-          {/* 빈 상태 */}
+          {/* 빈 상태 — 건강검진·진료기록과 동일한 EmptyState 톤 */}
           {!isLoading && !error && filtered.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="w-14 h-14 rounded-full bg-[#F4F4F5] flex items-center justify-center mb-3">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M10.5 20H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H20a2 2 0 0 1 2 2v3" />
-                </svg>
-              </div>
-              <p className="text-[14px] text-[#A1A1AA]">등록된 약이 없어요</p>
+            <div className="min-h-[360px] flex items-center justify-center">
+              {(keyword.trim() || categoryFilter !== '전체') ? (
+                <EmptyState
+                  icon={faPills}
+                  title="검색 결과가 없어요"
+                  description={'다른 검색어나 필터를 시도해 보세요'}
+                />
+              ) : activeTab === '복약 중' ? (
+                <EmptyState
+                  icon={faPills}
+                  title="아직 등록된 약이 없어요"
+                  description={'오른쪽 아래 + 버튼으로 추가해 보세요'}
+                />
+              ) : (
+                <EmptyState
+                  icon={faPills}
+                  title="복약 종료된 약이 없어요"
+                  description={'복약을 끝내면 여기에서 볼 수 있어요'}
+                />
+              )}
             </div>
           )}
         </div>
