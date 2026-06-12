@@ -1,4 +1,5 @@
 # api/v1/medication_guides.py
+import threading
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
@@ -23,12 +24,18 @@ from app.limiter import limiter
 router = APIRouter()
 
 _drug_list_cache: list[dict[str, str]] | None = None
+_drug_list_lock = threading.Lock()  # 콜드 빌드 중복 스캔 방지 (동시 첫 요청 직렬화)
 _DRUG_SOURCE_COLLECTIONS = ("drug_info_rag", "drug_detail_rag")
 
 
 def _get_drug_list() -> list[dict[str, str]]:
     global _drug_list_cache
-    if _drug_list_cache is None:
+    if _drug_list_cache is not None:
+        return _drug_list_cache
+    with _drug_list_lock:
+        # 락 대기 중 다른 스레드가 이미 빌드했으면 그대로 재사용
+        if _drug_list_cache is not None:
+            return _drug_list_cache
         client = get_chroma_client()
         seen: dict[str, str] = {}
         BATCH = 1000
@@ -59,6 +66,14 @@ def _get_drug_list() -> list[dict[str, str]]:
             key=lambda d: d["drug_name"],
         )
     return _drug_list_cache
+
+
+def warm_drug_list_cache() -> None:
+    """백엔드 시작 시 백그라운드로 약품 목록 캐시를 미리 빌드 (콜드 스타트 제거)."""
+    try:
+        _get_drug_list()
+    except Exception:
+        pass
 
 
 class GuidePreviewRequest(BaseModel):

@@ -1,5 +1,6 @@
 # app/services/user_service.py
 from fastapi import HTTPException
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.models.user import (
     User, UserProfile, UserHealthInfo,
@@ -229,7 +230,44 @@ def delete_my_account(user_id: int, password: str | None, db: Session):
         if not verify_password(password, user.password_hash):
             raise HTTPException(status_code=400, detail="invalid_password")
 
-    db.delete(user)
+    uid = user.id
+    # user 연관 데이터 전체 삭제: db.delete(user)는 자식 user_id를 NULL화하려다 NOT NULL 위반이라
+    # FK 체크를 잠시 끄고(원복) 깊은 자식→부모 순으로 raw 삭제. 스키마 변경 없음.
+    deep = [
+        ("chat_message",          "session_id IN (SELECT id FROM chat_session WHERE user_id=:uid)"),
+        ("notifications",         "schedule_id IN (SELECT schedule_id FROM medication_schedules WHERE user_id=:uid)"),
+        ("schedule_days",         "schedule_id IN (SELECT schedule_id FROM medication_schedules WHERE user_id=:uid)"),
+        ("guide",                 "medical_record_id IN (SELECT id FROM medical_record WHERE user_id=:uid)"),
+        ("prescription",          "medical_record_id IN (SELECT id FROM medical_record WHERE user_id=:uid)"),
+        ("sleep_guide_guideline", "sleep_guide_id IN (SELECT id FROM sleep_guide WHERE user_id=:uid)"),
+        ("sleep_survey_caffeine", "survey_response_id IN (SELECT id FROM sleep_survey_response WHERE user_id=:uid)"),
+        ("user_allergy",          "diet_info_id IN (SELECT id FROM diet_info WHERE user_id=:uid)"),
+        ("user_cuisine",          "diet_info_id IN (SELECT id FROM diet_info WHERE user_id=:uid)"),
+        ("user_food_aversion",    "diet_info_id IN (SELECT id FROM diet_info WHERE user_id=:uid)"),
+        ("user_exercise_type",    "exercise_info_id IN (SELECT id FROM exercise_info WHERE user_id=:uid)"),
+    ]
+    direct = [
+        "chat_session", "medication_schedules", "medical_record", "sleep_guide", "sleep_survey_response",
+        "diet_info", "exercise_info", "attendance", "attendance_streak", "fcm_tokens", "health_checkup",
+        "medication_guide", "medication_logs", "point_history", "refresh_token", "sleep_info", "social_login",
+        "user_health_goal", "user_health_info", "user_point", "user_profile", "user_profile_item",
+        "user_underlying_disease", "diet_guide", "exercise_guide", "nutrient_standard",
+    ]
+    # 환경별 스키마 차이(예: 운영엔 있고 로컬엔 없는 테이블) 대비 — 실재 테이블만 삭제
+    existing = {r[0] for r in db.execute(text(
+        "SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = DATABASE()"
+    )).all()}
+    db.execute(text("SET FOREIGN_KEY_CHECKS=0"))
+    try:
+        for tbl, where in deep:
+            if tbl in existing:
+                db.execute(text(f"DELETE FROM {tbl} WHERE {where}"), {"uid": uid})
+        for tbl in direct:
+            if tbl in existing:
+                db.execute(text(f"DELETE FROM {tbl} WHERE user_id=:uid"), {"uid": uid})
+        db.execute(text("DELETE FROM user WHERE id=:uid"), {"uid": uid})
+    finally:
+        db.execute(text("SET FOREIGN_KEY_CHECKS=1"))
     db.commit()
     return {"detail": "user_deleted"}
 

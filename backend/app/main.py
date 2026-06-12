@@ -2,6 +2,7 @@
 # FastAPI 앱 진입점
 # 라우터 등록 및 앱 초기화 담당
 
+import threading
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,6 +39,8 @@ from app.scheduler import start_scheduler, stop_scheduler
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     start_scheduler()
+    # 약품 자동완성 캐시 워밍 (백그라운드 — startup 블로킹 없이 콜드 스타트 제거)
+    threading.Thread(target=medication_guides.warm_drug_list_cache, daemon=True).start()
     yield
     stop_scheduler()
 
