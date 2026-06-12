@@ -57,7 +57,7 @@ function MedicationList({ onTodayClick, navigate }) {
   }, [openMenuId])
 
   const handleDelete = async (id) => {
-    if (!window.confirm('복약을 종료 처리할까요?')) return
+    if (!window.confirm('이 약을 삭제할까요? 복약 기록도 함께 삭제됩니다.')) return
 
     setActionError(null)
     const med = allMedications.find(m => m.id === id)
@@ -70,7 +70,7 @@ function MedicationList({ onTodayClick, navigate }) {
       const res = await getMedications()
       if (res.success) setAllMedications(res.data)
     } catch {
-      setActionError('종료 처리에 실패했어요. 다시 시도해 주세요.')
+      setActionError('삭제에 실패했어요. 다시 시도해 주세요.')
     }
   }
 
@@ -237,7 +237,7 @@ function MedicationList({ onTodayClick, navigate }) {
                             <path d="M10 11v6M14 11v6" />
                             <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
                           </svg>
-                          종료 처리
+                          삭제
                         </button>
                       </div>
                     )}

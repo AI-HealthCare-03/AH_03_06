@@ -95,6 +95,8 @@ def _times_from_frequency(frequency: Optional[str]) -> list:
     if meals:
         return meals
     m = re.search(r"(\d+)\s*회", f)
+    if not m:
+        m = re.fullmatch(r"\s*(\d+)\s*", f)   # "3"처럼 숫자만 오면 1일 N회로 해석(폼·OCR이 횟수만 저장)
     n = int(m.group(1)) if m else 1
     if n in _COUNT_TIMES:
         return _COUNT_TIMES[n]
