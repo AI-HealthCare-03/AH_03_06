@@ -15,7 +15,9 @@ from openai import AsyncOpenAI, OpenAI
 from app.config import settings
 
 
-_chroma_client: chromadb.api.ClientAPI | None = None
+_chroma_exercise_client: chromadb.api.ClientAPI | None = None
+_chroma_diet_client: chromadb.api.ClientAPI | None = None
+_chroma_medication_client: chromadb.api.ClientAPI | None = None
 _openai_client: OpenAI | None = None
 
 # EMBEDDING_MODEL 은 settings.EMBEDDING_MODEL 로 이동 (배포 전환 대비).
@@ -27,11 +29,29 @@ _openai_client: OpenAI | None = None
 SIMILARITY_THRESHOLD = 0.3
 
 
-def get_chroma_client() -> chromadb.api.ClientAPI:
-    global _chroma_client
-    if _chroma_client is None:
-        _chroma_client = chromadb.PersistentClient(path=settings.CHROMA_DIR)
-    return _chroma_client
+def get_chroma_exercise_client() -> chromadb.api.ClientAPI:
+    global _chroma_exercise_client
+    if _chroma_exercise_client is None:
+        _chroma_exercise_client = chromadb.PersistentClient(
+            path=settings.CHROMA_EXERCISE_DIR
+        )
+    return _chroma_exercise_client
+
+def get_chroma_diet_client() -> chromadb.api.ClientAPI:
+    global _chroma_diet_client
+    if _chroma_diet_client is None:
+        _chroma_diet_client = chromadb.PersistentClient(
+            path=settings.CHROMA_DIET_DIR
+        )
+    return _chroma_diet_client
+
+def get_chroma_medication_client() -> chromadb.api.ClientAPI:
+    global _chroma_medication_client
+    if _chroma_medication_client is None:
+        _chroma_medication_client = chromadb.PersistentClient(
+            path=settings.CHROMA_MEDICATION_DIR
+        )
+    return _chroma_medication_client
 
 
 def _get_openai_client() -> OpenAI:

@@ -27,7 +27,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
 
     # RAG / ChromaDB
-    CHROMA_DIR: str = "/app/ml_data/chroma_db"
+    CHROMA_EXERCISE_DIR: str = "/app/ml_data/exercise_guide/chroma_db"
+    CHROMA_DIET_DIR: str = "/app/ml_data/diet_guide/chroma_db"
+    CHROMA_MEDICATION_DIR: str = "/app/ml_data/medication_guide/chroma_db"
 
     # RAG / LLM 모델 설정
     # 배포 전환 시: EMBEDDING_MODEL="text-embedding-3-large", GENERATION_MODEL="gpt-4o"

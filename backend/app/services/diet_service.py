@@ -130,7 +130,7 @@ class DietService:
     def __init__(self):
         self.embeddings = OpenAIEmbeddings(model='text-embedding-3-small')
         self.vectordb   = Chroma(
-            persist_directory=os.getenv('CHROMA_DB_PATH', './data/chroma_db'),
+            persist_directory = os.getenv("CHROMA_DIET_DIR", "./ml_data/diet_guide/chroma_db"),
             embedding_function=self.embeddings,
         )
         self.llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.7)
