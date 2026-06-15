@@ -76,7 +76,7 @@ def retrieve(
 ) -> list[dict[str, Any]]:
     # query_texts 는 의도적으로 사용하지 않음 — Chroma 기본 임베더와
     # text-embedding-3-small 의 차원이 달라 컬렉션과 불일치를 일으킴.
-    collection = get_chroma_client().get_collection(name=collection_name)
+    collection = get_chroma_medication_client().get_collection(name=collection_name)
     vec = embed_query(query)
 
     kwargs: dict[str, Any] = {"query_embeddings": [vec], "n_results": top_k}
@@ -229,7 +229,7 @@ async def retrieve_async(
     threshold: float = SIMILARITY_THRESHOLD,
 ) -> list[dict[str, Any]]:
     """retrieve 의 async 변종. 임베딩만 await, chroma 호출은 sync 유지."""
-    collection = get_chroma_client().get_collection(name=collection_name)
+    collection = get_chroma_medication_client().get_collection(name=collection_name)
     vec = await embed_query_async(query)
 
     kwargs: dict[str, Any] = {"query_embeddings": [vec], "n_results": top_k}
