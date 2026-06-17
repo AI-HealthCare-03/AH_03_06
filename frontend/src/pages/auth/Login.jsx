@@ -179,7 +179,7 @@ function Login() {
           <div className="flex flex-col gap-3 mb-[32px]">
             <button
               type="button"
-              onClick={() => window.location.href = `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1'}/auth/social/google`}
+              onClick={() => window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/social/google`}
               className="w-full h-[56px] bg-white border border-gray-200 text-[#18181B] text-[15px] font-bold rounded-[14px] flex items-center justify-center relative"
             >
               <span className="absolute left-5 text-[13px] font-bold text-gray-500 border border-gray-300 rounded-full w-[18px] h-[18px] flex items-center justify-center">G</span>

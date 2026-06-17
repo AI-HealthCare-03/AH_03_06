@@ -1,0 +1,31 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: viva_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/prod.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - frontend
+      - backend
+    restart: always
+
+  frontend:
+    image: aihealth03/viva_frontend:latest
+    container_name: viva_frontend
+    restart: always
+
+  backend:
+    image: aihealth03/viva_backend:latest
+    container_name: viva_backend
+    env_file:
+      - .env.production
+    restart: always
+    volumes:
+      - ./backend/app/static/avatars:/app/static/avatars
+      - ./backend/ml_data:/app/ml_data
+
+volumes:
+  mysql_data:

@@ -52,6 +52,6 @@ test/*
 
 # Chroma DB
 backend/data/chroma_db/
-backend/ml_data/chroma_db/
+backend/ml_data/
 data/chroma_db/
 

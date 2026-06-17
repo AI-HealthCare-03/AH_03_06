@@ -15,7 +15,9 @@ from openai import AsyncOpenAI, OpenAI
 from app.config import settings
 
 
-_chroma_client: chromadb.api.ClientAPI | None = None
+_chroma_exercise_client: chromadb.api.ClientAPI | None = None
+_chroma_diet_client: chromadb.api.ClientAPI | None = None
+_chroma_medication_client: chromadb.api.ClientAPI | None = None
 _openai_client: OpenAI | None = None
 
 # EMBEDDING_MODEL 은 settings.EMBEDDING_MODEL 로 이동 (배포 전환 대비).
@@ -27,11 +29,29 @@ _openai_client: OpenAI | None = None
 SIMILARITY_THRESHOLD = 0.3
 
 
-def get_chroma_client() -> chromadb.api.ClientAPI:
-    global _chroma_client
-    if _chroma_client is None:
-        _chroma_client = chromadb.PersistentClient(path=settings.CHROMA_DIR)
-    return _chroma_client
+def get_chroma_exercise_client() -> chromadb.api.ClientAPI:
+    global _chroma_exercise_client
+    if _chroma_exercise_client is None:
+        _chroma_exercise_client = chromadb.PersistentClient(
+            path=settings.CHROMA_EXERCISE_DIR
+        )
+    return _chroma_exercise_client
+
+def get_chroma_diet_client() -> chromadb.api.ClientAPI:
+    global _chroma_diet_client
+    if _chroma_diet_client is None:
+        _chroma_diet_client = chromadb.PersistentClient(
+            path=settings.CHROMA_DIET_DIR
+        )
+    return _chroma_diet_client
+
+def get_chroma_medication_client() -> chromadb.api.ClientAPI:
+    global _chroma_medication_client
+    if _chroma_medication_client is None:
+        _chroma_medication_client = chromadb.PersistentClient(
+            path=settings.CHROMA_MEDICATION_DIR
+        )
+    return _chroma_medication_client
 
 
 def _get_openai_client() -> OpenAI:
@@ -43,7 +63,7 @@ def _get_openai_client() -> OpenAI:
 
 def embed_query(text: str) -> list[float]:
     client = _get_openai_client()
-    resp = client.embeddings.create(model=settings.EMBEDDING_MODEL, input=text)
+    resp = client.embeddings.create(model=settings.OPENAI_EMBEDDING_MODEL, input=text)
     return resp.data[0].embedding
 
 
@@ -56,7 +76,7 @@ def retrieve(
 ) -> list[dict[str, Any]]:
     # query_texts 는 의도적으로 사용하지 않음 — Chroma 기본 임베더와
     # text-embedding-3-small 의 차원이 달라 컬렉션과 불일치를 일으킴.
-    collection = get_chroma_client().get_collection(name=collection_name)
+    collection = get_chroma_medication_client().get_collection(name=collection_name)
     vec = embed_query(query)
 
     kwargs: dict[str, Any] = {"query_embeddings": [vec], "n_results": top_k}
@@ -199,7 +219,7 @@ def _get_async_openai_client() -> AsyncOpenAI:
 
 async def embed_query_async(text: str) -> list[float]:
     client = _get_async_openai_client()
-    resp = await client.embeddings.create(model=settings.EMBEDDING_MODEL, input=text)
+    resp = await client.embeddings.create(model=settings.OPENAI_EMBEDDING_MODEL, input=text)
     return resp.data[0].embedding
 
 
@@ -211,7 +231,7 @@ async def retrieve_async(
     threshold: float = SIMILARITY_THRESHOLD,
 ) -> list[dict[str, Any]]:
     """retrieve 의 async 변종. 임베딩만 await, chroma 호출은 sync 유지."""
-    collection = get_chroma_client().get_collection(name=collection_name)
+    collection = get_chroma_medication_client().get_collection(name=collection_name)
     vec = await embed_query_async(query)
 
     kwargs: dict[str, Any] = {"query_embeddings": [vec], "n_results": top_k}

@@ -1,15 +1,12 @@
 services:
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: aihealth03/viva_backend:latest
     container_name: viva_backend
     ports:
       - "8000:8000"
     env_file:
       - .env.development
-    volumes:
-      - ./backend:/app
+    restart: always
 
 volumes:
   mysql_data:

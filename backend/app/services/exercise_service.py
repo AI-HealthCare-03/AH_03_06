@@ -78,7 +78,7 @@ class ExerciseService:
         )
         self.vectordb = Chroma(
             collection_name    = "exercise_guidelines",
-            persist_directory  = os.getenv("CHROMA_DB_PATH", "./data/chroma_db"),
+            persist_directory = os.getenv("CHROMA_EXERCISE_DIR", "./ml_data/exercise_guide/chroma_db"),
             embedding_function = self.embeddings,
         )
         self.llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
