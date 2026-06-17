@@ -28,6 +28,10 @@ async function apiFetch(path, options = {}) {
 function ProfileEdit() {
   const navigate = useNavigate()
 
+  const [nickname, setNickname] = useState('')
+  const [nicknameHelper, setNicknameHelper] = useState('한글·영문·숫자 2~20자')
+  const [nicknameHelperColor, setNicknameHelperColor] = useState('text-[#A1A1AA]')
+  const [nicknameValid, setNicknameValid] = useState(true)
   const [birthday, setBirthday] = useState('')
   const [gender, setGender] = useState('')
   const [height, setHeight] = useState('')
@@ -40,8 +44,31 @@ function ProfileEdit() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const validateNickname = (value) => {
+    const lengthOK = value.length >= 2 && value.length <= 20
+    const charOK = /^[가-힣a-zA-Z0-9]+$/.test(value)
+    if (value === '') {
+      setNicknameHelper('한글·영문·숫자 2~20자')
+      setNicknameHelperColor('text-[#A1A1AA]')
+      setNicknameValid(false)
+    } else if (!lengthOK) {
+      setNicknameHelper('2~20자로 입력해주세요')
+      setNicknameHelperColor('text-red-500')
+      setNicknameValid(false)
+    } else if (!charOK) {
+      setNicknameHelper('한글, 영문, 숫자만 사용할 수 있어요')
+      setNicknameHelperColor('text-red-500')
+      setNicknameValid(false)
+    } else {
+      setNicknameHelper('사용 가능한 닉네임이에요')
+      setNicknameHelperColor('text-green-600')
+      setNicknameValid(true)
+    }
+  }
+
   useEffect(() => {
     apiFetch('/users/me').then(data => {
+      setNickname(data.nickname ?? '')
       setBirthday(data.birthday ?? '')
       setGender(data.gender === 'M' ? '남성' : data.gender === 'F' ? '여성' : '')
       setHeight(data.height ?? '')
@@ -74,12 +101,17 @@ function ProfileEdit() {
   }
 
   const handleSave = async () => {
+    if (!nicknameValid) {
+      setError('닉네임을 확인해주세요.')
+      return
+    }
     setLoading(true)
     setError('')
     try {
       await apiFetch('/users/me', {
         method: 'PUT',
         body: JSON.stringify({
+          nickname,
           height: height ? parseFloat(height) : null,
           weight: weight ? parseFloat(weight) : null,
           underlying_diseases: diseases.filter(d => d !== '없음'),
@@ -98,7 +130,14 @@ function ProfileEdit() {
       })
       navigate(-1)
     } catch (err) {
-      setError(err.message)
+      if (err.message === 'duplicate_nickname') {
+        setNicknameHelper('이미 사용 중인 닉네임이에요')
+        setNicknameHelperColor('text-red-500')
+        setNicknameValid(false)
+        setError('이미 사용 중인 닉네임이에요. 다른 닉네임을 입력해주세요.')
+      } else {
+        setError(err.message)
+      }
     } finally {
       setLoading(false)
     }
@@ -122,6 +161,16 @@ function ProfileEdit() {
           {/* 기본 정보 */}
           <section className="space-y-5">
             <h2 className="text-[13px] font-medium text-[#71717A]">기본 정보</h2>
+
+            {/* 닉네임 */}
+            <div className="space-y-2">
+              <label className="text-[14px] font-medium text-[#18181B]">닉네임 <span className="text-red-500">*</span></label>
+              <input type="text" value={nickname} maxLength={20}
+                onChange={e => { setNickname(e.target.value); validateNickname(e.target.value) }}
+                placeholder="닉네임 입력"
+                className="w-full h-12 px-4 rounded-[8px] bg-[#F5F5F5] text-[15px] outline-none focus:ring-2 focus:ring-primary" />
+              <p className={`text-[12px] ml-1 ${nicknameHelperColor}`}>{nicknameHelper}</p>
+            </div>
 
             {/* 생년월일 */}
             <div className="space-y-2">
