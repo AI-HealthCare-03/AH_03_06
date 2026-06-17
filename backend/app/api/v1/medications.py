@@ -51,6 +51,26 @@ def delete_prescription(
     return medication_service.delete_prescription(current_user.id, prescription_id, db)
 
 
+# PATCH /api/v1/medications/prescriptions/{id}/discontinue - 복용 약 종료 처리(비활성화, 기록 보존)
+@router.patch("/prescriptions/{prescription_id}/discontinue", response_model=PrescriptionDeleteResponse)
+def discontinue_prescription(
+    prescription_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.discontinue_prescription(current_user.id, prescription_id, db)
+
+
+# PATCH /api/v1/medications/prescriptions/{id}/resume - 종료된 복용 약 재개
+@router.patch("/prescriptions/{prescription_id}/resume", response_model=PrescriptionDeleteResponse)
+def resume_prescription(
+    prescription_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.resume_prescription(current_user.id, prescription_id, db)
+
+
 # GET /api/v1/prescriptions - 약 목록
 @router.get("/prescriptions", response_model=PrescriptionListResponse)
 def get_prescriptions(
@@ -126,6 +146,26 @@ def delete_schedule(
     current_user=Depends(get_current_user)
 ):
     return medication_service.delete_schedule(current_user.id, schedule_id, db)
+
+
+# PATCH /api/v1/medications/schedules/{schedule_id}/discontinue - 직접등록 약 종료 처리
+@router.patch("/schedules/{schedule_id}/discontinue", status_code=200)
+def discontinue_schedule(
+    schedule_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.discontinue_schedule(current_user.id, schedule_id, db)
+
+
+# PATCH /api/v1/medications/schedules/{schedule_id}/resume - 종료된 직접등록 약 재개
+@router.patch("/schedules/{schedule_id}/resume", status_code=200)
+def resume_schedule(
+    schedule_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return medication_service.resume_schedule(current_user.id, schedule_id, db)
 
 # PATCH /api/v1/medications/alarms/{alarm_id} - 복약 알림 수정
 @router.patch("/alarms/{alarm_id}", response_model=MedicationAlarmUpdateResponse)

@@ -225,6 +225,47 @@ def delete_prescription(user_id: int, prescription_id: int, db: Session) -> Pres
     return PrescriptionDeleteResponse(detail="prescription_deleted")
 
 
+def discontinue_prescription(user_id: int, prescription_id: int, db: Session) -> PrescriptionDeleteResponse:
+    """복용 약 종료 처리 — 삭제와 달리 기록은 보존하고 비활성화만 한다.
+    is_active=False + end_date=오늘로 정리하고, 연결된 스케줄도 비활성화(알림·스케줄러 중단)."""
+    prescription = db.query(Prescription).join(MedicalRecord).filter(
+        Prescription.id == prescription_id,
+        MedicalRecord.user_id == user_id,
+        MedicalRecord.is_deleted == 0
+    ).first()
+    if not prescription:
+        raise HTTPException(status_code=404, detail="prescription_not_found")
+    today = date.today()
+    prescription.is_active = False
+    if prescription.end_date is None or prescription.end_date > today:
+        prescription.end_date = today
+    for s in prescription.medication_schedules:
+        s.is_active = False
+        if s.end_date is None or s.end_date > today:
+            s.end_date = today
+    db.commit()
+    return PrescriptionDeleteResponse(detail="prescription_discontinued")
+
+
+def resume_prescription(user_id: int, prescription_id: int, db: Session) -> PrescriptionDeleteResponse:
+    """종료된 복용 약 재개 — 다시 활성화하고 종료일을 해제(계속 복용)한다.
+    필요하면 사용자가 '수정'에서 종료일을 다시 지정한다."""
+    prescription = db.query(Prescription).join(MedicalRecord).filter(
+        Prescription.id == prescription_id,
+        MedicalRecord.user_id == user_id,
+        MedicalRecord.is_deleted == 0
+    ).first()
+    if not prescription:
+        raise HTTPException(status_code=404, detail="prescription_not_found")
+    prescription.is_active = True
+    prescription.end_date = None
+    for s in prescription.medication_schedules:
+        s.is_active = True
+        s.end_date = None
+    db.commit()
+    return PrescriptionDeleteResponse(detail="prescription_resumed")
+
+
 def get_prescriptions(user_id: int, db: Session) -> PrescriptionListResponse:
     prescriptions = (
         db.query(Prescription)
@@ -250,25 +291,25 @@ def get_medication_list(user_id: int, db: Session) -> MedicationListResponse:
     cards = []
     today = date.today()
 
-    # 처방전 기반 (진료기록에 연결된 약)
+    # 처방전 기반 (진료기록에 연결된 약) — 종료(비활성) 항목도 포함해 '복약 종료' 탭에 노출
     prescriptions = (
         db.query(Prescription)
         .join(MedicalRecord)
         .filter(
             MedicalRecord.user_id == user_id,
             MedicalRecord.is_deleted == 0,
-            Prescription.is_active == True,
         )
         .order_by(Prescription.created_at.desc())
         .all()
     )
     for p in prescriptions:
-        active = [s for s in p.medication_schedules if s.is_active]
-        prn = any(s.is_as_needed for s in active)
-        times = [] if prn else sorted({str(s.intake_time)[:5] for s in active})
+        # 종료된 약은 활성 스케줄이 없으므로 전체 스케줄로 폴백(복용시간·식사기준 표시 유지)
+        sched_pool = [s for s in p.medication_schedules if s.is_active] or list(p.medication_schedules)
+        prn = any(s.is_as_needed for s in sched_pool)
+        times = [] if prn else sorted({str(s.intake_time)[:5] for s in sched_pool})
         # 식사기준: 저장값 우선, null이면 frequency에서 정규화(표시용 폴백 — 저장 안 함)
-        mb = next((s.meal_basis for s in active if s.meal_basis), None)
-        mo = next((s.timing_offset_min for s in active if s.timing_offset_min is not None), None)
+        mb = next((s.meal_basis for s in sched_pool if s.meal_basis), None)
+        mo = next((s.timing_offset_min for s in sched_pool if s.timing_offset_min is not None), None)
         if mb is None:
             mb, fb_off = _meal_from_frequency(p.frequency)
             if mo is None:
@@ -285,34 +326,33 @@ def get_medication_list(user_id: int, db: Session) -> MedicationListResponse:
         ))
 
     # 직접등록 (처방전 없는 custom 일정) - 같은 약은 하나로 묶고 복용시간 모음
+    # 종료(비활성) 일정도 포함해 '복약 종료' 탭에 노출
     customs = (
         db.query(MedicationSchedule)
         .filter(
             MedicationSchedule.user_id == user_id,
             MedicationSchedule.prescribed_medicine_id.is_(None),
-            MedicationSchedule.is_active == True,
         )
         .order_by(MedicationSchedule.created_at.desc())
         .all()
     )
     grouped: dict = {}
     for s in customs:
-        g = grouped.get(s.drug_name)
-        if g is None:
-            grouped[s.drug_name] = g = {"first": s, "times": set(), "dosage": s.dosage_message, "prn": False}
-        g["times"].add(str(s.intake_time)[:5])
-        if s.is_as_needed:
-            g["prn"] = True
-    for name, g in grouped.items():
-        s = g["first"]
+        grouped.setdefault(s.drug_name, []).append(s)
+    for name, scheds in grouped.items():
+        active_scheds = [s for s in scheds if s.is_active]
+        pool = active_scheds or scheds       # 종료된 약은 전체로 폴백(시간·식사기준 표시 유지)
+        rep = pool[0]                         # 대표 행: 활성 우선
+        prn = any(s.is_as_needed for s in pool)
+        times = [] if prn else sorted({str(s.intake_time)[:5] for s in pool})
         cards.append(MedicationCardItem(
-            id=s.schedule_id, source="custom", drug_name=name,
+            id=rep.schedule_id, source="custom", drug_name=name,
             dosage=None, frequency=None,
-            start_date=s.start_date, end_date=s.end_date,
-            is_active=s.is_active and (s.end_date is None or s.end_date >= today),
-            dosage_text=g["dosage"], times=([] if g["prn"] else sorted(g["times"])), is_as_needed=g["prn"],
-            meal_basis=s.meal_basis, timing_offset_min=s.timing_offset_min,
-            is_custom=s.is_custom,           # 직접등록은 저장된 약 구분으로 라벨 판정
+            start_date=rep.start_date, end_date=rep.end_date,
+            is_active=bool(active_scheds) and (rep.end_date is None or rep.end_date >= today),
+            dosage_text=rep.dosage_message, times=times, is_as_needed=prn,
+            meal_basis=rep.meal_basis, timing_offset_min=rep.timing_offset_min,
+            is_custom=rep.is_custom,          # 직접등록은 저장된 약 구분으로 라벨 판정
         ))
 
     return MedicationListResponse(medications=cards)
@@ -325,6 +365,15 @@ def _custom_group(user_id: int, drug_name: str, db: Session):
         MedicationSchedule.drug_name == drug_name,
         MedicationSchedule.prescribed_medicine_id.is_(None),
         MedicationSchedule.is_active == True,
+    ).all()
+
+
+def _custom_group_all(user_id: int, drug_name: str, db: Session):
+    """직접등록 같은 약 묶음 — 활성 여부 무관(종료 처리·재개 대상 조회용)."""
+    return db.query(MedicationSchedule).filter(
+        MedicationSchedule.user_id == user_id,
+        MedicationSchedule.drug_name == drug_name,
+        MedicationSchedule.prescribed_medicine_id.is_(None),
     ).all()
 
 
@@ -787,6 +836,42 @@ def delete_schedule(user_id: int, schedule_id: int, db: Session):
     db.delete(schedule)
     db.commit()
     return {"detail": "schedule_deleted"}
+
+
+def discontinue_schedule(user_id: int, schedule_id: int, db: Session):
+    """직접등록 약 종료 처리 — 같은 약(묶음) 전체를 비활성화하고 종료일을 오늘로. 기록은 보존."""
+    schedule = db.query(MedicationSchedule).filter(
+        MedicationSchedule.schedule_id == schedule_id,
+        MedicationSchedule.user_id == user_id,
+    ).first()
+    if not schedule:
+        raise HTTPException(status_code=404, detail="schedule_not_found")
+    today = date.today()
+    group = (_custom_group_all(user_id, schedule.drug_name, db)
+             if schedule.prescribed_medicine_id is None else [schedule])
+    for s in group:
+        s.is_active = False
+        if s.end_date is None or s.end_date > today:
+            s.end_date = today
+    db.commit()
+    return {"detail": "schedule_discontinued"}
+
+
+def resume_schedule(user_id: int, schedule_id: int, db: Session):
+    """종료된 직접등록 약 재개 — 같은 약(묶음) 전체를 다시 활성화하고 종료일을 해제."""
+    schedule = db.query(MedicationSchedule).filter(
+        MedicationSchedule.schedule_id == schedule_id,
+        MedicationSchedule.user_id == user_id,
+    ).first()
+    if not schedule:
+        raise HTTPException(status_code=404, detail="schedule_not_found")
+    group = (_custom_group_all(user_id, schedule.drug_name, db)
+             if schedule.prescribed_medicine_id is None else [schedule])
+    for s in group:
+        s.is_active = True
+        s.end_date = None
+    db.commit()
+    return {"detail": "schedule_resumed"}
 
 def update_alarm(user_id: int, alarm_id: int, request: MedicationAlarmUpdateRequest, db: Session) -> MedicationAlarmUpdateResponse:
     if not any([request.medication_name, request.alarm_time, request.alarm_days, request.is_active is not None]):
