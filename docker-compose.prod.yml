@@ -23,6 +23,8 @@ services:
     env_file:
       - .env.production
     restart: always
+    volumes:
+      - ./backend/app/static/avatars:/app/static/avatars
 
 volumes:
   mysql_data:

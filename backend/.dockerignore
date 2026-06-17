@@ -4,6 +4,7 @@ venv/
 
 # 데이터 파일 (chroma_db, pdf 등)
 data/
+ml_data/
 
 # 캐시
 __pycache__/
