@@ -25,7 +25,8 @@ class Settings(BaseSettings):
 
     # OpenAI
     OPENAI_API_KEY: str = ""
-
+    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
+    
     # RAG / ChromaDB
     CHROMA_EXERCISE_DIR: str = "/app/ml_data/exercise_guide/chroma_db"
     CHROMA_DIET_DIR: str = "/app/ml_data/diet_guide/chroma_db"
@@ -34,7 +35,8 @@ class Settings(BaseSettings):
     # RAG / LLM 모델 설정
     # 배포 전환 시: EMBEDDING_MODEL="text-embedding-3-large", GENERATION_MODEL="gpt-4o"
     # 주의: EMBEDDING_MODEL 을 바꾸면 chroma_db 를 그 모델로 전체 재구축해야 함.
-    EMBEDDING_MODEL: str = "text-embedding-3-large"
+
+    
     GENERATION_MODEL: str = "gpt-4o"
     GENERATION_TEMPERATURE: float = 0.0
 
