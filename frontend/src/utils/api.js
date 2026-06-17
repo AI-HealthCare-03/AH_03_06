@@ -54,6 +54,12 @@ export async function apiFetch(path, options = {}) {
 
   const text = await res.text()
   const data = text ? JSON.parse(text) : null
-  if (!res.ok) throw new Error(data?.detail ?? res.statusText)
+  if (!res.ok) {
+    // 404(없음) 등을 호출부에서 구분할 수 있게 status·detail을 에러에 실어 둠
+    const err = new Error(data?.detail ?? res.statusText)
+    err.status = res.status
+    err.detail = data?.detail
+    throw err
+  }
   return data
 }

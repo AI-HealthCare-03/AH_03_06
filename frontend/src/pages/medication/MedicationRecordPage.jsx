@@ -5,12 +5,15 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header.jsx';
 import MobileFrame from '../../components/MobileFrame.jsx';
 import ErrorState from '../../components/ErrorState.jsx';
+import EmptyState from '../../components/EmptyState.jsx';
+import { faPills } from '@fortawesome/free-solid-svg-icons';
 import {
   fetchCalendar,
   fetchAnalysis,
   fetchMedicationsByDate,
   takeMedication,
   undoTakeMedication,
+  getMedications,
 } from '../../api/medication';
 
 // ── 상수 ─────────────────────────────────────────────────────
@@ -165,6 +168,7 @@ export default function MedicationRecordPage() {
   const [analysisError, setAnalysisError] = useState(false);
   const [dayError,      setDayError]      = useState(false);
   const [actionError,   setActionError]   = useState(null);
+  const [hasMeds,       setHasMeds]       = useState(null); // null=확인중, true/false=복약 보유 여부 (빈 상태 CTA 분기)
 
   // ── 달력 로드 ──
   const loadCalendar = useCallback(() => {
@@ -193,6 +197,15 @@ export default function MedicationRecordPage() {
       .finally(() => setDayLoading(false));
   }, [year, month, selected]);
   useEffect(() => { loadDay(); }, [loadDay]);
+
+  // ── 복약 보유 여부 (예정 0건일 때 '등록 유도' vs '예정 없음' 구분용) ──
+  useEffect(() => {
+    let alive = true;
+    getMedications()
+      .then(res => { if (alive) setHasMeds((res?.data?.length ?? 0) > 0); })
+      .catch(() => { /* 확인 실패 시 null 유지 → 등록 CTA 대신 중립 문구 */ });
+    return () => { alive = false; };
+  }, []);
 
   // ── 월 이동 ──
   const prevMonth = () => {
@@ -368,7 +381,7 @@ export default function MedicationRecordPage() {
           <ErrorState message={'복약 기록을 불러오지 못했어요'} onRetry={loadDay} className="py-10" />
         )}
 
-        {!dayLoading && !dayError && dayData && (
+        {!dayLoading && !dayError && dayData && dayData.totalCount > 0 && (
           <div>
             <div className="flex items-center justify-between px-1 py-2">
               <h2 className="text-[15px] font-semibold text-[#09090B]">{dayData.dateLabel}</h2>
@@ -408,10 +421,28 @@ export default function MedicationRecordPage() {
           </div>
         )}
 
-        {!dayLoading && !dayError && !dayData && (
-          <div className="py-10 text-center text-sm text-[#A1A1AA]">
-            해당 날짜의 복약 기록이 없어요
-          </div>
+        {!dayLoading && !dayError && (!dayData || dayData.totalCount === 0) && (
+          hasMeds === false ? (
+            /* 복약 0건 — 등록 유도 (처방약/일반약은 폼 안 '약 구분'에서 선택) */
+            <EmptyState
+              icon={faPills}
+              title="등록된 복약이 없어요"
+              description={'복약을 등록하면\n날짜별 복용 여부를 기록할 수 있어요.'}
+              action={
+                <button
+                  onClick={() => navigate('/medication/form')}
+                  className="px-8 h-11 bg-primary text-white text-[14px] font-[700] rounded-[10px] active:opacity-80"
+                >
+                  복약 등록하러 가기
+                </button>
+              }
+            />
+          ) : (
+            /* 복약은 있으나 이 날짜엔 예정 없음 (또는 보유 여부 확인 중) */
+            <div className="py-10 text-center text-sm text-[#A1A1AA]">
+              이 날짜에 예정된 복약이 없어요
+            </div>
+          )
         )}
         <div className="h-6" />
         </div>

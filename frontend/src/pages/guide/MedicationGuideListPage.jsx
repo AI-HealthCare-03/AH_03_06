@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import Header from '../../components/Header.jsx'
 import MedicationGuideCard from '../../components/MedicationGuideCard.jsx'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import EmptyState from '../../components/EmptyState.jsx'
 import { faPills } from '@fortawesome/free-solid-svg-icons'
 import {
   listMedicationGuides,
@@ -58,15 +58,12 @@ function MedicationGuideListPage() {
           )}
 
           {!loading && !error && guides.length === 0 && (
-            <section className="bg-bgSubtle border border-borderHairline rounded-[12px] p-6 text-center mt-6">
-              <FontAwesomeIcon icon={faPills} className="text-mute text-[24px] mb-3" />
-              <h2 className="text-[14px] font-[700] text-textHeading mb-1">
-                아직 생성된 복약 가이드가 없어요
-              </h2>
-              <p className="text-[12px] text-subtext leading-relaxed">
-                복약관리에서 처방약을 등록한 뒤 가이드를 생성할 수 있어요.
-              </p>
-            </section>
+            <EmptyState
+              icon={faPills}
+              title="아직 생성된 복약 가이드가 없어요"
+              description="복약관리에서 처방약을 등록한 뒤 가이드를 생성할 수 있어요."
+              className="mt-6"
+            />
           )}
 
           {!loading && !error && guides.length > 0 && (

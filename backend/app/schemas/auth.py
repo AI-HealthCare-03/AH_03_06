@@ -11,7 +11,7 @@ class UserResponse(BaseModel):
     id: int                # 사용자 고유 ID
     email: EmailStr        # 사용자 이메일
     name: str              # 실명
-    nickname: Optional[str] = None          # 닉네임
+    nickname: Optional[str] = None # 닉네임
 
 
 # 회원가입 요청

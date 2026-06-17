@@ -5,7 +5,8 @@ import BottomNav from '../../components/BottomNav.jsx'
 import MobileFrame from '../../components/MobileFrame.jsx'
 import { listSleepGuides, getSleepGuide } from '../../api/sleepGuides.js'
 import { listDietGuideDates, getDietGuideByDate } from '../../api/dietGuides.js'
-import { sleepDescFrom, dietDescFrom, pickGuideDate } from '../../utils/guideSummary.js'
+import { getExerciseGuideByDate } from '../../api/exerciseGuides.js'
+import { sleepDescFrom, dietDescFrom, exerciseDescFrom, pickGuideDate, localToday } from '../../utils/guideSummary.js'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faWandMagicSparkles,
@@ -19,8 +20,8 @@ import {
 // TODO: 각 가이드의 한 줄 요약(desc)은 추후 '오늘의 가이드' 응답에서 받아 채움.
 //       path는 각 가이드 진입 경로
 const guides = [
-  { title: '식단 가이드', desc: '혈압 관리 저염식 권장', icon: faUtensils, path: '/diet-guides' },
-  { title: '운동 가이드', desc: '중간 강도 유산소 30분', icon: faPersonRunning, path: '/exercise-guides' },
+  { title: '식단 가이드', desc: '내 건강검진 기반 AI 권장식단', icon: faUtensils, path: '/diet-guides' },
+  { title: '운동 가이드', desc: '나에게 맞는 AI 운동 가이드', icon: faPersonRunning, path: '/exercise-guides' },
   { title: '수면 가이드', desc: '내 수면 패턴 AI 분석·코칭', icon: faMoon, path: '/sleep-guides' },
   { title: '복약 가이드', desc: '내 처방약별 AI 복약 안내', icon: faPills, path: '/medication-guides' },
 ]
@@ -29,6 +30,7 @@ function GuideHubPage() {
   const navigate = useNavigate()
   const [sleepDesc, setSleepDesc] = useState(null)   // null=하드코딩 폴백
   const [dietDesc, setDietDesc] = useState(null)
+  const [exerciseDesc, setExerciseDesc] = useState(null)
   const [loading, setLoading] = useState(true)   // 가이드 fetch 진행 중
 
   useEffect(() => {
@@ -42,8 +44,12 @@ function GuideHubPage() {
       .then(d => { const date = pickGuideDate(d?.dates); if (date) return getDietGuideByDate(date) })
       .then(g => { const dd = dietDescFrom(g?.meal_plan_type); if (dd) setDietDesc(dd) })
       .catch(() => {})
+    // 운동: 오늘 가이드 cvd_range(4단계) → 개인화 강도 요약
+    const exerciseLoad = getExerciseGuideByDate(localToday())
+      .then(g => { const ed = exerciseDescFrom(g?.cvd_range); if (ed) setExerciseDesc(ed) })
+      .catch(() => {})
     // 가이드 fetch가 모두 끝난 뒤에만 카드 서브텍스트 노출(로딩 중 폴백 깜빡임 억제)
-    Promise.all([sleepLoad, dietLoad]).finally(() => setLoading(false))
+    Promise.all([sleepLoad, dietLoad, exerciseLoad]).finally(() => setLoading(false))
   }, [])
 
   return (
@@ -65,9 +71,10 @@ function GuideHubPage() {
           {/* 가이드 진입 카드 — 홈 화면 카드와 동일 구조 (아이콘 박스 + 제목/요약 + chevron) */}
           <div className="space-y-3">
             {guides.map(({ title, desc, icon, path }) => {
-              // 식단·수면만 실데이터로 교체(없으면 하드코딩 폴백). 운동·복약은 그대로.
+              // 식단·수면·운동은 실데이터로 교체(없으면 폴백). 복약은 그대로.
               const realDesc = title === '식단 가이드' ? (dietDesc ?? desc)
                 : title === '수면 가이드' ? (sleepDesc ?? desc)
+                : title === '운동 가이드' ? (exerciseDesc ?? desc)
                 : desc
               return (
               <button

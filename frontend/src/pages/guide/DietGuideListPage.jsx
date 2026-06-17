@@ -2,8 +2,9 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../../components/Header.jsx'
 import ErrorState from '../../components/ErrorState.jsx'
+import EmptyState from '../../components/EmptyState.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faUtensils, faChevronRight } from '@fortawesome/free-solid-svg-icons'
+import { faUtensils, faChevronRight, faNotesMedical } from '@fortawesome/free-solid-svg-icons'
 import { listDietGuideDates, getDietGuideByDate, generateDietGuide, regenerateDietGuide } from '../../api/dietGuides.js'
 import { listHealthCheckups } from '../../api/healthCheckup.js'
 
@@ -61,6 +62,8 @@ function DietGuideListPage() {
   const [guideError,   setGuideError]   = useState(false)
   const [datesError,   setDatesError]   = useState(false)
   const [generateError, setGenerateError] = useState('')
+  const [needCheckup,  setNeedCheckup]  = useState(false) // 건강검진 0건이라 생성 불가 → 등록 안내
+
   const pollRef = useRef(null)
 
   const fetchGuideDates = async () => {
@@ -78,10 +81,15 @@ function DietGuideListPage() {
     setGuide(null)
     setGuideError(false)
     setGenerateError('')
+    setNeedCheckup(false)
     setGuideLoading(true)
     getDietGuideByDate(selected)
       .then(data => setGuide(data))
-      .catch(() => setGuideError(true))
+      .catch(err => {
+        // 404 = 그 날짜에 식단 가이드가 없음 → 오류가 아니라 빈 상태(생성 안내)로 처리
+        if (err?.status === 404) setGuide(null)
+        else setGuideError(true)
+      })
       .finally(() => setGuideLoading(false))
   }, [selected])
 
@@ -122,7 +130,7 @@ function DietGuideListPage() {
       const data     = await listHealthCheckups()
       const checkups = Array.isArray(data?.checkups) ? data.checkups : []
       if (checkups.length === 0) {
-        window.alert('등록된 건강검진 기록이 없어요.')
+        setNeedCheckup(true) // alert 대신 건강검진 등록 안내 상태로 전환
         return
       }
       setGenerating(true)
@@ -235,20 +243,39 @@ function DietGuideListPage() {
             <p className="text-[13px] text-red-400 text-center py-3">{generateError}</p>
           )}
 
-          {/* 식단 없음 */}
-          {!guideLoading && !guideError && !guide && !generating && (
-            <section className="bg-bgSubtle border border-borderHairline rounded-[12px] p-6 text-center">
-              <FontAwesomeIcon icon={faUtensils} className="text-mute text-[24px] mb-3" />
-              <h2 className="text-[14px] font-[700] text-textHeading mb-1">해당 날짜의 식단 가이드가 없어요</h2>
-              <p className="text-[12px] text-subtext leading-relaxed mb-4">최신 건강검진 결과를 기반으로 맞춤 식단을 생성해 드려요.</p>
-              <button
-                onClick={handleGenerate}
-                disabled={generating}
-                className="w-full h-11 bg-primary text-white text-[14px] font-[700] rounded-[10px] transition-colors disabled:bg-mute disabled:cursor-not-allowed"
-              >
-                식단 생성하기
-              </button>
-            </section>
+          {/* 건강검진 0건 — 식단 생성 전 건강검진 등록 안내 */}
+          {!guideLoading && !guideError && !guide && !generating && needCheckup && (
+            <EmptyState
+              icon={faNotesMedical}
+              title="건강검진 결과가 필요해요"
+              description={'맞춤 식단을 생성하려면\n건강검진 결과를 먼저 등록해 주세요.'}
+              action={
+                <button
+                  onClick={() => navigate('/health-checkup')}
+                  className="px-8 h-11 bg-primary text-white text-[14px] font-[700] rounded-[10px] active:opacity-80"
+                >
+                  건강검진 등록하러 가기
+                </button>
+              }
+            />
+          )}
+
+          {/* 식단 없음 — 운동·수면 가이드와 동일한 EmptyState 톤 (생성 CTA는 action) */}
+          {!guideLoading && !guideError && !guide && !generating && !needCheckup && (
+            <EmptyState
+              icon={faUtensils}
+              title="해당 날짜의 식단 가이드가 없어요"
+              description="최신 건강검진 결과를 기반으로 맞춤 식단을 생성해 드려요."
+              action={
+                <button
+                  onClick={handleGenerate}
+                  disabled={generating}
+                  className="px-8 h-11 bg-primary text-white text-[14px] font-[700] rounded-[10px] transition-colors disabled:bg-mute disabled:cursor-not-allowed"
+                >
+                  식단 생성하기
+                </button>
+              }
+            />
           )}
 
           {/* 식단 요약 */}
