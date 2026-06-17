@@ -63,7 +63,7 @@ def _get_openai_client() -> OpenAI:
 
 def embed_query(text: str) -> list[float]:
     client = _get_openai_client()
-    resp = client.embeddings.create(model=settings.EMBEDDING_MODEL, input=text)
+    resp = client.embeddings.create(model=settings.OPENAI_EMBEDDING_MODEL, input=text)
     return resp.data[0].embedding
 
 
@@ -217,7 +217,7 @@ def _get_async_openai_client() -> AsyncOpenAI:
 
 async def embed_query_async(text: str) -> list[float]:
     client = _get_async_openai_client()
-    resp = await client.embeddings.create(model=settings.EMBEDDING_MODEL, input=text)
+    resp = await client.embeddings.create(model=settings.OPENAI_EMBEDDING_MODEL, input=text)
     return resp.data[0].embedding
 
 
