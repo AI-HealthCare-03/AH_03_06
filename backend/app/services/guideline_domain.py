@@ -2,7 +2,6 @@
 # guideline_rag 는 4개 만성질환 학회 지침만 보유(당뇨·심부전·이상지질혈증·고혈압).
 # ATC 치료군이 이 중 하나에 해당할 때만 그 도메인 지침을 출처로 부착하고,
 # 무관한 약(예: 진통제 N02)은 빈 목록 → guideline 미부착.
-# (과거: 고정 질의로 검색해 약과 무관하게 당뇨 지침이 기본 오부착되던 버그)
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
@@ -17,19 +16,19 @@ _HYPERTENSION = "hypertension_2022_KSH"
 def atc_to_domains(atc_code: str | None) -> list[str]:
     """ATC 코드 → guideline_id 목록. 매칭 도메인 없으면 빈 목록.
 
-    심부전(KSHF)은 항고혈압군과 약제가 크게 겹쳐, 충돌을 피해 일단 C01(심장요법제)만 매핑한다.
-    필요 시 C03/C07/C09 를 심부전에도 추가하는 확장은 추후 결정.
+    심부전(KSHF)에는 일단 C01 만 연결한다. 심부전 약은 고혈압 약과
+    크게 겹쳐, 양쪽에 다 넣으면 출처가 충돌하기 때문. C03/C07/C09 확장은 추후 결정.
     """
     if not atc_code:
         return []
     a = atc_code.strip().upper()
-    if a.startswith("A10"):           # 당뇨병 치료제
+    if a.startswith("A10"):
         return [_DIABETES]
-    if a.startswith("C10"):           # 지질저하제
+    if a.startswith("C10"):
         return [_DYSLIPIDEMIA]
-    if a.startswith("C01"):           # 심장요법제
+    if a.startswith("C01"):
         return [_HEART_FAILURE]
-    if a[:3] in {"C02", "C03", "C07", "C08", "C09"}:  # 항고혈압·이뇨·BB·CCB·RAS
+    if a[:3] in {"C02", "C03", "C07", "C08", "C09"}:
         return [_HYPERTENSION]
     return []
 

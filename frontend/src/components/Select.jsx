@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 
-// 네이티브 select 대체용 커스텀 드롭다운
-// 데스크탑에서 OS가 그리는 작은 옵션 목록 대신 CSS로 16px 팝업을 그려 글자 크기·디자인을 직접 제어
+// 네이티브 select 대체용 커스텀 드롭다운 (옵션 글자 크기·디자인 직접 제어)
 // value/onChange는 값(이벤트 아님)으로 동작: onChange(nextValue)
 // className=트리거 버튼 스타일, wrapperClassName=바깥 relative 박스 레이아웃(flex-1 등)
 function Select({ value, onChange, options, className = '', wrapperClassName = '', placeholder = '선택', disabled = false }) {
