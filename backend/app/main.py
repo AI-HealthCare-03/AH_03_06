@@ -58,7 +58,13 @@ except Exception as e:
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8000", "http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "http://localhost:5173",
+        "http://www.vivahealth.site",
+        "http://vivahealth.site",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
