@@ -9,6 +9,7 @@ import Header from '../../components/Header'
 import MobileFrame from '../../components/MobileFrame.jsx'
 import EmptyState from '../../components/EmptyState'
 import { faFileLines } from '@fortawesome/free-solid-svg-icons'
+import Select from '../../components/Select.jsx'
 
 // 진료과 목록 (실제 서비스에서는 API로 조회)
 const DEPARTMENTS = [
@@ -103,16 +104,12 @@ function FilterDrawer({ filters, onChange, onClose }) {
         {/* 진료과 */}
         <div className="mb-5">
           <label className="text-sm font-medium text-neutral-700 mb-2 block">진료과</label>
-          <select
+          <Select
             value={local.department_id}
-            onChange={e => setLocal(p => ({ ...p, department_id: e.target.value }))}
+            onChange={v => setLocal(p => ({ ...p, department_id: v }))}
             className="w-full h-12 bg-neutral-50 border border-neutral-200 rounded-xl px-4 text-sm text-neutral-900 outline-none focus:border-blue-500"
-          >
-            <option value="">전체</option>
-            {DEPARTMENTS.map(d => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
+            options={[{ value: '', label: '전체' }, ...DEPARTMENTS.map(d => ({ value: String(d.id), label: d.name }))]}
+          />
         </div>
 
         {/* 기간 */}
@@ -258,15 +255,12 @@ export default function MedicalRecordList() {
           </button>
 
           {/* 정렬 셀렉트 */}
-          <select
+          <Select
             value={sort}
-            onChange={e => setSort(e.target.value)}
-            className="h-8 px-2 pr-6 rounded-lg text-xs font-semibold border border-neutral-200 text-neutral-700 bg-white outline-none appearance-none cursor-pointer"
-            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23999' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center' }}
-          >
-            <option value="latest">최신순</option>
-            <option value="oldest">오래된순</option>
-          </select>
+            onChange={setSort}
+            className="h-8 px-2 rounded-lg text-xs font-semibold border border-neutral-200 text-neutral-700 bg-white outline-none"
+            options={[{ value: 'latest', label: '최신순' }, { value: 'oldest', label: '오래된순' }]}
+          />
         </div>
       </div>
 

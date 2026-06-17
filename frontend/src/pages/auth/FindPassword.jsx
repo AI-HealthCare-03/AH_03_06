@@ -3,8 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import FormLayout from '../../components/FormLayout.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCircleInfo } from '@fortawesome/free-solid-svg-icons'
+import Select from '../../components/Select.jsx'
 
 const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
+
+const EMAIL_DOMAINS = [
+  { value: 'naver.com', label: 'naver.com' },
+  { value: 'gmail.com', label: 'gmail.com' },
+  { value: 'daum.net', label: 'daum.net' },
+  { value: 'kakao.com', label: 'kakao.com' },
+  { value: 'direct', label: '직접 입력' },
+]
 
 function FindPassword() {
   const navigate = useNavigate()
@@ -86,20 +95,13 @@ function FindPassword() {
                   className="flex-1 min-w-0 h-[56px] bg-[#F5F5F5] rounded-[8px] px-4 text-[15px] text-[#18181B] outline-none border border-transparent focus:border-primary/20 placeholder:text-[#A1A1AA]"
                 />
                 <span className="text-[#71717A] font-medium shrink-0">@</span>
-                <div className="relative flex-1 min-w-0">
-                  <select
-                    value={domain}
-                    onChange={e => setDomain(e.target.value)}
-                    className="w-full h-[56px] bg-[#F5F5F5] rounded-[8px] px-4 pr-8 text-[15px] text-[#18181B] outline-none appearance-none border border-transparent focus:border-primary/20 cursor-pointer"
-                  >
-                    <option value="naver.com">naver.com</option>
-                    <option value="gmail.com">gmail.com</option>
-                    <option value="daum.net">daum.net</option>
-                    <option value="kakao.com">kakao.com</option>
-                    <option value="direct">직접 입력</option>
-                  </select>
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A1A1AA] text-[12px] pointer-events-none">▼</span>
-                </div>
+                <Select
+                  value={domain}
+                  onChange={setDomain}
+                  wrapperClassName="w-[136px] shrink-0"
+                  className="w-full h-[56px] bg-[#F5F5F5] rounded-[8px] px-4 text-[15px] text-[#18181B] outline-none border border-transparent focus:border-primary/20"
+                  options={EMAIL_DOMAINS}
+                />
               </div>
               {domain === 'direct' && (
                 <input

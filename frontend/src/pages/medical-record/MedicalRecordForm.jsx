@@ -12,6 +12,7 @@ import {
   updateMedicalRecord,
 } from '../../api/medicalrecord'
 import Header from '../../components/Header'
+import Select from '../../components/Select.jsx'
 
 // ── 진료과 목록 ────────────────────────────────────────────────
 const DEPARTMENTS = [
@@ -314,21 +315,13 @@ export default function MedicalRecordForm() {
               <label className="text-xs font-medium text-neutral-500 mb-1.5 block">
                 진료과 <span className="text-red-500">*</span>
               </label>
-              <div className="relative">
-                <select
-                  value={form.department_id}
-                  onChange={e => handleField('department_id', e.target.value)}
-                  className={`${inputCls} appearance-none pr-10`}
-                >
-                  <option value="">선택 안 함</option>
-                  {DEPARTMENTS.map(d => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-                <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
+              <Select
+                value={form.department_id}
+                onChange={v => handleField('department_id', v)}
+                placeholder="선택 안 함"
+                className={inputCls}
+                options={[{ value: '', label: '선택 안 함' }, ...DEPARTMENTS.map(d => ({ value: String(d.id), label: d.name }))]}
+              />
             </div>
 
             {/* 진단명 */}
