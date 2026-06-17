@@ -10,7 +10,7 @@
       <excludeFolder url="file://$MODULE_DIR$/backend/venv" />
       <excludeFolder url="file://$MODULE_DIR$/ml/.venv" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.11 (AH_03_06) (2)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.11 (AH_03_06) (3)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PyDocumentationSettings">
