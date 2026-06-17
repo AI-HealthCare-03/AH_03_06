@@ -124,6 +124,7 @@ def prepare_rag_context(
     user_query: str | None = None,
     safety: dict[str, Any] | None = None,
     top_k: int = 3,
+    guideline_domains: list[str] | None = None,
 ) -> dict[str, Any]:
     # 04 노트북 cell 20(v1) + cell 38(v2 drug_detail) 통합 이식 + 시연 폴리싱 적용.
     # 변경: item_seq 가 이미 약을 핀(where 필터)하므로 쿼리에 drug_name 을 함께 넣으면
@@ -163,11 +164,14 @@ def prepare_rag_context(
     else:
         guideline_query = " ".join(str(m.get("drug_name", "")) for m in medications)
 
-    guideline_general = (
-        retrieve(guideline_query, "guideline_rag", top_k=top_k)
-        if guideline_query.strip()
-        else []
-    )
+    # guideline_domains: None=레거시 무필터, []=매칭 도메인 없음→미부착, [ids]=guideline_id $in 필터
+    if guideline_domains is not None and not guideline_domains:
+        guideline_general = []
+    elif guideline_query.strip():
+        _gl_where = {"guideline_id": {"$in": guideline_domains}} if guideline_domains else None
+        guideline_general = retrieve(guideline_query, "guideline_rag", top_k=top_k, where=_gl_where)
+    else:
+        guideline_general = []
 
     return {
         "safety": safety,
@@ -269,6 +273,7 @@ async def prepare_rag_context_async(
     user_query: str | None = None,
     safety: dict[str, Any] | None = None,
     top_k: int = 3,
+    guideline_domains: list[str] | None = None,
 ) -> dict[str, Any]:
     """prepare_rag_context 의 async 변종 — 약품별 retrieve 와 guideline retrieve 를 한 번의 gather 로.
 
@@ -296,9 +301,13 @@ async def prepare_rag_context_async(
         guideline_query = " ".join(str(m.get("drug_name", "")) for m in medications)
 
     async def _guideline() -> list[dict[str, Any]]:
-        if guideline_query and guideline_query.strip():
-            return await retrieve_async(guideline_query, "guideline_rag", top_k=top_k)
-        return []
+        # guideline_domains: None=레거시 무필터, []=매칭 도메인 없음→미부착, [ids]=guideline_id $in 필터
+        if guideline_domains is not None and not guideline_domains:
+            return []
+        if not (guideline_query and guideline_query.strip()):
+            return []
+        where = {"guideline_id": {"$in": guideline_domains}} if guideline_domains else None
+        return await retrieve_async(guideline_query, "guideline_rag", top_k=top_k, where=where)
 
     med_tasks = [_per_med(m) for m in medications]
     gather_results = await asyncio.gather(*med_tasks, _guideline())

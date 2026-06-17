@@ -17,6 +17,7 @@ from openai import AsyncOpenAI
 from app.config import settings
 from app.database import SessionLocal
 from app.models.drug_info import DrugInfo
+from app.services.guideline_domain import domains_for_item_seq
 from app.utils.quote_fidelity import chunk_texts, validate_sections
 from app.utils.rag import prepare_rag_context_async
 
@@ -301,12 +302,16 @@ async def generate_guide_for_drug_async(
     남은 섹션이 없으면 fallback 처리. references 는 검색 출처에서 조립, 회수약은 DB lookup.
     """
     t0 = time.perf_counter()
+    # 약품 ATC → 학회 지침 도메인. 매칭 도메인 없으면 guideline 미부착(무관 약에 당뇨 지침 오부착 방지).
+    guideline_domains = domains_for_item_seq(item_seq)
+    logger.info(f"[GUIDELINE-DOMAIN] item_seq={item_seq} domains={guideline_domains}")
     ctx = await prepare_rag_context_async(
         [{"item_seq": str(item_seq), "drug_name": drug_name}],
         patient=patient,
         user_query=user_query,
         safety=safety,
         top_k=top_k,
+        guideline_domains=guideline_domains,
     )
     references = _collect_references(ctx)
     safety_block = _lookup_recall_warning(str(item_seq)) if item_seq else None
