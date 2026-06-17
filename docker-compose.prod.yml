@@ -25,6 +25,7 @@ services:
     restart: always
     volumes:
       - ./backend/app/static/avatars:/app/static/avatars
+      - ./backend/ml_data:/app/ml_data
 
 volumes:
   mysql_data:
