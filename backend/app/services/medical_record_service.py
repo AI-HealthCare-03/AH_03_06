@@ -12,6 +12,9 @@ from app.models.medical_record import MedicalRecord
 from app.models.prescription import Prescription
 from app.models.guide import Guide
 from app.models.medication_schedule import MedicationSchedule
+from app.models.medication_log import MedicationLog
+from app.models.schedule_day import ScheduleDay
+from app.models.notification import Notification
 from app.models.user import UserProfile
 from app.schemas.medical_record import (
     MedicalRecordCreateRequest, MedicalRecordCreateResponse,
@@ -330,11 +333,17 @@ def delete_medical_record(
 
     record = _get_record_or_404(record_id, user_id, db)
 
-    # 이 진료기록의 처방으로 만든 복약 일정은 유지하되, 삭제될 처방과의 링크만 해제(FK 위반 방지).
+    # 진료기록 삭제 = 그 처방으로 만든 복약 일정·복용기록·알림까지 함께 삭제(자식→부모 순, FK 안전).
     presc_subq = db.query(Prescription.id).filter(Prescription.medical_record_id == record.id)
+    sched_subq = db.query(MedicationSchedule.schedule_id).filter(
+        MedicationSchedule.prescribed_medicine_id.in_(presc_subq)
+    )
+    db.query(MedicationLog).filter(MedicationLog.schedule_id.in_(sched_subq)).delete(synchronize_session=False)
+    db.query(ScheduleDay).filter(ScheduleDay.schedule_id.in_(sched_subq)).delete(synchronize_session=False)
+    db.query(Notification).filter(Notification.schedule_id.in_(sched_subq)).delete(synchronize_session=False)
     db.query(MedicationSchedule).filter(
         MedicationSchedule.prescribed_medicine_id.in_(presc_subq)
-    ).update({MedicationSchedule.prescribed_medicine_id: None}, synchronize_session=False)
+    ).delete(synchronize_session=False)
 
     db.query(Prescription).filter(
         Prescription.medical_record_id == record.id

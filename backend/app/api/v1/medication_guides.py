@@ -17,7 +17,7 @@ from app.schemas.guide import (
 from app.services import guide_service
 from app.services.llm_service import generate_guide_for_drug_async
 from app.utils.auth import get_current_user
-from app.utils.rag import get_chroma_client
+from app.utils.rag import get_chroma_medication_client
 from app.models.user import User
 from app.limiter import limiter
 
@@ -36,7 +36,7 @@ def _get_drug_list() -> list[dict[str, str]]:
         # 락 대기 중 다른 스레드가 이미 빌드했으면 그대로 재사용
         if _drug_list_cache is not None:
             return _drug_list_cache
-        client = get_chroma_client()
+        client = get_chroma_medication_client()
         seen: dict[str, str] = {}
         BATCH = 1000
         for coll_name in _DRUG_SOURCE_COLLECTIONS:

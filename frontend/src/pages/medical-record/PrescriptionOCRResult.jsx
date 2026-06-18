@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import FormLayout from '../../components/FormLayout.jsx'
+import Select from '../../components/Select.jsx'
 
 const DEPARTMENTS = [
   { id: 1,  name: '내과' },
@@ -140,21 +141,13 @@ export default function PrescriptionOCRResult() {
 
         <div>
           <label className="text-xs font-semibold text-neutral-500 mb-1.5 block">진료과</label>
-          <div className="relative">
-            <select
-              value={form.department}
-              onChange={e => updateField('department', e.target.value)}
-              className="w-full h-12 border border-neutral-200 bg-neutral-50 rounded-xl px-4 text-sm text-neutral-900 outline-none transition-colors appearance-none focus:border-blue-500 focus:bg-white"
-            >
-              <option value="">선택 안 함</option>
-              {DEPARTMENTS.map(d => (
-                <option key={d.id} value={d.name}>{d.name}</option>
-              ))}
-            </select>
-            <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
+          <Select
+            value={form.department}
+            onChange={v => updateField('department', v)}
+            placeholder="선택 안 함"
+            className="w-full h-12 border border-neutral-200 bg-neutral-50 rounded-xl px-4 text-sm text-neutral-900 outline-none transition-colors focus:border-blue-500 focus:bg-white"
+            options={[{ value: '', label: '선택 안 함' }, ...DEPARTMENTS.map(d => ({ value: d.name, label: d.name }))]}
+          />
         </div>
 
         <div>

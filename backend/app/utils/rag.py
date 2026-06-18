@@ -2,7 +2,7 @@
 # RAG 검색 유틸
 # - get_chroma_client(): 모듈 캐시된 PersistentClient
 # - embed_query(text): OpenAI text-embedding-3-small 임베딩 (Chroma의 자동 임베딩 미사용)
-# - retrieve(query, collection_name, top_k, where): 04 노트북과 동일한 정규화 결과
+# - retrieve(query, collection_name, top_k, where): 정규화된 검색 결과
 
 from __future__ import annotations
 
@@ -15,23 +15,43 @@ from openai import AsyncOpenAI, OpenAI
 from app.config import settings
 
 
-_chroma_client: chromadb.api.ClientAPI | None = None
+_chroma_exercise_client: chromadb.api.ClientAPI | None = None
+_chroma_diet_client: chromadb.api.ClientAPI | None = None
+_chroma_medication_client: chromadb.api.ClientAPI | None = None
 _openai_client: OpenAI | None = None
 
 # EMBEDDING_MODEL 은 settings.EMBEDDING_MODEL 로 이동 (배포 전환 대비).
 #   - 개발: text-embedding-3-small (현재 chroma_db 임베딩 기준 모델)
 #   - 배포: text-embedding-3-large 로 전환 시 chroma_db 전체 재구축 필요
 
-# 한국어 임베딩은 관련 매치도 유사도가 낮게 나옴(노트북 cell 18 근거).
+# 한국어 임베딩은 관련 매치도 유사도가 낮게 나옴.
 # 소스별 튜닝 여지를 위해 호출 시 threshold 인자로 덮어쓸 수 있게 둔다.
 SIMILARITY_THRESHOLD = 0.3
 
 
-def get_chroma_client() -> chromadb.api.ClientAPI:
-    global _chroma_client
-    if _chroma_client is None:
-        _chroma_client = chromadb.PersistentClient(path=settings.CHROMA_DIR)
-    return _chroma_client
+def get_chroma_exercise_client() -> chromadb.api.ClientAPI:
+    global _chroma_exercise_client
+    if _chroma_exercise_client is None:
+        _chroma_exercise_client = chromadb.PersistentClient(
+            path=settings.CHROMA_EXERCISE_DIR
+        )
+    return _chroma_exercise_client
+
+def get_chroma_diet_client() -> chromadb.api.ClientAPI:
+    global _chroma_diet_client
+    if _chroma_diet_client is None:
+        _chroma_diet_client = chromadb.PersistentClient(
+            path=settings.CHROMA_DIET_DIR
+        )
+    return _chroma_diet_client
+
+def get_chroma_medication_client() -> chromadb.api.ClientAPI:
+    global _chroma_medication_client
+    if _chroma_medication_client is None:
+        _chroma_medication_client = chromadb.PersistentClient(
+            path=settings.CHROMA_MEDICATION_DIR
+        )
+    return _chroma_medication_client
 
 
 def _get_openai_client() -> OpenAI:
@@ -43,7 +63,7 @@ def _get_openai_client() -> OpenAI:
 
 def embed_query(text: str) -> list[float]:
     client = _get_openai_client()
-    resp = client.embeddings.create(model=settings.EMBEDDING_MODEL, input=text)
+    resp = client.embeddings.create(model=settings.OPENAI_EMBEDDING_MODEL, input=text)
     return resp.data[0].embedding
 
 
@@ -56,7 +76,7 @@ def retrieve(
 ) -> list[dict[str, Any]]:
     # query_texts 는 의도적으로 사용하지 않음 — Chroma 기본 임베더와
     # text-embedding-3-small 의 차원이 달라 컬렉션과 불일치를 일으킴.
-    collection = get_chroma_client().get_collection(name=collection_name)
+    collection = get_chroma_medication_client().get_collection(name=collection_name)
     vec = embed_query(query)
 
     kwargs: dict[str, Any] = {"query_embeddings": [vec], "n_results": top_k}
@@ -89,8 +109,8 @@ def retrieve_drug_info(
     top_k: int = 3,
     threshold: float = 0.0,
 ) -> dict[str, Any]:
-    # 04 노트북 prepare_rag_context 패턴: drug_info_rag 와 drug_detail_rag 를
-    # 같은 item_seq 로 필터링해 한 약품 안에서만 검색한다.
+    # drug_info_rag 와 drug_detail_rag 를 같은 item_seq 로 필터링해
+    # 한 약품 안에서만 검색한다.
     # 학회 진료지침(guideline_rag)은 약 단위가 아니라 주제 단위라 이 헬퍼에
     # 넣지 않는다. 필요 시 retrieve(query, 'guideline_rag', ...) 로 별도 호출.
     #
@@ -124,12 +144,11 @@ def prepare_rag_context(
     user_query: str | None = None,
     safety: dict[str, Any] | None = None,
     top_k: int = 3,
+    guideline_domains: list[str] | None = None,
 ) -> dict[str, Any]:
-    # 04 노트북 cell 20(v1) + cell 38(v2 drug_detail) 통합 이식 + 시연 폴리싱 적용.
-    # 변경: item_seq 가 이미 약을 핀(where 필터)하므로 쿼리에 drug_name 을 함께 넣으면
-    #       잡음(부작용 질문이 보관법·사용법 청크와 매칭되는 등 희석)이 됨. 따라서
-    #       약품별 검색 쿼리 우선순위: user_query.strip() → drug_name.strip().
-    #       둘 다 빈 경우엔 retrieve 자체 건너뛰고 빈 결과 반환(chroma 빈 임베딩 가드).
+    # item_seq 가 이미 where 로 약을 고정하므로 쿼리에 drug_name 을 더하지 않는다
+    # (더하면 부작용 질문이 보관법·사용법 청크와 매칭되는 식으로 희석됨).
+    # 약품별 쿼리 우선순위: user_query → drug_name, 둘 다 비면 retrieve 건너뜀.
     drug_info_per_med: list[dict[str, Any]] = []
     drug_detail_per_med: list[dict[str, Any]] = []
     uq = (user_query or "").strip()
@@ -157,17 +176,20 @@ def prepare_rag_context(
             "retrieved": drug_detail_hits,
         })
 
-    # 학회 진료지침은 약 단위가 아니라 주제 단위 — 노트북 cell 20 동일 규칙.
+    # 학회 진료지침은 약 단위가 아니라 주제 단위.
     if user_query:
         guideline_query = user_query
     else:
         guideline_query = " ".join(str(m.get("drug_name", "")) for m in medications)
 
-    guideline_general = (
-        retrieve(guideline_query, "guideline_rag", top_k=top_k)
-        if guideline_query.strip()
-        else []
-    )
+    # guideline_domains: None=레거시 무필터, []=매칭 도메인 없음→미부착, [ids]=guideline_id $in 필터
+    if guideline_domains is not None and not guideline_domains:
+        guideline_general = []
+    elif guideline_query.strip():
+        _gl_where = {"guideline_id": {"$in": guideline_domains}} if guideline_domains else None
+        guideline_general = retrieve(guideline_query, "guideline_rag", top_k=top_k, where=_gl_where)
+    else:
+        guideline_general = []
 
     return {
         "safety": safety,
@@ -197,7 +219,7 @@ def _get_async_openai_client() -> AsyncOpenAI:
 
 async def embed_query_async(text: str) -> list[float]:
     client = _get_async_openai_client()
-    resp = await client.embeddings.create(model=settings.EMBEDDING_MODEL, input=text)
+    resp = await client.embeddings.create(model=settings.OPENAI_EMBEDDING_MODEL, input=text)
     return resp.data[0].embedding
 
 
@@ -209,7 +231,7 @@ async def retrieve_async(
     threshold: float = SIMILARITY_THRESHOLD,
 ) -> list[dict[str, Any]]:
     """retrieve 의 async 변종. 임베딩만 await, chroma 호출은 sync 유지."""
-    collection = get_chroma_client().get_collection(name=collection_name)
+    collection = get_chroma_medication_client().get_collection(name=collection_name)
     vec = await embed_query_async(query)
 
     kwargs: dict[str, Any] = {"query_embeddings": [vec], "n_results": top_k}
@@ -269,6 +291,7 @@ async def prepare_rag_context_async(
     user_query: str | None = None,
     safety: dict[str, Any] | None = None,
     top_k: int = 3,
+    guideline_domains: list[str] | None = None,
 ) -> dict[str, Any]:
     """prepare_rag_context 의 async 변종 — 약품별 retrieve 와 guideline retrieve 를 한 번의 gather 로.
 
@@ -296,9 +319,13 @@ async def prepare_rag_context_async(
         guideline_query = " ".join(str(m.get("drug_name", "")) for m in medications)
 
     async def _guideline() -> list[dict[str, Any]]:
-        if guideline_query and guideline_query.strip():
-            return await retrieve_async(guideline_query, "guideline_rag", top_k=top_k)
-        return []
+        # guideline_domains: None=레거시 무필터, []=매칭 도메인 없음→미부착, [ids]=guideline_id $in 필터
+        if guideline_domains is not None and not guideline_domains:
+            return []
+        if not (guideline_query and guideline_query.strip()):
+            return []
+        where = {"guideline_id": {"$in": guideline_domains}} if guideline_domains else None
+        return await retrieve_async(guideline_query, "guideline_rag", top_k=top_k, where=where)
 
     med_tasks = [_per_med(m) for m in medications]
     gather_results = await asyncio.gather(*med_tasks, _guideline())

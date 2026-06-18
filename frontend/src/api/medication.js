@@ -151,6 +151,10 @@ const RealService = {
   addMedication:          (req)                    => apiClient.post('/prescriptions', req),
   deleteMedication:       (id)                     => apiClient.delete(`/prescriptions/${id}`),
   deleteSchedule:         (id)                     => apiClient.delete(`/schedules/${id}`),
+  discontinueMedication:  (id)                     => apiClient.patch(`/prescriptions/${id}/discontinue`),
+  resumeMedication:       (id)                     => apiClient.patch(`/prescriptions/${id}/resume`),
+  discontinueSchedule:    (id)                     => apiClient.patch(`/schedules/${id}/discontinue`),
+  resumeSchedule:         (id)                     => apiClient.patch(`/schedules/${id}/resume`),
   checkMedication:        (req)                    => apiClient.patch('/check', req),
   fetchCalendar:          (year, month)            => apiClient.get(`/calendar?year=${year}&month=${month}`),
   fetchAnalysis:          ()                       => apiClient.get('/analysis'),
@@ -197,6 +201,10 @@ export const updateMedication       = (id, source, req) => Service.updateMedicat
 export const addDirectMedication    = (req)         => (Service.addDirectMedication ?? Service.addMedication)(req)
 export const deleteMedication       = (id)          => Service.deleteMedication(id)
 export const deleteSchedule         = (id)          => Service.deleteSchedule(id)
+export const discontinueMedication  = (id)          => Service.discontinueMedication(id)
+export const resumeMedication       = (id)          => Service.resumeMedication(id)
+export const discontinueSchedule    = (id)          => Service.discontinueSchedule(id)
+export const resumeSchedule         = (id)          => Service.resumeSchedule(id)
 export const getTodayMedication     = ()            => Service.getTodayMedication()
 export const checkMedication        = (req)         => Service.checkMedication(req)
 export const fetchCalendar          = (year, month)            => Service.fetchCalendar(year, month)

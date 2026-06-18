@@ -4,7 +4,9 @@ import Header from '../../components/Header.jsx'
 import MobileFrame from '../../components/MobileFrame.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import { faPills } from '@fortawesome/free-solid-svg-icons'
-import { getMedications, getTodayMedication, deleteMedication, checkMedication, deleteSchedule} from '../../api/medication.js'
+import Select from '../../components/Select.jsx'
+import { getMedications, getTodayMedication, deleteMedication, checkMedication, deleteSchedule,
+  discontinueMedication, resumeMedication, discontinueSchedule, resumeSchedule } from '../../api/medication.js'
 import { fmtTimes } from '../../utils/medicationFormat.js'
 
 export default function MedicationPage() {
@@ -57,7 +59,7 @@ function MedicationList({ onTodayClick, navigate }) {
   }, [openMenuId])
 
   const handleDelete = async (id) => {
-    if (!window.confirm('복약을 종료 처리할까요?')) return
+    if (!window.confirm('이 약을 삭제할까요? 복약 기록도 함께 삭제됩니다.')) return
 
     setActionError(null)
     const med = allMedications.find(m => m.id === id)
@@ -70,7 +72,37 @@ function MedicationList({ onTodayClick, navigate }) {
       const res = await getMedications()
       if (res.success) setAllMedications(res.data)
     } catch {
+      setActionError('삭제에 실패했어요. 다시 시도해 주세요.')
+    }
+  }
+
+  // 종료 처리 — 삭제와 달리 복용 기록은 보관하고 '복약 종료' 탭으로 이동
+  const handleDiscontinue = async (med) => {
+    if (!window.confirm(`'${med.name}' 복약을 종료할까요?\n복용 기록은 보관되며, 언제든 '복약 종료' 탭에서 다시 볼 수 있어요.`)) return
+
+    setActionError(null)
+    try {
+      if (med.source === 'custom') await discontinueSchedule(med.id)
+      else await discontinueMedication(med.id)
+      const res = await getMedications()
+      if (res.success) setAllMedications(res.data)
+    } catch {
       setActionError('종료 처리에 실패했어요. 다시 시도해 주세요.')
+    }
+  }
+
+  // 재개 — 종료한 약을 다시 복약 중으로 되돌림
+  const handleResume = async (med) => {
+    if (!window.confirm(`'${med.name}'을(를) 다시 복약 중으로 되돌릴까요?`)) return
+
+    setActionError(null)
+    try {
+      if (med.source === 'custom') await resumeSchedule(med.id)
+      else await resumeMedication(med.id)
+      const res = await getMedications()
+      if (res.success) setAllMedications(res.data)
+    } catch {
+      setActionError('재개에 실패했어요. 다시 시도해 주세요.')
     }
   }
 
@@ -131,23 +163,19 @@ function MedicationList({ onTodayClick, navigate }) {
 
           {/* 필터 버튼 */}
           <div className="flex gap-2">
-            <select
+            <Select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={setSortBy}
               className="px-3 py-1.5 bg-white border border-[#E4E4E7] rounded-[8px] text-[13px] text-[#09090B] font-[500] outline-none"
-            >
-              <option value="latest">최신순</option>
-              <option value="name">이름순</option>
-            </select>
-            <select
+              options={[{ value: 'latest', label: '최신순' }, { value: 'name', label: '이름순' }]}
+            />
+            <Select
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
+              onChange={setCategoryFilter}
               className="px-3 py-1.5 bg-white border border-[#E4E4E7] rounded-[8px] text-[13px] text-[#09090B] font-[500] outline-none"
-            >
-              <option value="전체">전체</option>
-              <option value="처방약">처방약</option>
-              <option value="일반의약품">일반의약품</option>
-            </select>
+              options={[{ value: '전체', label: '전체' }, { value: '처방약', label: '처방약' }, { value: '일반의약품', label: '일반의약품' }]}
+            />
+
           </div>
 
           {/* 로딩 / 에러 */}
@@ -189,60 +217,95 @@ function MedicationList({ onTodayClick, navigate }) {
                   </p>
                 </div>
 
-                {/* ── ⋮ 버튼 + 드롭다운 메뉴 (복약 중 탭에서만) ── */}
-                {activeTab === '복약 중' && (
-                  <div className="relative shrink-0">
-                    <button
-                      onClick={(e) => handleMenuToggle(e, med.id)}
-                      className="p-1 text-[#A1A1AA] hover:text-[#52525B]"
+                {/* ── ⋮ 버튼 + 드롭다운 메뉴 ── */}
+                {/* 복약 중: 수정 / 종료 처리 · 복약 종료: 재개 / 삭제 */}
+                <div className="relative shrink-0">
+                  <button
+                    onClick={(e) => handleMenuToggle(e, med.id)}
+                    className="p-1 text-[#A1A1AA] hover:text-[#52525B]"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="12" cy="5" r="1.5" />
+                      <circle cx="12" cy="12" r="1.5" />
+                      <circle cx="12" cy="19" r="1.5" />
+                    </svg>
+                  </button>
+
+                  {openMenuId === med.id && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute right-0 top-7 z-20 w-32 bg-white border border-[#E4E4E7] rounded-[10px] shadow-lg overflow-hidden"
                     >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <circle cx="12" cy="5" r="1.5" />
-                        <circle cx="12" cy="12" r="1.5" />
-                        <circle cx="12" cy="19" r="1.5" />
-                      </svg>
-                    </button>
+                      {activeTab === '복약 중' ? (
+                        <>
+                          <button
+                            onClick={() => {
+                              setOpenMenuId(null)
+                              navigate(`/medication/form?mode=edit&id=${med.id}&source=${med.source}`)
+                            }}
+                            className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-[#09090B] font-[500] hover:bg-[#F4F4F5] transition-colors"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                            수정
+                          </button>
 
-                    {openMenuId === med.id && (
-                      <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="absolute right-0 top-7 z-20 w-32 bg-white border border-[#E4E4E7] rounded-[10px] shadow-lg overflow-hidden"
-                      >
-                        <button
-                          onClick={() => {
-                            setOpenMenuId(null)
-                            navigate(`/medication/form?mode=edit&id=${med.id}&source=${med.source}`)
-                          }}
-                          className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-[#09090B] font-[500] hover:bg-[#F4F4F5] transition-colors"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                          수정
-                        </button>
+                          <div className="border-t border-[#F4F4F5]" />
 
-                        <div className="border-t border-[#F4F4F5]" />
+                          <button
+                            onClick={() => {
+                              setOpenMenuId(null)
+                              handleDiscontinue(med)
+                            }}
+                            className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-[#52525B] font-[500] hover:bg-[#F4F4F5] transition-colors"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="12" cy="12" r="10" />
+                              <rect x="9" y="9" width="6" height="6" rx="1" />
+                            </svg>
+                            종료 처리
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => {
+                              setOpenMenuId(null)
+                              handleResume(med)
+                            }}
+                            className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-[#2563EB] font-[500] hover:bg-[#EFF6FF] transition-colors"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="1 4 1 10 7 10" />
+                              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                            </svg>
+                            재개
+                          </button>
 
-                        <button
-                          onClick={() => {
-                            setOpenMenuId(null)
-                            handleDelete(med.id)
-                          }}
-                          className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-red-400 font-[500] hover:bg-red-50 transition-colors"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                            <path d="M10 11v6M14 11v6" />
-                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                          </svg>
-                          종료 처리
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
+                          <div className="border-t border-[#F4F4F5]" />
+
+                          <button
+                            onClick={() => {
+                              setOpenMenuId(null)
+                              handleDelete(med.id)
+                            }}
+                            className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] text-red-400 font-[500] hover:bg-red-50 transition-colors"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                              <path d="M10 11v6M14 11v6" />
+                              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                            </svg>
+                            삭제
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
 
               </div>
             </div>

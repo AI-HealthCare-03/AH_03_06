@@ -88,7 +88,8 @@ function PrescriptionItem({ drug, onAsk, asking }) {
 }
 
 function GuideSection({ title, icon, guide }) {
-  if (!guide) return null
+  // 가이드가 아직 생성되지 않았으면 카드 자체를 숨긴다(무한 '생성 중' 노출 방지)
+  if (!guide || !guide.is_generated) return null
   return (
     <Card className="overflow-hidden">
       <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-50">
@@ -99,16 +100,9 @@ function GuideSection({ title, icon, guide }) {
         <span className="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">AI</span>
       </div>
       <div className="px-5 py-4">
-        {!guide.is_generated ? (
-          <div className="flex items-center gap-3 py-2">
-            <div className="w-5 h-5 rounded-full border-2 border-blue-400 border-t-transparent animate-spin shrink-0" />
-            <p className="text-sm text-neutral-400">AI가 가이드를 생성하고 있어요...</p>
-          </div>
-        ) : (
-          <p className="text-sm text-neutral-700 leading-relaxed whitespace-pre-line">
-            {guide.content}
-          </p>
-        )}
+        <p className="text-sm text-neutral-700 leading-relaxed whitespace-pre-line">
+          {guide.content}
+        </p>
       </div>
     </Card>
   )
@@ -159,7 +153,7 @@ function DeleteConfirmModal({ onConfirm, onCancel, deleting }) {
       <div className="relative w-full max-w-[320px] bg-white rounded-3xl px-6 py-7 shadow-2xl">
         <h3 className="text-base font-bold text-neutral-900 mb-2 text-center">진료기록 삭제</h3>
         <p className="text-sm text-neutral-500 text-center leading-relaxed mb-6">
-          진료기록을 삭제하면 처방약과<br />AI 가이드도 함께 삭제돼요.
+          진료기록을 삭제하면 처방약·복약 일정·<br />AI 가이드가 함께 삭제돼요.
         </p>
         <div className="flex gap-3">
           <button

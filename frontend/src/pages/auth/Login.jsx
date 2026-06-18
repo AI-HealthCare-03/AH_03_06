@@ -4,6 +4,15 @@ import { login } from '../../api/auth.js'
 import { loginSuccess } from '../../App.jsx'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons'
+import Select from '../../components/Select.jsx'
+
+const EMAIL_DOMAINS = [
+  { value: 'naver.com', label: 'naver.com' },
+  { value: 'gmail.com', label: 'gmail.com' },
+  { value: 'daum.net', label: 'daum.net' },
+  { value: 'kakao.com', label: 'kakao.com' },
+  { value: 'direct', label: '직접 입력' },
+]
 
 const ERROR_MAP = {
   invalid_email_or_password: '이메일 또는 비밀번호가 올바르지 않습니다.',
@@ -86,20 +95,13 @@ function Login() {
                   className="flex-1 min-w-0 h-[56px] bg-[#F5F5F5] rounded-[8px] px-4 text-[15px] text-[#18181B] outline-none border border-transparent focus:border-primary/20 placeholder:text-[#A1A1AA]"
                 />
                 <span className="text-[#71717A] font-medium shrink-0">@</span>
-                <div className="relative flex-1 min-w-0">
-                  <select
-                    value={domain}
-                    onChange={e => setDomain(e.target.value)}
-                    className="w-full h-[56px] bg-[#F5F5F5] rounded-[8px] px-4 pr-8 text-[15px] text-[#18181B] outline-none appearance-none border border-transparent focus:border-primary/20 cursor-pointer"
-                  >
-                    <option value="naver.com">naver.com</option>
-                    <option value="gmail.com">gmail.com</option>
-                    <option value="daum.net">daum.net</option>
-                    <option value="kakao.com">kakao.com</option>
-                    <option value="direct">직접 입력</option>
-                  </select>
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A1A1AA] text-[12px] pointer-events-none">▼</span>
-                </div>
+                <Select
+                  value={domain}
+                  onChange={setDomain}
+                  wrapperClassName="w-[136px] shrink-0"
+                  className="w-full h-[56px] bg-[#F5F5F5] rounded-[8px] px-4 text-[15px] text-[#18181B] outline-none border border-transparent focus:border-primary/20"
+                  options={EMAIL_DOMAINS}
+                />
               </div>
               {domain === 'direct' && (
                 <input
@@ -177,7 +179,7 @@ function Login() {
           <div className="flex flex-col gap-3 mb-[32px]">
             <button
               type="button"
-              onClick={() => window.location.href = `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1'}/auth/social/google`}
+              onClick={() => window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/social/google`}
               className="w-full h-[56px] bg-white border border-gray-200 text-[#18181B] text-[15px] font-bold rounded-[14px] flex items-center justify-center relative"
             >
               <span className="absolute left-5 text-[13px] font-bold text-gray-500 border border-gray-300 rounded-full w-[18px] h-[18px] flex items-center justify-center">G</span>
