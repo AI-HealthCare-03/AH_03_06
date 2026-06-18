@@ -62,6 +62,8 @@ app.add_middleware(
         "http://localhost:3000",
         "http://localhost:8000",
         "http://localhost:5173",
+        "https://vivahealth.site",
+        "https://www.vivahealth.site",
         "http://www.vivahealth.site",
         "http://vivahealth.site",
     ],
